@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -508,7 +508,20 @@ class EstimateOffsets(Component):
         retList.append(self.snrRet)
         return retList
 
-
+    def roundSnr(self,snr):
+        pw = 10
+        ret = 0
+        while pw > -7:
+            if  snr//10**pw:
+                break
+            pw -= 1
+        if pw < 0:
+            ret = round(snr,6)
+        else:
+            ret = round(snr*10**(6 - (pw + 1)))/10**(6 - (pw + 1))
+       
+        return ret
+     
     def getOffsetField(self):
         """Return and OffsetField object instead of an array of results"""
         offsets = OffsetField()
@@ -533,7 +546,8 @@ class EstimateOffsets(Component):
         self.locationDown = estimateoffsets.getLocationDown_Py(self.dim1_locationDown)
         self.locationDownOffset = estimateoffsets.getLocationDownOffset_Py(self.dim1_locationDownOffset)
         self.snrRet = estimateoffsets.getSNR_Py(self.dim1_snrRet)
-
+        for i in range(len(self.snrRet)):
+            self.snrRet[i] = self.roundSnr(self.snrRet[i])
         return
 
     def getLocationAcross(self):
@@ -637,25 +651,7 @@ class EstimateOffsets(Component):
         self.lineLength2 = None
         self.fileLength1 = None
         self.fileLength2 = None
-        self.dictionaryOfVariables = {
-                                      'LENGTH1' : ['lineLength1', 'int','mandatory'],
-                                      'LENGTH2' : ['lineLength2', 'int', 'mandatory'],
-                                      'F_LENGTH1' : ['fileLength1', 'int','mandatory'],
-                                      'F_LENGTH2' : ['fileLength2', 'int', 'mandatory'],
-                                      'FIRST_SAMPLE_ACROSS' : ['firstSampleAcross', 'int','mandatory'],
-                                      'LAST_SAMPLE_ACROSS' : ['lastSampleAcross', 'int','mandatory'],
-                                      'NUMBER_LOCATION_ACROSS' : ['numberLocationAcross', 'int','mandatory'],
-                                      'FIRST_SAMPLE_DOWN' : ['firstSampleDown', 'int','mandatory'],
-                                      'LAST_SAMPLE_DOWN' : ['lastSampleDown', 'int','mandatory'],
-                                      'NUMBER_LOCATION_DOWN' : ['numberLocationDown', 'int','mandatory'],
-                                      'ACROSS_GROSS_OFFSET' : ['acrossGrossOffset', 'int','optional'],
-                                      'DOWN_GROSS_OFFSET' : ['downGrossOffset', 'int','optional'],
-                                      'PRF1' : ['prf1', 'float','optional'],
-                                      'PRF2' : ['prf2', 'float','optional'],
-                                      'DEBUG_FLAG' : ['debugFlag', 'str','optional'],
-                                      'SEARCH_WINDOW_SIZE' : ['searchWindowSize', 'int', 'optional'],
-                                      'WINDOW_SIZE' : ['windowSize', 'int', 'optional']
-                                      }
+        
         self.dictionaryOfOutputVariables = { \
                                             'LOCATION_ACROSS' : 'locationAcross', \
                                             'LOCATION_ACROSS_OFFSET' : 'locationAcrossOffset', \

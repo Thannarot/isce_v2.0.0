@@ -35,6 +35,10 @@ if not os.path.exists(initFile):
 
 install = os.path.join(envSnaphu['PRJ_SCONS_INSTALL'],package,project)
 
+helpList,installHelp = envSnaphu['HELP_BUILDER'](envSnaphu,'__init__.py',install)
+envSnaphu.Install(installHelp,helpList)
+envSnaphu.Alias('install',installHelp)
+
 listFiles = ['Snaphu.py',initFile]
 envSnaphu.Install(install,listFiles)
 envSnaphu.Alias('install',install)

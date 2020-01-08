@@ -58,8 +58,8 @@ class SCH(object):
         """
         Calculate the cartesian coordinate of the point assuming the WGS-84 ellipsoid (to be fixed)
         """
-        ellipsoid = Ellipsoid(PlanetsData.ellipsoid['Earth']['WGS-84'][0],
-                              PlanetsData.ellipsoid['Earth']['WGS-84'][1])
+        ellipsoid = Ellipsoid(a=PlanetsData.ellipsoid['Earth']['WGS-84'][0],
+                              e2=PlanetsData.ellipsoid['Earth']['WGS-84'][1])
         llh = [self.peg.getLatitude(),self.peg.getLongitude(),0.0]
         xyz = ellipsoid.llh_to_xyz(llh)
         return xyz

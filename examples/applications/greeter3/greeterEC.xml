@@ -1,7 +1,7 @@
 <greeter>
     <component name="greeter">
-        <property name="name to use in greeting" doc="A cowboy named Mr Rogers">Roy</property>
 <!--
+          <property name="name to use in greeting" doc="A cowboy named Mr Rogers">Roy</property>
         <component name="Greeting message">
             <factorymodule>greetings</factorymodule>
             <factoryname>english_cowboy</factoryname>

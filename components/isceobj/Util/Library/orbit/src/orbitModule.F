@@ -10,17 +10,24 @@
                 integer(C_INT) :: basis
             end type orbitType
 
+            type, bind(C) :: stateVectorType
+                real(C_DOUBLE) :: time
+                real(C_DOUBLE), dimension(3) :: pos
+                real(C_DOUBLE), dimension(3) :: vel
+            end type stateVectorType
+
             integer, parameter :: WGS84_ORBIT = 1
             integer, parameter :: SCH_ORBIT = 2
 
 
             interface
 
-                subroutine initOrbit_f(orb, nvec)BIND(C,NAME='initOrbit')
+                subroutine initOrbit_f(orb,nvec,basis)BIND(C,NAME='initOrbit')
                     use, intrinsic :: iso_c_binding
                     import :: orbitType
                     type(orbitType) :: orb
                     integer(C_INT), value :: nvec
+                    integer(C_INT), value :: basis
                 end subroutine initOrbit_f
 
                 subroutine cleanOrbit_f(orb)BIND(C,NAME='cleanOrbit')
@@ -55,23 +62,53 @@
                     real(C_DOUBLE), dimension(3) :: vel
                 end subroutine setStateVector_f
 
-                subroutine interpolateWGS84Orbit_f(orb,t,pos,vel)BIND(C,NAME='interpolateWGS84Orbit')
+                function interpolateWGS84Orbit_f(orb,t,pos,vel)BIND(C,NAME='interpolateWGS84Orbit')
                     use, intrinsic :: iso_c_binding
                     import :: orbitType
                     type(orbitType) :: orb
                     real(C_DOUBLE), value :: t
                     real(C_DOUBLE), dimension(3) :: pos
                     real(C_DOUBLE), dimension(3) :: vel
-                end subroutine interpolateWGS84Orbit_f
+                    integer(C_INT) :: interpolateWGS84Orbit_f
+                end function interpolateWGS84Orbit_f
 
-                subroutine interpolateSCHOrbit_f(orb,t,pos,vel)BIND(C,NAME='interpolateSCHOrbit')
+                function interpolateLegendreOrbit_f(orb,t,pos,vel)BIND(C,NAME='interpolateLegendreOrbit')
                     use, intrinsic :: iso_c_binding
                     import :: orbitType
                     type(orbitType) :: orb
                     real(C_DOUBLE), value :: t
                     real(C_DOUBLE), dimension(3) :: pos
                     real(C_DOUBLE), dimension(3) :: vel
-                end subroutine interpolateSCHOrbit_f
+                    integer(C_INT) :: interpolateLegendreOrbit_f
+                end function interpolateLegendreOrbit_f
+
+                function interpolateSCHOrbit_f(orb,t,pos,vel)BIND(C,NAME='interpolateSCHOrbit')
+                    use, intrinsic :: iso_c_binding
+                    import :: orbitType
+                    type(orbitType) :: orb
+                    real(C_DOUBLE), value :: t
+                    real(C_DOUBLE), dimension(3) :: pos
+                    real(C_DOUBLE), dimension(3) :: vel
+                    integer(C_INT) :: interpoateSCHOrbit_f
+                end function interpolateSCHOrbit_f
+
+                function computeAcceleration_f(orb,t,acc)BIND(C,NAME='computeAcceleration')
+                    use, intrinsic :: iso_c_binding
+                    import :: orbitType
+                    type(orbitType) :: orb
+                    real(C_DOUBLE), value :: t
+                    real(C_DOUBLE), dimension(3) :: acc
+                    integer(C_INT) :: computeAcceleration_f
+                end function computeAcceleration_f
+
+                integer function interpolateOrbit_f(orb,t,pos,vel)
+                    use, intrinsic :: iso_c_binding
+                    import :: orbitType
+                    type(orbitType) :: orb
+                    real(C_DOUBLE), value :: t
+                    real(C_DOUBLE), dimension(3) :: pos
+                    real(C_DOUBLE), dimension(3) :: vel
+                end function interpolateOrbit_f
 
             end interface
 
@@ -96,7 +133,8 @@
 20                  close(unit)
                     
                     unit = 11
-                    call initOrbit_f(orb, nLines)
+                    i=0
+                    call initOrbit_f(orb, nLines, i)
                     unit = 11
                     open(unit, file=filename)
                     do i=1,nLines

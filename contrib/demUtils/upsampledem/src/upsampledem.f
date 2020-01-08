@@ -7,7 +7,6 @@
 !c**   FILE NAME: upsampledem.f
 !c**     
 !c**   DATE WRITTEN: 12/09/2013
-!c**   (editted extensively by Elaine Chapin 10/Oct/2002)
 !c**     
 !c**   PROGRAMMER: Piyush Agram
 !c**     
@@ -24,7 +23,7 @@
 !c**
 !c*****************************************************************
 
-      subroutine upsampledem(inAccessor,outAccessor) 
+      subroutine upsampledem(inAccessor,outAccessor,method) 
       
       use upsampledemState
       use AkimaLib
@@ -36,6 +35,7 @@
       integer*8 inAccessor,outAccessor
       character*20000 MESSAGE
       integer i,j,ii,jj,ip,xx,yy
+      integer method
       real*8 ix,iy
       real*4, allocatable, dimension(:,:) :: r_indata
       real*4, allocatable, dimension(:,:) :: r_outdata
@@ -45,6 +45,7 @@
       integer i_outnumlines,i_outsamples,npatch,i_line
       integer i_completed
 
+      real*4 interp2DSpline
       !!Overlap between patches for Akima-resampling
       integer , parameter :: i_overlap = 8
 
@@ -97,51 +98,102 @@
             endif
         enddo
 
-        !!Start interpolating the patch
-        do i=1,i_patch-i_overlap/2
-            i_line = (ip-1)*(i_patch-i_overlap) + i    !!Get input line number
-            if (i_line.gt.i_completed) then    !!Skip lines already completed
-                if (mod(i_line,100).eq.0) then
-                    write(MESSAGE,*)'Completed line: ', i_line
-                    call write_out(stdWriter, MESSAGE)
-                endif
+        if (method.eq.AKIMA_METHOD) then
+            !!Start interpolating the patch
+            do i=1,i_patch-i_overlap/2
+                i_line = (ip-1)*(i_patch-i_overlap) + i    !!Get input line number
+                if (i_line.gt.i_completed) then    !!Skip lines already completed
+                    if (mod(i_line,100).eq.0) then
+                        write(MESSAGE,*)'Completed line: ', i_line
+                        call write_out(stdWriter, MESSAGE)
+                    endif
 
-                do j=1,i_samples-1
-                    !!Create the Akima polynomial
-                    call polyfitAkima(i_samples, i_patch, r_indata,j,i,poly)
-                    do ii=1,i_yfactor
-                        iy = i + (ii-1)/(1.0*i_yfactor)
-                        yy = (i_line-1)*i_yfactor + ii
-                        do jj=1,i_xfactor
-                            ix =j + (jj-1)/(1.0*i_xfactor)
-                            xx = (j-1)*i_xfactor + jj
+                    do j=1,i_samples-1
+                        !!Create the Akima polynomial
+                        call polyfitAkima(i_samples, i_patch, r_indata,j,i,poly)
+                        do ii=1,i_yfactor
+                            iy = i + (ii-1)/(1.0*i_yfactor)
+                            yy = (i_line-1)*i_yfactor + ii
+                            do jj=1,i_xfactor
+                                ix =j + (jj-1)/(1.0*i_xfactor)
+                                xx = (j-1)*i_xfactor + jj
 
-                            !!Evaluate the Akima polynomial
-                            r_outdata(xx,ii) = polyvalAkima(j,i,ix,iy,poly)
+                                !!Evaluate the Akima polynomial
+                                r_outdata(xx,ii) = polyvalAkima(j,i,ix,iy,poly)
+                            enddo
                         enddo
                     enddo
-                enddo
 
-                !!Write lines to output
-                do ii=1,i_yfactor
-                    yy = (i_line-1)*i_yfactor + ii
-                    !!Fill out last data point
-                    r_outdata(i_outsamples,ii) = r_outdata(i_outsamples-1,ii)
-                    if(yy.lt.i_outnumlines) then
-                        call setLineSequential(outAccessor, r_outdata(:,ii))
-                        r_lastline = r_outdata(:,ii)
+                    !!Write lines to output
+                    do ii=1,i_yfactor
+                        yy = (i_line-1)*i_yfactor + ii
+                        !!Fill out last data point
+                        r_outdata(i_outsamples,ii) = r_outdata(i_outsamples-1,ii)
+                        if(yy.lt.i_outnumlines) then
+                            call setLineSequential(outAccessor, r_outdata(:,ii))
+                            r_lastline = r_outdata(:,ii)
+                        endif
+                    enddo
+
+                    i_completed = i_completed+1
+
+                    !!Fill out last line if needed
+                    if(i_completed.eq.(i_numlines-1)) then
+                        call setLineSequential(outAccessor, r_lastline)
+                        i_completed = i_completed + 1
                     endif
-                enddo
+                endif 
+            enddo !!End of patch interpolation
 
-                i_completed = i_completed+1
+        else if (method.eq.BIQUINTIC_METHOD) then
 
-                !!Fill out last line if needed
-                if(i_completed.eq.(i_numlines-1)) then
-                    call setLineSequential(outAccessor, r_lastline)
+            !!Start interpolating the path
+            do i=1,i_patch-i_overlap/2
+                i_line = (ip-1)*(i_patch-i_overlap) + i !!Get input line number
+                if (i_line .gt. i_completed) then   !!Skip lines already completed
+                    if (mod(i_line,100).eq.0) then
+                        write(MESSAGE,*) 'Completed line: ', i_line
+                        call write_out(stdWriter, MESSAGE)
+                    endif
+
+                    do j=1, i_samples-1
+                        
+                        do ii=1,i_yfactor
+                            iy = i + (ii-1)/(1.0*i_yfactor)
+                            yy = (i_line-1)*i_yfactor + ii
+                            do jj=1, i_xfactor
+                                ix = j + (jj-1)/(1.0*i_xfactor)
+                                xx = (j-1)*i_xfactor + jj
+
+                                r_outdata(xx,ii) = interp2DSpline(6,i_patch,i_samples,r_indata,iy,ix)
+                            end do
+                        end do
+                    end do
+
+                    !!Write lines to output
+                    do ii=1,i_yfactor
+                        yy = (i_line-1)*i_yfactor + ii
+                        !! Fill out last data point 
+                        r_outdata(i_outsamples,ii) = r_outdata(i_outsamples-1,ii)
+                        if (yy.lt.i_outnumlines) then
+                            call setLineSequential(outAccessor, r_outdata(:,ii))
+                            r_lastline = r_outdata(:,ii)
+                        endif
+                    enddo
+
                     i_completed = i_completed + 1
+
+                    !!Fill out last line if needed
+                    if (i_completed.eq.(i_numlines-1)) then
+                        call setLineSequential(outAccessor, r_lastline)
+                        i_completed = i_completed + 1
+                    endif
                 endif
-            endif 
-        enddo !!End of patch interpolation
+            enddo
+        else
+            print *, 'Unknown interpolation method: ', method
+            stop
+        endif
       enddo
                             
       deallocate(r_indata)

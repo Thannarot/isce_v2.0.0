@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -93,7 +93,10 @@ class CalcSchHeightVel(Component):
         ct = math.cos(rlatg)
         arg = (ct*ct)/(ra*ra) + (st*st)/(rc*rc)
         re = 1./math.sqrt(arg)
-
+        try:
+            re = self.pegRadCur
+        except:
+            pass
         # compute the vector orthogonal to both the radial vector and velocity vector */
 
         a = [xyz[0]/rs,xyz[1]/rs,xyz[2]/rs]
@@ -103,7 +106,7 @@ class CalcSchHeightVel(Component):
         c =  [(a[1]*b[2]) - (a[2]*b[1]),(-a[0]*b[2]) + (a[2]*b[0]),(a[0]*b[1]) - (a[1]*b[0])]
 
 #     /*  compute the look angle */
-        ct = (rs*rs+ro*ro-re*re)/(2.*rs*ro)
+        ct = (rs*rs+ro*ro-(re+self.terrainHeight)**2)/(2.*rs*ro)
         st = math.sin(math.acos(ct))
 
 #     /* add the satellite and LOS vectors to get the new point */
@@ -200,6 +203,12 @@ class CalcSchHeightVel(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
+            try:
+                self.terrainHeight = frame.terrainHeight
+                self.pegRadCur = frame._ellipsoid.pegRadCur
+            except:
+                self.terrainHeight = 0.0
+
     def addPlanet(self):
         planet = self._inputPorts.getPort('planet').getObject()
         if (planet):
@@ -215,7 +224,7 @@ class CalcSchHeightVel(Component):
 
     def __init__(self):
         super(CalcSchHeightVel, self).__init__()
-        planet = Planet.Planet('Earth')
+        planet = Planet.Planet(pname='Earth')
         ellipsoid = planet.get_elp()
         self.a = ellipsoid.get_a()
         self.e2 = ellipsoid.get_e2()
@@ -229,7 +238,7 @@ class CalcSchHeightVel(Component):
         self.pos = None
         self.vel = None
         self.offset = 2.3758
-
+        self.terrainHeight = 0.0
 #        self.logger = logging.getLogger("CalcSchHeightVel")
 #        self.createPorts()
         self.dictionaryOfOutputVariables = {

@@ -8,7 +8,7 @@
 #include <fstream>
 using namespace std;
 
-static char * const __doc__ = "Python extension for icu.F";
+static const char * const __doc__ = "Python extension for icu.F";
 
 PyModuleDef moduledef = {
     // header
@@ -375,4 +375,3 @@ PyObject* setTreeType_C(PyObject* self, PyObject* args)
     setTreeType_f(&len);
     return Py_BuildValue("i",0);
 }
-

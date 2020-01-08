@@ -149,7 +149,8 @@ long read_ALOS_data (FILE *imagefile, FILE *outfile, struct PRM *prm, long *byte
 		data_length = record_length1;
 
 		/* write line header to output data  */
-          	fwrite((void *) &sdr, line_prefix_size, 1, outfile);
+                /* PSA turning off headers
+          	fwrite((void *) &sdr, line_prefix_size, 1, outfile); */
 
 		/* write data */
 	  	if (shift == 0) {

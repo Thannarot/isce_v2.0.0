@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,7 +28,7 @@ infileT infile[1];
 outfileT outfile[1];
 paramT params[1];
 
-static char * const __doc__ =
+static const char * const __doc__ =
     "snaphu module for unwrapping interferograms";
 
 PyModuleDef moduledef = {
@@ -317,3 +317,33 @@ PyObject *setConnectedComponentThreshold_C(PyObject *self, PyObject *args)
     return Py_BuildValue("i", 0);
 }
 
+PyObject *setIntFileFormat_C(PyObject *self, PyObject *args)
+{
+    int flag;
+    if (!PyArg_ParseTuple(args,"i",&flag))
+    {
+        return NULL;
+    }
+    infile->infileformat = flag;
+    return Py_BuildValue("i",0);
+}
+PyObject *setUnwFileFormat_C(PyObject *self, PyObject *args)
+{
+    int flag;
+    if (!PyArg_ParseTuple(args,"i",&flag))
+    {
+        return NULL;
+    }
+    outfile->outfileformat = flag;
+    return Py_BuildValue("i",0);
+}
+PyObject *setCorFileFormat_C(PyObject *self, PyObject *args)
+{
+    int flag;
+    if (!PyArg_ParseTuple(args,"i",&flag))
+    {
+        return NULL;
+    }
+    infile->corrfileformat = flag;
+    return Py_BuildValue("i",0);
+}

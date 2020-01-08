@@ -1,18 +1,18 @@
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-! Copyright: 2010 to the present, California Institute of Technology.
-! ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-! Any commercial use must be negotiated with the Office of Technology Transfer
-! at the California Institute of Technology.
+! copyright: 2010 to the present, california institute of technology.
+! all rights reserved. united states government sponsorship acknowledged.
+! any commercial use must be negotiated with the office of technology transfer
+! at the california institute of technology.
 ! 
-! This software may be subject to U.S. export control laws. By accepting this
-! software, the user agrees to comply with all applicable U.S. export laws and
-! regulations. User has the responsibility to obtain export licenses,  or other
+! this software may be subject to u.s. export control laws. by accepting this
+! software, the user agrees to comply with all applicable u.s. export laws and
+! regulations. user has the responsibility to obtain export licenses,  or other
 ! export authority as may be required before exporting such information to
 ! foreign countries or providing access to foreign persons.
 ! 
-! Installation and use of this software is restricted by a license agreement
-! between the licensee and the California Institute of Technology. It is the
-! User's responsibility to abide by the terms of the license agreement.
+! installation and use of this software is restricted by a license agreement
+! between the licensee and the california institute of technology. it is the
+! user's responsibility to abide by the terms of the license agreement.
 !
 ! Author: Giangi Sacco
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,37 +22,25 @@
 
 
         module resamp_slcState
-            integer*8 ptStdWriter
-            integer i_ma
-            integer npl
-            integer nl
-            integer istoff
-            real*4 WVL
-            real*4 SLR
-            double precision, allocatable, dimension(:) ::  dopplerCoefficients
-            integer dim1_dopplerCoefficients
-            double precision, allocatable, dimension(:) ::  r_ranposV
-            integer dim1_r_ranpos
-            double precision, allocatable, dimension(:) ::  r_ranoffV
-            integer dim1_r_ranoff
-            double precision, allocatable, dimension(:) ::  r_azposV
-            integer dim1_r_azpos
-            double precision, allocatable, dimension(:) ::  r_azoffV
-            integer dim1_r_azoff
-            double precision, allocatable, dimension(:) ::  r_sigV
-            integer dim1_r_sig
-            double precision, allocatable, dimension(:) ::  r_ranpos2V
-            integer dim1_r_ranpos2
-            double precision, allocatable, dimension(:) ::  r_ranoff2V
-            integer dim1_r_ranoff2
-            double precision, allocatable, dimension(:) ::  r_azpos2V
-            integer dim1_r_azpos2
-            double precision, allocatable, dimension(:) ::  r_azoff2V
-            integer dim1_r_azoff2
-            double precision, allocatable, dimension(:) ::  r_sig2V
-            integer dim1_r_sig2
-            double precision, allocatable, dimension(:) ::  azimuthCarrier
-            integer dim1_azimuthCarrier
-            double precision, allocatable, dimension(:) ::  rangeCarrier
-            integer dim1_rangeCarrier
+            use poly2dModule
+            integer outwidth
+            integer outlength
+            integer inwidth
+            integer inlength
+            integer iscomplex
+            integer method
+            integer flatten
+            real*8 WVL
+            real*8 SLR
+            real*8 R0
+
+            real*8 REFWVL
+            real*8 REFR0
+            real*8 REFSLR
+
+            type(poly2dType) :: rgCarrier
+            type(poly2dType) :: azCarrier
+            type(poly2dType) :: rgOffsetsPoly
+            type(poly2dType) :: azOffsetsPoly
+            type(poly2dType) :: dopplerPoly
         end module 

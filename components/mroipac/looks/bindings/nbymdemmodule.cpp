@@ -19,7 +19,7 @@
 #include "ImageAccessor.h"
 using namespace std;
 
-static char * const __doc__ = "Python extension for nbydem.F";
+static const char * const __doc__ = "Python extension for nbydem.F";
 
 PyModuleDef moduledef = {
     // header
@@ -51,7 +51,7 @@ PyInit_nbymdem()
 }
 
 
-PyObject * nbymdem_C(PyObject* self, PyObject* args) 
+PyObject * nbymdem_C(PyObject* self, PyObject* args)
 {
     char * inputImage;
     char * outputImage;
@@ -59,70 +59,68 @@ PyObject * nbymdem_C(PyObject* self, PyObject* args)
     int lenOut = 0;
     char enIn = 'n';
     char enOut = 'n';
-    int lenEnIn = 0;
-    int lenEnOut = 0;
     string inmode = "read";
     string typeIn = "SHORT";
     string typeOut = "SHORT";
     string outmode = "write";
-    int width = 0; 
+    int width = 0;
     int navg = 0;//average along width
     int mavg = 0;//average along length
     int flag = 0;
     int length = -1;
-    
+
     PyObject * dictionary = NULL;
     //put explicity the mandatory args and in a dictionary the optionals
-    if(!PyArg_ParseTuple(args, "s#s#iii|O", &inputImage,&lenIn,&outputImage,&lenOut,&width,&navg,&mavg,&dictionary)) 
+    if(!PyArg_ParseTuple(args, "s#s#iii|O", &inputImage,&lenIn,&outputImage,&lenOut,&width,&navg,&mavg,&dictionary))
     {
-	return NULL;  
+        return NULL;
     }
     if((dictionary != NULL))
     {
-	PyObject * lengthPy = PyDict_GetItemString(dictionary,"LENGTH");
-	if(lengthPy != NULL)
-	{
-	    length = (int) PyLong_AsLong(lengthPy);
-	}
-	PyObject * flagPy = PyDict_GetItemString(dictionary,"UNDEFINED_PIXEL");
-	if(flagPy != NULL)
-	{
-	    flag = (int) PyLong_AsLong(flagPy);
-	}
-	PyObject * enInPy = PyDict_GetItemString(dictionary,"INPUT_ENDIANNESS");
-	if(enInPy != NULL)
-	{
-	    char * inEndian = PyBytes_AsString(enInPy);
-	    enIn = inEndian[0];
-	}
-	PyObject * enOutPy = PyDict_GetItemString(dictionary,"OUTPUT_ENDIANNESS");
-	if(enOutPy != NULL)
-	{
-	    char * outEndian = PyBytes_AsString(enOutPy);
-	    enOut = outEndian[0];
-	}
-	 
+        PyObject * lengthPy = PyDict_GetItemString(dictionary,"LENGTH");
+        if(lengthPy != NULL)
+        {
+            length = (int) PyLong_AsLong(lengthPy);
+        }
+        PyObject * flagPy = PyDict_GetItemString(dictionary,"UNDEFINED_PIXEL");
+        if(flagPy != NULL)
+        {
+            flag = (int) PyLong_AsLong(flagPy);
+        }
+        PyObject * enInPy = PyDict_GetItemString(dictionary,"INPUT_ENDIANNESS");
+        if(enInPy != NULL)
+        {
+            char * inEndian = PyBytes_AsString(enInPy);
+            enIn = inEndian[0];
+        }
+        PyObject * enOutPy = PyDict_GetItemString(dictionary,"OUTPUT_ENDIANNESS");
+        if(enOutPy != NULL)
+        {
+            char * outEndian = PyBytes_AsString(enOutPy);
+            enOut = outEndian[0];
+        }
+
     }
     int wido = width/navg;
     vector<short int> b1(width*mavg,0);
     vector<short int> bout(wido,0);
     string infile = inputImage;
     string outfile = outputImage;
-    ImageAccessor IAIn;    
-    ImageAccessor IAOut;    
-    if( enIn == 'n')//use as default the machine endianness 
+    ImageAccessor IAIn;
+    ImageAccessor IAOut;
+    if( enIn == 'n')//use as default the machine endianness
     {
-	enIn = IAIn.getMachineEndianness();	
+        enIn = IAIn.getMachineEndianness();
     }
-    if( enOut == 'n')//use as default the machine endianness 
+    if( enOut == 'n')//use as default the machine endianness
     {
-	enOut = IAOut.getMachineEndianness();	
+        enOut = IAOut.getMachineEndianness();
     }
     IAIn.initImageAccessor(infile,inmode,enIn,typeIn,width);
     IAOut.initImageAccessor(outfile,outmode,enOut,typeOut,wido);
     if(length == -1)
     {
-	length = IAIn.getFileLength();
+        length = IAIn.getFileLength();
     }
     int outLength = length/mavg;
     int indX = 0;
@@ -131,31 +129,31 @@ PyObject * nbymdem_C(PyObject* self, PyObject* args)
     for(int i = 0; i < outLength; ++i)
     {
 
-	numEl = width*mavg;
-	indY = i*mavg + 1;
-	indX = 1;
-	IAIn.getSequentialElements((char *) &b1[0], indY, indX,numEl);
-	for(int j = 0; j < wido; ++j)
-	{
-	    int numGood = 0;
-	    for(int k = 0; k < navg; ++k)
-	    {
-		for(int l = 0; l < mavg; ++l)
-		{
-		    if(b1[k + j*navg + l*width] != flag)
-		    {
-			bout[j] += b1[k + j*navg + l*width]; 
-			++numGood;
-		    }
-		}
-	    }
-	    if(numGood)
-	    {
-		bout[j] /= numGood; 
-	    }
-	}
-	IAOut.setLineSequential((char *) &bout[0]);
-	bout.assign(wido,0);
+        numEl = width*mavg;
+        indY = i*mavg + 1;
+        indX = 1;
+        IAIn.getSequentialElements((char *) &b1[0], indY, indX,numEl);
+        for(int j = 0; j < wido; ++j)
+        {
+            int numGood = 0;
+            for(int k = 0; k < navg; ++k)
+            {
+                for(int l = 0; l < mavg; ++l)
+                {
+                    if(b1[k + j*navg + l*width] != flag)
+                    {
+                        bout[j] += b1[k + j*navg + l*width];
+                        ++numGood;
+                    }
+                }
+            }
+            if(numGood)
+            {
+                bout[j] /= numGood;
+            }
+        }
+        IAOut.setLineSequential((char *) &bout[0]);
+        bout.assign(wido,0);
     }
     IAIn.finalizeImageAccessor();
     IAOut.finalizeImageAccessor();

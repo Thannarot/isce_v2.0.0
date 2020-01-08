@@ -78,7 +78,10 @@ class ISCEOrbit(object):
 
         for root, dirs, files in os.walk(tmpDir):
             for filename in files:
-                os.unlink(os.path.join(tmpDir, filename))
+                try:
+                    os.unlink(os.path.join(tmpDir, filename))
+                except:
+                    os.system("rm "+os.path.join(tmpDir, filename))
 
         os.rmdir(tmpDir)
 
@@ -133,21 +136,37 @@ PCK_FILE            = ('{2}')
 
         txtString="\\begintext"
 
+        tfirst = self.orbit._stateVectors[0].getTime()
+
         leap = self.db['LEAPSECONDS']
-        pck = self.db['EARTHHIGHRES']
+
+        if tfirst.date() < datetime.date(2000,1,1):
+            pck = self.db['EARTHHIGHRES']
+        else:
+            pck = self.db['EARTHHIGHRESLATEST']
         tod = self.db['EARTHECI_TOD']
 
         #####Link them to temp dir
         tmpdir = os.path.dirname(setupfile)
         leaplnk = os.path.join(tmpdir, os.path.basename(leap))
-        os.link(leap, leaplnk)
+        try:
+            os.link(leap, leaplnk)
+        except:
+            os.system("ln -s "+leap+" "+leaplnk)
 
         pcklnk = os.path.join(tmpdir, os.path.basename(pck))
-        os.link(pck, pcklnk)
+        try:
+            os.link(pck, pcklnk)
+        except:
+            os.system("ln -s "+pck+" "+pcklnk)
+
 
         if frame == 'ECI_TOD':
             todlnk = os.path.join(tmpdir, os.path.basename(tod))
-            os.link(tod, todlnk)
+            try:
+                os.link(tod, todlnk)
+            except:
+                os.system("ln -s "+tod+" "+todlnk)
 
         outstr = fmtString.format(frame, leaplnk, pcklnk)
 

@@ -36,7 +36,7 @@ Cosar::Cosar(std::string input, std::string output)
     }
     try {
         this->header = new Header(this->isBigEndian);
-    } catch(char *ex) {
+    } catch(const char *ex) {
         throw;
     }
 }

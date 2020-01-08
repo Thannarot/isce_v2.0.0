@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,53 +37,74 @@ from iscesys.Component.Component import Component
 from iscesys.DateTimeUtil.DateTimeUtil import DateTimeUtil as DTU
 #from Sensor.ReadOrbitPulseERS import ReadOrbitPulseERS
 from isceobj.Sensor import xmlPrefix
+from isceobj.Util.decorators import pickled, logged
+
+
+LEADERFILE = Component.Parameter('_leaderFileList',
+    public_name='LEADERFILE',
+    default = '',
+    container=list,
+    type=str,
+    mandatory=True,
+    doc="List of names of ALOS Leaderfile"
+)
+
+IMAGEFILE = Component.Parameter('_imageFileList',
+    public_name='IMAGEFILE',
+    default = '',
+    container=list,
+    type=str,
+    mandatory=True,
+    doc="List of names of ALOS Imagefile"
+)
+
+ORBIT_TYPE = Component.Parameter('_orbitType',
+    public_name='ORBIT_TYPE',
+    default='',
+    type=str,
+    mandatory=True,
+    doc="Options: ODR, PRC, PDS"
+)
+
+ORBIT_DIRECTORY = Component.Parameter('_orbitDir',
+    public_name='ORBIT_DIRECTORY',
+    default='',
+    type=str,
+    mandatory=False,
+    doc="Path to the directory containing the orbit files."
+)
+
+ORBIT_FILE = Component.Parameter('_orbitFile',
+    public_name='ORBIT_FILE',
+    default='',
+    type=str,
+    mandatory=False,
+    doc='Only used with PDS ORBIT_TYPE'
+)
 
 ##
 # Code to read CEOSFormat leader files for ERS-1/2 SAR data.  The tables used
 # to create this parser are based on document number ER-IS-EPO-GS-5902.1 from
 # the European Space Agency.
-class ERS(Component):
 
-    #Parsers.CEOS.CEOSFormat.ceosTypes['text'] =
-    #    {'typeCode': 63, 'subtypeCode': [18,18,18]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['leaderFile'] =
-    #    {'typeCode': 192, 'subtypeCode': [63,18,18]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['dataSetSummary'] =
-    #    {'typeCode': 10, 'subtypeCode': [10,31,20]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['platformPositionData'] =
-    #    {'typeCode': 30, 'subtypeCode': [10,31,20]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['facilityData'] =
-    #    {'typeCode': 200, 'subtypeCode': [10,31,50]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['datafileDescriptor'] =
-    #    {'typeCode': 192, 'subtypeCode':[63,18,18]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['signalData'] =
-    #    {'typeCode': 10, 'subtypeCode': [50,31,20]}
-    #Parsers.CEOS.CEOSFormat.ceosTypes['nullFileDescriptor'] =
-    #    {'typeCode': 192, 'subtypeCode': [192,63,18]}
+from .Sensor import Sensor
+class ERS(Sensor):
 
+    family = 'ers'
     logging_name = 'isce.sensor.ers'
 
-    def __init__(self):
-        Component.__init__(self)
+    parameter_list = (IMAGEFILE,
+                      LEADERFILE,
+                      ORBIT_TYPE,
+                      ORBIT_DIRECTORY,
+                      ORBIT_FILE)     + Sensor.parameter_list
+
+    @logged
+    def __init__(self, name=''):
+        super().__init__(family=self.__class__.family, name=name)
         self._leaderFile = None
-        self._imageFileList = ''
-        self._leaderFileList = ''
         self._imageFile = None
-        self._orbitDir = None # Use this for Delft Orbit files
-        self._orbitFile = None # Use this for PDS Orbit files for now
-        self._orbitType = None
         self.frameList = []
-        self.output = None
-
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {
-            'ORBIT_TYPE': ['self._orbitType','str','mandatory'],
-            'ORBIT_DIRECTORY': ['self._orbitDir','str','optional'],
-            'ORBIT_FILE': ['self._orbitFile','str','optional'],
-            'LEADERFILE': ['self._leaderFileList','str','mandatory'],
-            'IMAGEFILE': ['self._imageFileList','str','mandatory'],
-            'OUTPUT': ['self.output','str','optional']}
-
 
         self.frame = Frame()
         self.frame.configure()
@@ -141,7 +162,7 @@ class ERS(Component):
             'Sensor platform mission identifier'])
         platform.setAntennaLength(self.constants['antennaLength'])
         platform.setPointingDirection(-1)
-        platform.setPlanet(Planet('Earth'))
+        platform.setPlanet(Planet(pname='Earth'))
 
     def _populateInstrument(self):
         """Populate the instrument object with metadata"""
@@ -243,6 +264,8 @@ class ERS(Component):
         arclist = Arclist(os.path.join(self._orbitDir,'arclist'))
         arclist.parse()
         orbitFile = arclist.getOrbitFile(self.frame.getSensingStart())
+        self.logger.info('Using ODR file: ' + orbitFile)
+
         odr = ODR(file=os.path.join(self._orbitDir,orbitFile))
         #jng it seem that for this tipe of orbit points are separated by 60 sec. In ODR at least 9 state vectors are needed to compute the velocities. add
         # extra time before and after to allow interpolation, but do not do it for all data points. too slow
@@ -290,10 +313,6 @@ class ERS(Component):
     def extractImage(self):
         import array
         import math
-        # just in case there was only one image and it was passed as a str instead of a list with only one element
-        if(isinstance(self._imageFileList,str)):
-            self._imageFileList = [self._imageFileList]
-            self._leaderFileList = [self._leaderFileList]
         if(len(self._imageFileList) != len(self._leaderFileList)):
             self.logger.error("Number of leader files different from number of image files.")
             raise Exception
@@ -551,6 +570,7 @@ class ImageFile(object):
 
             lineGap = lineCounter - lastLineCounter-1
             #self.logger.debug("Line Counter: %s Last Line Counter: %s Line Gap: %s line: %s" % (lineCounter,lastLineCounter,lineGap,line))
+            skipLine = False
             if (lineGap > 0):
                 if (lineGap > 30000):
                     self.logger.warn("Bad Line Counter on line %s, Gap length too large (%s)" % (line+1,lineGap))
@@ -564,6 +584,8 @@ class ImageFile(object):
                 for i in range(lineGap):
                     IQ.tofile(output) # It may be better to fill missing lines with random 15's and 16's rather than copying the last good line
                     lastLineCounter += 1
+            elif (lineGap == -1):
+                skipLine = True
             elif (lineGap < 0):
                 self.logger.warn("Unusual Line Gap %s at line %s" % (lineGap,(line+1)))
                 raise IndexError
@@ -581,8 +603,9 @@ class ImageFile(object):
             #IQ.extend([random.randint(15,16)*x for x in [1]*rightPad])
             IQ.extend([IQLine[i] for i in range(rightPad)])
             # Output the padded line
-            IQ.tofile(output)
-            lastLineCounter += 1
+            if not skipLine:
+                IQ.tofile(output)
+                lastLineCounter += 1
 
         imageData.finalizeParser()
         fp.close()
@@ -654,3 +677,21 @@ class ImageFile(object):
         self.width = 2*pixelCount + pad
 
         return self.maxSwst,self.minSwst
+
+
+    #Parsers.CEOS.CEOSFormat.ceosTypes['text'] =
+    #    {'typeCode': 63, 'subtypeCode': [18,18,18]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['leaderFile'] =
+    #    {'typeCode': 192, 'subtypeCode': [63,18,18]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['dataSetSummary'] =
+    #    {'typeCode': 10, 'subtypeCode': [10,31,20]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['platformPositionData'] =
+    #    {'typeCode': 30, 'subtypeCode': [10,31,20]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['facilityData'] =
+    #    {'typeCode': 200, 'subtypeCode': [10,31,50]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['datafileDescriptor'] =
+    #    {'typeCode': 192, 'subtypeCode':[63,18,18]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['signalData'] =
+    #    {'typeCode': 10, 'subtypeCode': [50,31,20]}
+    #Parsers.CEOS.CEOSFormat.ceosTypes['nullFileDescriptor'] =
+    #    {'typeCode': 192, 'subtypeCode': [192,63,18]}

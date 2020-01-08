@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -27,14 +27,150 @@ Compatibility.checkPythonVersion()
 from contrib.demUtils import correct_geoid_i2_srtm
 from isceobj.Image.Image import Image
 
+CONVERSION_TYPE = Component.Parameter(
+    '_conversionType',
+    public_name='CONVERSION_TYPE',
+    default=-1,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='The reference conversion. If -1  EGM96 -> WGS84, if 1 WGS84 -> EGM96.'
+)
+
+
+DELTA_LATITUDE = Component.Parameter(
+    '_deltaLatitude',
+    public_name='DELTA_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Latitude increment of the DEM.'
+)
+
+
+DELTA_LONGITUDE = Component.Parameter(
+    '_deltaLongitude',
+    public_name='DELTA_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Longitude increment of the DEM.'
+)
+
+
+GEOID_FILENAME = Component.Parameter(
+    '_geoidFilename',
+    public_name='GEOID_FILENAME',
+    default=os.path.join(os.path.dirname(os.path.abspath(__file__)),'egm96geoid.dat'),
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Geoid filename name used for the conversion. Default egm96geoid.dat.'
+)
+
+
+INPUT_FILENAME = Component.Parameter(
+    '_inputFilename',
+    public_name='INPUT_FILENAME',
+    default='',
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Name of the DEM file.'
+)
+
+
+OUTPUT_FILENAME = Component.Parameter(
+    '_outputFilename',
+    public_name='OUTPUT_FILENAME',
+    default='',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Name of the output filename.'
+)
+
+
+OVERWRITE_INPUT_FILE_FLAG = Component.Parameter(
+    '_overwriteInputFileFlag',
+    public_name='OVERWRITE_INPUT_FILE_FLAG',
+    default=False,
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Flag that if set overwrites the input file with the result of the conversion.'
+)
+
+
+START_LATITUDE = Component.Parameter(
+    '_startLatitude',
+    public_name='START_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Starting latitude.'
+)
+
+
+START_LONGITUDE = Component.Parameter(
+    '_startLongitude',
+    public_name='START_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Starting longitude.'
+)
+
+
+WIDTH = Component.Parameter(
+    '_width',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Width of the DEM.'
+)
+
+NULL_IS_WATER = Component.Parameter(
+        '_nullIsWater',
+        public_name='NULL_IS_WATER',
+        default=True,
+        type = bool,
+        mandatory = True,
+        intent = 'input',
+        doc = 'Treat null values as water/ invalid data')
+
+
 class Correct_geoid_i2_srtm(Component):
+
+
+    parameter_list = (
+                      GEOID_FILENAME,
+                      DELTA_LATITUDE,
+                      START_LONGITUDE,
+                      OVERWRITE_INPUT_FILE_FLAG,
+                      DELTA_LONGITUDE,
+                      START_LATITUDE,
+                      CONVERSION_TYPE,
+                      INPUT_FILENAME,
+                      WIDTH,
+                      OUTPUT_FILENAME,
+                      NULL_IS_WATER
+                     )
+
 
     
     ## This is how it is used, so I amde a call.
     def __call__(self, dem_image, ctype=-1, ext='.wgs84'):
         self.wireInputPort(name='demImage', object=dem_image)
         self.conversionType = ctype
-        self.outputFilename = dem_image.filename + ext
+        #make sure it write in the cwd and not from where the input file was read 
+        self.outputFilename = self._outputFilename if self._outputFilename else os.path.basename(dem_image.filename) + ext
         self.correct_geoid_i2_srtm()
         self.createXmlMetadata()
         return self.image
@@ -78,6 +214,8 @@ class Correct_geoid_i2_srtm(Component):
         #no need to pass the dictionaryOfFacilities since init will use the default one
         demImage.init(dictProp)
         demImage.renderHdr()
+        demImage.metadatalocation = self.outputFilename + '.xml'
+
         self._image = demImage
 
 
@@ -91,6 +229,7 @@ class Correct_geoid_i2_srtm(Component):
         correct_geoid_i2_srtm.setNumberLines_Py(int(self._numberLines))
         correct_geoid_i2_srtm.setConversionType_Py(int(self.conversionType))
         correct_geoid_i2_srtm.setGeoidFilename_Py(self.geoidFilename)
+        correct_geoid_i2_srtm.setNullIsWater_Py(int(self.nullIsWater))
 
         return
 
@@ -98,7 +237,7 @@ class Correct_geoid_i2_srtm(Component):
         #the fortran code used to read in short, convert to float and convert back to short.
         #let's use the image api and the casters to do that. The image in input can be of any
         # comptible type
-        inImage = Image()
+        inImage = self._dem.clone()
         #reads short and convert to float
         inImage.initImage(self.inputFilename,'read',self.width,self.dataType)
         #create a suitable caster from self.dataType to self._dataTypeBindings
@@ -109,10 +248,12 @@ class Correct_geoid_i2_srtm(Component):
         #if name not provided assume overwrite of input
         import random  
         if(not self.outputFilename):
-            self.outputFilename = self.inputFilename + str(int(random.random()*100000)) #add 6 digit random number to input filename 
+            self.outputFilename = os.path.basename(self.inputFilename) + str(int(random.random()*100000)) #add 6 digit random number to input filename 
             self.overwriteInputFileFlag = True
         #manages float and writes out short
         outImage.initImage(self.outputFilename,'write',self.width,self.dataType)
+        outImage.metadatalocation = self.outputFilename
+
         #create a suitable caster from self._dataTypeBindings to self.dataType
         outImage.setCaster('write',self._dataTypeBindings)
         outImage.createImage()
@@ -159,8 +300,13 @@ class Correct_geoid_i2_srtm(Component):
     def setGeoidFilename(self,var):
         self._geoidFilename = str(var)
         return
+
     def setReference(self,var):
         self._reference = var
+        return
+
+    def setNullIsWater(self, var):
+        self._nullIsWater = var
         return
 
     def getInputFilename(self):
@@ -210,11 +356,15 @@ class Correct_geoid_i2_srtm(Component):
         else:
             self._reference = 'EGM96'
         return self._reference
+
+    def getNullIsWater(self):
+        return self._nullIsWater
      
     def addDemImage(self):
         dem = self._inputPorts['demImage']
         if dem:
             try:
+                self._dem = dem.clone()
                 self._inputFilename = dem.filename
                 self._width = dem.width
                 self._dataType = dem.dataType
@@ -227,19 +377,12 @@ class Correct_geoid_i2_srtm(Component):
                 raise AttributeError
      
         
-    def __init__(self, stdWriter=None):
-        super(Correct_geoid_i2_srtm,self).__init__()
-        self._inputFilename = ''
+    family = 'correct_geoid_i2_srtm'
+
+    def __init__(self, stdWriter=None,family='',name=''):
+        super(Correct_geoid_i2_srtm, self).__init__(family if family else  self.__class__.family, name=name)
         #if not provided it assumes that we want to overwrite the input
-        self._outputFilename = ''
-        self._overwriteInputFileFlag = False
-        self._width = None
-        self._startLatitude = None
-        self._startLongitude = None
-        self._deltaLatitude = None
-        self._deltaLongitude = None
         self._numberLines = None
-        self._conversionType = -1 #1 ellipsoid (WGS84)->geoid (EGM96), -1 vice versa
         self._image = None
         self._reference = None
         if(stdWriter):
@@ -254,23 +397,6 @@ class Correct_geoid_i2_srtm(Component):
 
         self._inputPorts.add(demImagePort)
         #make sure that the .dat file is in the executing directory
-        self._geoidFilename = os.path.join(os.path.dirname(os.path.abspath(__file__)),'egm96geoid.dat')
-        self.dictionaryOfVariables = { \
-                                      'WIDTH' : ['width', 'int','mandatory'], \
-                                      'INPUT_FILENAME' : ['inputFilename', 'str','mandatory'], \
-                                      'OUTPUT_FILENAME' : ['outputFilename', 'str','optional'], \
-                                      'OVERWRITE_INPUT_FILE_FLAG' : ['overwriteInputFileFlag', 'str','optional'], \
-                                      'START_LATITUDE' : ['startLatitude', 'float','mandatory'], \
-                                      'START_LONGITUDE' : ['startLongitude', 'float','mandatory'], \
-                                      'DELTA_LATITUDE' : ['deltaLatitude', 'float','mandatory'], \
-                                      'DELTA_LONGITUDE' : ['deltaLongitude', 'float','mandatory'], \
-                                      'CONVERSION_TYPE' : ['conversionType', 'int','mandatory'], \
-                                      'GEOID_FILENAME' : ['geoidFilename', 'str','mandatory'] \
-                                      }
-        self.dictionaryOfOutputVariables = {                                            }
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
         self.initOptionalAndMandatoryLists()
         return
 
@@ -287,5 +413,6 @@ class Correct_geoid_i2_srtm(Component):
     deltaLongitude = property(getDeltaLongitude,setDeltaLongitude)
     conversionType = property(getConversionType,setConversionType)
     geoidFilename = property(getGeoidFilename,setGeoidFilename)
+    nullIsWater = property(getNullIsWater, setNullIsWater)
 
     pass

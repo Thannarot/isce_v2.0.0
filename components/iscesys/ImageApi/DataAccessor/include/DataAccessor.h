@@ -1,4 +1,4 @@
-#ifndef DataAccessor_h
+  #ifndef DataAccessor_h
 #define DataAccessor_h
 
 #ifndef MESSAGE
@@ -8,9 +8,10 @@
 #define ERR_MESSAGE cout << "Error in file " << __FILE__ << " at line " << __LINE__  << " Exiting" <<  endl; exit(1);
 #endif
 
-#include "InterleavedAccessor.h"
+#include "InterleavedBase.h"
 #include "DataCaster.h"
 #include <stdint.h>
+#include <iostream>
 using namespace std;
 
 class DataAccessor
@@ -18,6 +19,8 @@ class DataAccessor
     public:
         DataAccessor(){}           
         virtual ~DataAccessor(){}
+        virtual double getPx2d(int row, int col) = 0;
+        virtual double getPx1d(int pos) = 0;
         virtual int getLine(char * buf, int  pos) = 0;
         virtual int getLineBand(char * buf, int pos, int band) = 0;
         virtual void setLine(char * buf, int pos) = 0;
@@ -41,10 +44,14 @@ class DataAccessor
         int getBands(){return Bands;}
         int getSizeIn(){return DataSizeIn;}
         int getSizeOut(){return DataSizeOut;}
-        InterleavedAccessor * getInterleavedAccessor(){return Accessor;}
+        int getNumberOfLines(){return NumberOfLines;}
+        int getLineOffset(){return LineOffset;}
+        void setLineOffset(int lineoff){LineOffset = lineoff;}
+
+        InterleavedBase * getInterleavedAccessor(){return Accessor;}
         DataCaster * getDataCaster(){return Caster;}
     protected:
-        InterleavedAccessor * Accessor;
+        InterleavedBase * Accessor;
         DataCaster * Caster;
         
         /**
@@ -69,6 +76,18 @@ class DataAccessor
          **/
         int LineCounter;
 
+        /**
+         * Polynomial Interpolator type
+         */
+        void * poly;
+        /**
+         * Number of lines
+         */
+        int NumberOfLines;
+        /**
+         * Initial element when accessing a line
+         */
+        int LineOffset;
 };
 
 #endif //DataAccessor_h

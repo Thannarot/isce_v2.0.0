@@ -7,8 +7,8 @@ from isceobj.Planet.Ellipsoid import Ellipsoid
 class SCHTest(unittest.TestCase):
 
     def setUp(self):
-        ellipsoid = Ellipsoid(PlanetsData.ellipsoid['Earth']['WGS-84'][0],
-                              PlanetsData.ellipsoid['Earth']['WGS-84'][1])
+        ellipsoid = Ellipsoid(a=PlanetsData.ellipsoid['Earth']['WGS-84'][0],
+                              e2=PlanetsData.ellipsoid['Earth']['WGS-84'][1])
         peg = Peg(latitude=30.0,longitude=60.0,heading=45.0,ellipsoid=ellipsoid)
         self.xyz = ellipsoid.llh_to_xyz([30.1, 59.5, 650000.0])
         self.sch = SCH(peg=peg)

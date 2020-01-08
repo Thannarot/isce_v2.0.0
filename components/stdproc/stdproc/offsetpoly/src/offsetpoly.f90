@@ -37,6 +37,7 @@
       common /fred/ i_fitparam,i_coef 
 
 
+      t0 = secnds(0.0)
 
 !c    ARRAY ALLOCATIONS:
       MP = numOffsets

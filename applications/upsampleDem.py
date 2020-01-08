@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,6 +53,7 @@ upsampleDem.py -i input.dem -o output.dem -f 4 4
 This oversamples the input dem in both lat and lon by a factor of 4.''')
     parser.add_argument('-i','--input', type=str, required=True, help='Input ISCE DEM with a corresponding .xml file.', dest='infile')
     parser.add_argument('-o','--output',type=str, default=None, help='Output ISCE DEM with a corresponding .xml file.', dest='outfile')
+    parser.add_argument('-m', '--method', type=str, default='BIQUINTIC', help='Interpolation method out of Akima / Biquintic. Default: biquintic.', dest='method')
     parser.add_argument('-f','--factor',type=int, nargs='+', required=True, help='Oversampling factor in lat and lon (or a single value for both).', dest='factor')
 
     values = parser.parse_args()
@@ -88,5 +89,6 @@ if __name__ == "__main__":
     inImage.createImage()
 
     upsampObj = UpsampleDem()
+    upsampObj.method = inps.method
     upsampObj.setOutputFilename(outFile)
     upsampObj.upsampledem(demImage=inImage, yFactor=inps.factor[0], xFactor=inps.factor[1])

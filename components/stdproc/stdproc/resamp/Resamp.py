@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -24,7 +24,273 @@ from iscesys.Component.Component import Component,Port
 from iscesys.Compatibility import Compatibility
 from stdproc.stdproc.resamp import resamp
 
+LOCATION_ACROSS_OFFSET2 = Component.Parameter('locationAcrossOffset2',
+                                              public_name='LOCATION_ACROSS_OFFSET2',
+                                              default=[],
+                                              type=float,
+                                              mandatory=True,
+                                              intent='input',
+                                              doc='')
+
+
+LOCATION_ACROSS_OFFSET1 = Component.Parameter('locationAcrossOffset1',
+                                              public_name='LOCATION_ACROSS_OFFSET1',
+                                              default=[],
+                                              type=float,
+                                              mandatory=True,
+                                              intent='input',
+                                              doc='')
+
+
+LOCATION_DOWN_OFFSET2 = Component.Parameter('locationDownOffset2',
+                                            public_name='LOCATION_DOWN_OFFSET2',
+                                            default=[],
+                                            type=float,
+                                            mandatory=True,
+                                            intent='input',
+                                            doc='')
+
+
+LOCATION_DOWN_OFFSET1 = Component.Parameter('locationDownOffset1',
+                                            public_name='LOCATION_DOWN_OFFSET1',
+                                            default=[],
+                                            type=float,
+                                            mandatory=True,
+                                            intent='input',
+                                            doc='')
+
+
+NUMBER_AZIMUTH_LOOKS = Component.Parameter('numberAzimuthLooks',
+                                           public_name='NUMBER_AZIMUTH_LOOKS',
+                                           default=None,
+                                           type=int,
+                                           mandatory=True,
+                                           intent='input',
+                                           doc='')
+
+
+FLATTEN_WITH_OFFSET_FLAG = Component.Parameter('flattenWithOffsetFlag',
+                                               public_name='FLATTEN_WITH_OFFSET_FLAG',
+                                               default=None,
+                                               type=int,
+                                               mandatory=False,
+                                               intent='input',
+                                               doc='')
+
+
+SLANT_RANGE_PIXEL_SPACING = Component.Parameter('slantRangePixelSpacing',
+                                                public_name='SLANT_RANGE_PIXEL_SPACING',
+                                                default=None,
+                                                type=float,
+                                                mandatory=True,
+                                                intent='input',
+                                                doc='')
+
+
+SNR2 = Component.Parameter('snr2',
+                           public_name='SNR2',
+                           default=[],
+                           type=float,
+                           mandatory=True,
+                           intent='inoutput',
+                           doc='')
+
+
+RADAR_WAVELENGTH = Component.Parameter('radarWavelength',
+                                       public_name='RADAR_WAVELENGTH',
+                                       default=None,
+                                       type=float,
+                                       mandatory=True,
+                                       intent='input',
+                                       doc='')
+
+
+NUMBER_RANGE_LOOKS = Component.Parameter('numberRangeLooks',
+                                         public_name='NUMBER_RANGE_LOOKS',
+                                         default=None,
+                                         type=int,
+                                         mandatory=True,
+                                         intent='input',
+                                         doc='')
+
+
+NUMBER_FIT_COEFFICIENTS = Component.Parameter('numberFitCoefficients',
+                                              public_name='NUMBER_FIT_COEFFICIENTS',
+                                              default=None,
+                                              type=int,
+                                              mandatory=False,
+                                              intent='input',
+                                              doc='')
+
+
+SNR1 = Component.Parameter('snr1',
+                           public_name='SNR1',
+                           default=[],
+                           type=float,
+                           mandatory=True,
+                           intent='input',
+                           doc='')
+
+
+LOCATION_ACROSS2 = Component.Parameter('locationAcross2',
+                                       public_name='LOCATION_ACROSS2',
+                                       default=[],
+                                       type=float,
+                                       mandatory=True,
+                                       intent='input',
+                                       doc='')
+
+
+FIRST_LINE_OFFSET = Component.Parameter('firstLineOffset',
+                                        public_name='FIRST_LINE_OFFSET',
+                                        default=None,
+                                        type=int,
+                                        mandatory=False,
+                                        intent='input',
+                                        doc='')
+
+
+LOCATION_DOWN2 = Component.Parameter('locationDown2',
+                                     public_name='LOCATION_DOWN2',
+                                     default=[],
+                                     type=float,
+                                     mandatory=True,
+                                     intent='input',
+                                     doc='')
+
+
+LOCATION_DOWN1 = Component.Parameter('locationDown1',
+                                     public_name='LOCATION_DOWN1',
+                                     default=[],
+                                     type=float,
+                                     mandatory=True,
+                                     intent='input',
+                                     doc='')
+
+
+NUMBER_RANGE_BIN1 = Component.Parameter('numberRangeBin1',
+                                        public_name='NUMBER_RANGE_BIN1',
+                                        default=None,
+                                        type=int,
+                                        mandatory=True,
+                                        intent='input',
+                                        doc='')
+
+
+NUMBER_RANGE_BIN2 = Component.Parameter('numberRangeBin2',
+                                        public_name='NUMBER_RANGE_BIN2',
+                                        default=None,
+                                        type=int,
+                                        mandatory=True,
+                                        intent='input',
+                                        doc='')
+
+
+NUMBER_LINES = Component.Parameter('numberLines',
+                                   public_name='NUMBER_LINES',
+                                   default=None,
+                                   type=int,
+                                   mandatory=True,
+                                   intent='input',
+                                   doc='')
+
+
+LOCATION_ACROSS1 = Component.Parameter('locationAcross1',
+                                       public_name='LOCATION_ACROSS1',
+                                       default=[],
+                                       type=float,
+                                       mandatory=True,
+                                       intent='input',
+                                       doc='')
+
+
+DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter('dopplerCentroidCoefficients',
+                                                    public_name='DOPPLER_CENTROID_COEFFICIENTS',
+                                                    default=[],
+                                                    type=float,
+                                                    mandatory=True,
+                                                    intent='input',
+                                                    doc='')
+
+
+START_LINE = Component.Parameter('startLine',
+                                 public_name='START_LINE',
+                                 default=None,
+                                 type=int,
+                                 mandatory=False,
+                                 intent='input',
+                                 doc='')
+
+
+REFINED_LOCATION_ACROSS_OFFSET2 = Component.Parameter('acrossOffset2',
+                                                      public_name='REFINED_LOCATION_ACROSS_OFFSET2',
+                                                      default=[],
+                                                      type=float,
+                                                      mandatory=False,
+                                                      intent='output',
+                                                      doc='')
+
+
+REFINED_LOCATION_DOWN_OFFSET2 = Component.Parameter('downOffset2',
+                                                    public_name='REFINED_LOCATION_DOWN_OFFSET2',
+                                                    default=[],
+                                                    type=float,
+                                                    mandatory=False,
+                                                    intent='output',
+                                                    doc='')
+
+
+REFINED_LOCATION_DOWN_OFFSET1 = Component.Parameter('downOffset1',
+                                                    public_name='REFINED_LOCATION_DOWN_OFFSET1',
+                                                    default=[],
+                                                    type=float,
+                                                    mandatory=False,
+                                                    intent='output',
+                                                    doc='')
+
+
+REFINED_LOCATION_ACROSS_OFFSET1 = Component.Parameter('acrossOffset1',
+                                                      public_name='REFINED_LOCATION_ACROSS_OFFSET1',
+                                                      default=[],
+                                                      type=float,
+                                                      mandatory=False,
+                                                      intent='output',
+                                                      doc='')
+
+
 class Resamp(Component):
+
+
+    parameter_list = (
+                      LOCATION_ACROSS_OFFSET2,
+                      LOCATION_ACROSS_OFFSET1,
+                      LOCATION_DOWN_OFFSET2,
+                      LOCATION_DOWN_OFFSET1,
+                      NUMBER_AZIMUTH_LOOKS,
+                      FLATTEN_WITH_OFFSET_FLAG,
+                      SLANT_RANGE_PIXEL_SPACING,
+                      SNR2,
+                      RADAR_WAVELENGTH,
+                      NUMBER_RANGE_LOOKS,
+                      NUMBER_FIT_COEFFICIENTS,
+                      SNR1,
+                      LOCATION_ACROSS2,
+                      FIRST_LINE_OFFSET,
+                      LOCATION_DOWN2,
+                      LOCATION_DOWN1,
+                      NUMBER_RANGE_BIN1,
+                      NUMBER_RANGE_BIN2,
+                      NUMBER_LINES,
+                      LOCATION_ACROSS1,
+                      DOPPLER_CENTROID_COEFFICIENTS,
+                      START_LINE,
+                      REFINED_LOCATION_ACROSS_OFFSET1,
+                      REFINED_LOCATION_ACROSS_OFFSET2,
+                      REFINED_LOCATION_DOWN_OFFSET1,
+                      REFINED_LOCATION_DOWN_OFFSET2
+                     )
+
+
     
     def resamp(self, image1=None, image2=None, imageInt=None, imageAmp=None, resamp2=None): #KK 2013-11-10: added resamp2
         #KK: if imageInt, imageAmp or resamp2 is None, it will not be output
@@ -100,10 +366,13 @@ class Resamp(Component):
         self.getState()
         if self.imageAmp is not None: #KK: render header only if imageAmp is not None
             self.imageAmp.bandDescription = ['amplitude slc1','amplitude slc2']
+            self.imageAmp.finalizeImage()
             self.imageAmp.renderHdr()
         if self.imageInt is not None: #KK
+            self.imageInt.finalizeImage()
             self.imageInt.renderHdr()
         if self.resamp2 is not None: #KK
+            self.resamp2.finalizeImage()
             self.resamp2.renderHdr() #KK
 
         #since the across and down offsets are returned in one array,
@@ -494,11 +763,10 @@ class Resamp(Component):
                 raise AttributeError("Unable to wire Offset port")
 
     logging_name = 'isce.stdproc.resamp'
-    def __init__(self):
-        super(Resamp, self).__init__()
-        self.numberFitCoefficients = None
-        self.startLine = None
-        self.firstLineOffset = None
+    family = 'resamp'
+
+    def __init__(self,family='',name=''):
+        super(Resamp, self).__init__(family if family else  self.__class__.family, name=name)
         
         self.image1 = None
         self.image2 = None
@@ -508,87 +776,21 @@ class Resamp(Component):
         self.image2Accessor = None
         self.imageIntAccessor = None
         self.imageAmpAccessor = None
-        self.numberRangeBin1 = None
-        self.numberRangeBin2 = None
-        self.numberLines = None
-        self.numberAzimuthLooks = None
-        self.numberRangeLooks = None
-        self.radarWavelength = None
-        self.slantRangePixelSpacing = None
-        self.flattenWithOffsetFlag = None
-        self.dopplerCentroidCoefficients = []
         self.dim1_dopplerCentroidCoefficients = None
-        self.locationAcross1 = []
         self.dim1_locationAcross1 = None
-        self.locationAcrossOffset1 = []
         self.dim1_locationAcrossOffset1 = None
-        self.locationDown1 = []
         self.dim1_locationDown1 = None
-        self.locationDownOffset1 = []
         self.dim1_locationDownOffset1 = None
-        self.snr1 = []
         self.dim1_snr1 = None
-        self.locationAcross2 = []
         self.dim1_locationAcross2 = None
-        self.locationAcrossOffset2 = []
         self.dim1_locationAcrossOffset2 = None
-        self.locationDown2 = []
         self.dim1_locationDown2 = None
-        self.locationDownOffset2 = []
         self.dim1_locationDownOffset2 = None
-        self.snr2 = []
         self.dim1_snr2 = None
         self.acrossOffset = []
-        self.acrossOffset1 = []
-        self.acrossOffset2 = []
         self.dim1_acrossOffset = None
         self.downOffset = []
-        self.downOffset1 = []
-        self.downOffset2 = []
         self.dim1_downOffset = None
-        self.dictionaryOfVariables = { 
-            'NUMBER_FIT_COEFFICIENTS' : ['self.numberFitCoefficients', 'int','optional'], 
-            'NUMBER_RANGE_BIN1' : ['self.numberRangeBin1', 'int','mandatory'], 
-            'NUMBER_RANGE_BIN2' : ['self.numberRangeBin2', 'int','mandatory'], 
-            'START_LINE' : ['self.startLine', 'int','optional'], 
-            'NUMBER_LINES' : ['self.numberLines', 'int','mandatory'], 
-            'FIRST_LINE_OFFSET' : ['self.firstLineOffset', 'int','optional'], 
-            'NUMBER_AZIMUTH_LOOKS' : ['self.numberAzimuthLooks', 'int','mandatory'], 
-            'NUMBER_RANGE_LOOKS' : ['self.numberRangeLooks', 'int','mandatory'], 
-            'RADAR_WAVELENGTH' : ['self.radarWavelength', 'float','mandatory'], 
-            'SLANT_RANGE_PIXEL_SPACING' : ['self.slantRangePixelSpacing', 'float','mandatory'], 
-            'FLATTEN_WITH_OFFSET_FLAG' : ['self.flattenWithOffsetFlag', 'int','optional'], 
-            'DOPPLER_CENTROID_COEFFICIENTS' : ['self.dopplerCentroidCoefficients', 'float','mandatory'], 
-            'LOCATION_ACROSS1' : ['self.locationAcross1', 'float','mandatory'], 
-            'LOCATION_ACROSS_OFFSET1' : ['self.locationAcrossOffset1', 'float','mandatory'], 
-            'LOCATION_DOWN1' : ['self.locationDown1', 'float','mandatory'], 
-            'LOCATION_DOWN_OFFSET1' : ['self.locationDownOffset1', 'float','mandatory'], 
-            'SNR1' : ['self.snr1', 'float','mandatory'], 
-            'LOCATION_ACROSS2' : ['self.locationAcross2', 'float','mandatory'], 
-            'LOCATION_ACROSS_OFFSET2' : ['self.locationAcrossOffset2', 'float','mandatory'], 
-            'LOCATION_DOWN2' : ['self.locationDown2', 'float','mandatory'], 
-            'LOCATION_DOWN_OFFSET2' : ['self.locationDownOffset2', 'float','mandatory'], 
-            'SNR2' : ['self.snr2', 'float','mandatory'] 
-            }
-        self.dictionaryOfOutputVariables = { 
-            'REFINED_LOCATION_ACROSS_OFFSET1' : 'self.acrossOffset1', 
-            'REFINED_LOCATION_ACROSS_OFFSET2' : 'self.acrossOffset2', 
-            'REFINED_LOCATION_DOWN_OFFSET1' : 'self.downOffset1', 
-            'REFINED_LOCATION_DOWN_OFFSET2' : 'self.downOffset2' 
-            }
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
-            pass
         return
 
     def createPorts(self):

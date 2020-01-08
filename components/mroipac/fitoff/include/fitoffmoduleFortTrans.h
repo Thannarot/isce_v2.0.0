@@ -19,11 +19,11 @@
 
     #if defined(NEEDS_F77_TRANSLATION)
 
-	#if defined(F77EXTERNS_LOWERCASE_TRAILINGBAR)
-	    #define fitoff_f fitoff_
-	    #define setMaxRms_f setmaxrms_
-	    #define setMinPoint_f setminpoint_
-	    #define setNSig_f setnsig_
+        #if defined(F77EXTERNS_LOWERCASE_TRAILINGBAR)
+            #define fitoff_f fitoff_
+            #define setMaxRms_f setmaxrms_
+            #define setMinPoint_f setminpoint_
+            #define setNSig_f setnsig_
             #define setNumberLines_f setnumberlines_
             #define setMinIter_f setminiter_
             #define setMaxIter_f setmaxiter_
@@ -37,7 +37,7 @@
             #define setCovDown_f setcovdown_
             #define setCovCross_f setcovcross_
             #define setStdWriter_f setstdwriter_
-	    #define getAffineVector_f getaffinevector_
+            #define getAffineVector_f getaffinevector_
 
             #define allocate_LocationAcross_f allocate_locationacross_
             #define allocate_LocationDown_f allocate_locationdown_
@@ -60,9 +60,9 @@
             #define getRefinedCovAcross_f getrefinedcovacross_
             #define getRefinedCovDown_f getrefinedcovdown_
             #define getRefinedCovCross_f getrefinedcovcross_
-	#else
-	    #error Unknown traslation for FORTRAN external symbols
-	#endif
+        #else
+            #error Unknown traslation for FORTRAN external symbols
+        #endif
     #endif
 
-#endif fitoffmoduleFortTrans_h
+#endif //fitoffmoduleFortTrans_h

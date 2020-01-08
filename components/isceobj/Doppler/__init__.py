@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Authors: Walter Szeliga, Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,21 +47,6 @@ def useCalcDop(name=None):
         instance = isceobj.Doppler.Calc_dop.Calc_dop()
     return instance
 
-def useDopTsx(name=None):
-    if name:
-        instance = None
-    else:
-        import isceobj.Doppler.TsxDopp
-        instance = isceobj.Doppler.TsxDopp.TsxDopp()
-    return instance
-
-def useDopCskSlc(name=None):
-    if name:
-        instance = None
-    else:
-        import isceobj.Doppler.CskSlcDopp
-        instance = isceobj.Doppler.CskSlcDopp.CskSlcDopp()
-    return instance
 
 def useDoppler(name=None):
     if name:
@@ -75,11 +60,21 @@ def useDoppler(name=None):
 doppler_facilities = {'USEDOPIQ' : useDOPIQ,
          'USECALCDOP' : useCalcDop,
          'USEDOPPLER' : useDoppler,
-         'USEDOPTSX' : useDopTsx,
-         'USEDOPCSKSLC' : useDopCskSlc,
          'USEDEFAULT': useDefault}
 
-
+def getFactoriesInfo():
+    """
+    Returns a dictionary with information on how to create an object Doppler from its factory
+    """
+    return  {'Doppler':
+                     {'args':
+                           {
+                            'doppler':{'value':list(doppler_facilities.keys()),'type':'str'}
+                            },
+                     'factory':'createDoppler'
+                     }
+              }
+    
 def createDoppler(doppler=None, name=None):
     if doppler.upper() in doppler_facilities.keys():
         instance = doppler_facilities[doppler.upper()](name)

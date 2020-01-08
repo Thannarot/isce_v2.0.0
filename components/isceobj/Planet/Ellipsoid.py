@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,13 +57,15 @@ from isceobj.Util.geo import ellipsoid
 ##   set the semi major axis and eccentricity-squared.  If you don't give these
 ##   arguments in the constructor, then your object is initialized as a unit
 ##   sphere.
-class Heritage(Component):
+class Heritage(object):
 
     ## I made this a class variable because it is constant
+    '''
     dictionaryOfVariables = {'SEMIMAJOR_AXIS': ['a',float,'mandatory'],
                              'ECCENTRICITY_SQUARED': ['e2', float,'mandatory'],
                              'MODEL':['model', str,'optional']
                              }
+    '''
     def __init__(self):
         self.descriptionOfVariables = {}
         self.pegLat = 0.0
@@ -441,10 +443,12 @@ class Heritage(Component):
         reast = self.eastRadiusOfCurvature(llh)
         rnorth = self.northRadiusOfCurvature(llh)
 
+        #radius of curvature for point on ellipsoid
         rdir = (reast*rnorth)/(
             reast*math.cos(r_hdg)**2 + rnorth*math.sin(r_hdg)**2)
 
-        return rdir
+        #add height of the llh point
+        return rdir + llh[2]
 
     ##
     # Compute the local, equivalent spherical radius
@@ -461,7 +465,7 @@ class Heritage(Component):
 
         return re
 
-    def setSCH(self, pegLat, pegLon, pegHdg):
+    def setSCH(self, pegLat, pegLon, pegHdg, pegHgt=0.0):
         """
         Set up an SCH coordinate system at the given peg point.
         Set a peg point on the ellipse at pegLat, pegLon, pegHdg (in degrees).
@@ -471,8 +475,8 @@ class Heritage(Component):
         self.pegLat = pegLat
         self.pegLon = pegLon
         self.pegHdg = pegHdg
-        self.pegHgt = 0.0
-        self.pegLLH = [pegLat, pegLon, 0.]
+        self.pegHgt = pegHgt
+        self.pegLLH = [pegLat, pegLon, pegHgt]
 
         #determine the radius of curvature at the peg point, i.e, the
         #the radius of the SCH sphere
@@ -656,8 +660,68 @@ class Heritage(Component):
 
         return posSCH, velSCH
 
+    def enubasis(self, posLLH):
+        """
+        xyzenuMat = elp.enubasis(posLLH)
+        Given an instance elp of an Ellipsoid LLH position (as a list) return the
+        transformation matrices from the XYZ frame to the ENU frame and the
+        inverse from the ENU frame to the XYZ frame.  
+        The returned object is a namedtuple with numpy matrices in elements
+        named 'enu_to_xyz' and 'xyz_to_enu'
+        enu_to_xyzMat = (elp.enubasis(posLLH)).enu_to_xyz
+        xyz_to_enuMat = (elp.enubasis(posLLH)).xyz_to_enu
+        """
+
+        import numpy
+        r_lat = numpy.radians(posLLH[0])
+        r_lon = numpy.radians(posLLH[1])
+
+        r_clt = numpy.cos(r_lat)
+        r_slt = numpy.sin(r_lat)
+        r_clo = numpy.cos(r_lon)
+        r_slo = numpy.sin(r_lon)
+
+        r_enu_to_xyzMat = numpy.matrix([
+            [-r_slo, -r_slt*r_clo, r_clt*r_clo],
+            [ r_clo, -r_slt*r_slo, r_clt*r_slo],
+            [ 0.0  ,  r_clt      , r_slt]])
+
+        r_xyz_to_enuMat = r_enu_to_xyzMat.transpose()
+
+        from collections import namedtuple
+        enuxyzMat = namedtuple("enuxyzMat", "enu_to_xyz  xyz_to_enu")
+
+        return enuxyzMat(r_enu_to_xyzMat, r_xyz_to_enuMat)
+
     pass
 
+SEMIMAJOR_AXIS = Component.Parameter(
+    'a',
+    public_name='SEMIMAJOR_AXIS',
+    default=1.0,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc='Ellipsoid semimajor axis'
+    )
+ECCENTRICITY_SQUARED = Component.Parameter(
+    'e2',
+    public_name='ECCENTRICITY_SQUARED',
+    default=0.0,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc='Ellipsoid eccentricity squared'
+    )
+MODEL = Component.Parameter(
+    'model',
+    public_name='MODEL',
+    default='Unit Sphere',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Ellipsoid model'
+    )
 
 ## This Ellipsoid is an amalgalm of the Heritage ellipsoid and the new one, as
 ## of 9/8/12: ellipsoid.Ellipsoid-- decorated properties  superceed explicit
@@ -677,20 +741,37 @@ class Heritage(Component):
 ## EllipsoidTransformations has the methods for computing ECEF<-->LLH
 ## (approximate or iterative exact) and for computing  the affine
 ## transformations to various tangent plane (LTP) coordinate systems...
-class Ellipsoid(ellipsoid.Ellipsoid, Heritage):
+
+
+
+class Ellipsoid(Component,ellipsoid.Ellipsoid, Heritage):
     
-    def __init__(self, a=1.0, e2=0.0, model="Unit Sphere"):
+    
+    parameter_list = (
+                      SEMIMAJOR_AXIS,
+                      ECCENTRICITY_SQUARED,
+                      MODEL
+                     )
+    
+    family = 'ellipsoid'
+    
+    def __init__(self,family='', name='', a=1.0, e2=0.0, model="Unit Sphere"):
+        Component.__init__(self, family if family else  self.__class__.family, name=name)
         ellipsoid.Ellipsoid.__init__(self, a, e2, model=model)
         Heritage.__init__(self)
         return None
     
+    #Make sure if init as Configurable that the base class gets initialized 
+    def _configure(self):
+        ellipsoid.Ellipsoid.__init__(self, self.a, self.e2, self.model)
+
     # \f$ c = a\epsilon \f$
     @property
     def c(self):
         return self.a*(self.e2)**0.5
     @c.setter
-    def c(self):
-        self.e2 = (c/self.a)**2
+    def c(self,val):
+        self.e2 = (val/self.a)**2
         pass
 
     @property

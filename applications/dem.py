@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
-from __future__ import print_function
+
 import isce
 import sys
 import os
 import argparse
-from contrib.demUtils.DemStitcher import DemStitcher
+from contrib.demUtils import createDemStitcher
 def main():
     #if not argument provided force the --help flag
     if(len(sys.argv) == 1):
         sys.argv.append('-h')
 
-    # Use the epilog to add usege eamples
+    # Use the epilog to add usage examples
     epilog = 'Usage examples:\n\n'
-    epilog += 'dem.py -a stitch -b 31 33 -114 -112 -s 1 -m rsc -r -n your_username -w your_password  -u https://aria-dav.jpl.nasa.gov/repository/products \n\n'
+    epilog += 'Stitch (-a stitch) 1 arcsec dems (-s 1) in the bounding region 31 33 -114 -112 using the url (-u) and the log in credentials provided (-n,-w).\n'
+    epilog += 'Create a rsc metadata file (-m) and report the download results (-r)\n'
+    epilog += 'dem.py -a stitch -b 31 33 -114 -112 -s 1 -m rsc -r -n your_username -w your_password  -u https://aria-alt-dav.jpl.nasa.gov/repository/products/SRTM1_v3/ \n\n'
+    epilog += 'Download (-a download) the 3 arcsec (-s 3) whose lat/lon are 31 -114 and 31 -115 (-p)\n'
     epilog += 'dem.py -a download -p 31 -114 31 -115 -s 3 \n\n'
-    epilog += 'dem.py -a stitch -b 31 33 -114 -113 -k  -r -l  -s 1 -c\n'
-    #set the formatter_class=argparse.RawDescriptionHelpFormatter othewise it splits the epilog lines with its own default format
+    epilog += 'Stitch the requested files and apply EGM96 -> WGS84 correction (-c)\n'
+    epilog += 'dem.py -a stitch -b 31 33 -114 -113 -r -s 1 -c\n\n'
+    epilog += 'Download from bounding boxes (-b)\n'
+    epilog += 'dem.py -a download -b 31 33 -114 -113  -r  -s 1\n\n'
+    epilog += 'Stitch the files in the local directory (-l) in the bounding region provided keeping the\n'
+    epilog += 'zip files after stitching (-k)\n' 
+    epilog += 'dem.py -a stitch -b 31 33 -114 -113 -k  -r -l  -s 1\n\n'
+    
+    #set the formatter_class=argparse.RawDescriptionHelpFormatter otherwise it splits the epilog lines with its own default format
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,epilog=epilog)
     
     parser.add_argument('-a', '--action', type = str, default = 'stitch', dest = 'action', help = 'Possible actions: stitch or download (default: %(default)s). ')
@@ -40,17 +50,32 @@ def main():
     parser.add_argument('-o', '--output', type = str, dest = 'output', default = None, help = 'Name of the output file to be created in --dir. If not provided the system generates one based on the bbox extremes') 
     parser.add_argument('-n', '--uname', type = str, dest = 'uname', default = None, help = 'User name if using a server that requires authentication') 
     parser.add_argument('-w', '--password', type = str, dest = 'password', default = None, help = 'Password if using a server that requires authentication') 
-    parser.add_argument('-u', '--url', type = str, dest = 'url', default = None, help = 'Part of the url where the DEM files are located. The actual location must be \
-                        the one specified by --url plus /srtm/version2_1/SRTM(1,3)') 
-
-
+    parser.add_argument('-t', '--type', type = str, dest = 'type', default = 'version3', help = \
+                        'Use version 3 or version 2 SRTM') 
+    parser.add_argument('-x', '--noextras', action = 'store_true', dest = 'noextras', help = 'Use this flag if the filenames do not have extra part')
+    parser.add_argument('-u', '--url', type = str, dest = 'url', default = None, help = \
+                        'If --type=version2 then this is part of the url where the DEM files are located. The actual location must be' + \
+                        'the one specified by --url plus /srtm/version2_1/SRTM(1,3).'  \
+                        +'If --type=version3 then it represents the full path url')
     args = parser.parse_args()
     #first get the url,uname and password since are needed in the constructor
 
     
-    ds = DemStitcher()
+    ds = createDemStitcher(args.type)
+    ds.configure()
+
     if(args.url):
-        ds.setUrl(args.url)
+        if(args.type == 'version3'):
+            if(args.source == 1):
+                ds._url1 = args.url
+            elif(args.source == 3):
+                ds._url3 = args.url
+            else:
+                print('Unrecognized source')
+                raise ValueError
+
+        else:
+            ds.setUrl(args.url)
     ds.setUsername(args.uname)
     ds.setPassword(args.password)
     ds._keepAfterFailed = True
@@ -62,7 +87,8 @@ def main():
         ds.setCreateXmlMetadata(True)
     elif(args.meta == 'rsc'):
         ds.setCreateRscMetadata(True)
-
+    if(args.noextras):
+        ds._hasExtras = False
     ds.setUseLocalDirectory(args.local)
     ds.setFillingValue(args.fillingValue)
     ds.setFilling() if args.filling else ds.setNoFilling()
@@ -99,7 +125,7 @@ def main():
         return
 
     if(args.report):
-        for k,v in ds._downloadReport.items():
+        for k,v in list(ds._downloadReport.items()):
             print(k,'=',v)
 
 

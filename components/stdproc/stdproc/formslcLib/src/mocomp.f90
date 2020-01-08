@@ -319,6 +319,8 @@
          phasegrad(irange)=phasemoc(irange+1)-phasemoc(irange)
       end do
       phasegrad(nlinesaz)=phasegrad(nlinesaz-1)
+        
+      print *, 'Mocomp range === ', rho_save(400)
 
       !Deallocate memory from temporary variables
       deallocate(phasemoc)
@@ -421,4 +423,213 @@
 
             newrng = rprime(i)
         end subroutine getIdealRange
+
+
+        subroutine estMocompOrbit(rho,ht1,re,wvl,vel, &
+            fd,fdd,fddd,ilrl,orb,ptm,morb)
+
+!c inputs
+!c
+!c rho - Range for mocomp
+!c ht1 - height of reference track, m
+!c re  - local earth radius, m
+!c wvl - wavelength
+!c vel - velocity
+!c fd   - Doppler constant term
+!c fdd  - Doppler vs Range
+!c fddd - Doppler vs Range^2
+!c ilrl - Look side
+!c orb  - Input WGS84 orbit
+!c ptm - Peg transition matrix
+
+!c outputs
+!c morb   - Ouput WGS84 mocomp orbit
+            use fortranUtils
+            use geometryModule
+            use orbitModule
+
+            type(orbitType) :: orb, morb
+            type(pegTransType) :: ptm
+
+            !Beta is angle between ideal satellite and zero doppler position at 
+            ! the center of the local sphere [Fig 1]
+            real*8 sinbeta,cosbeta, tanbeta
+            real*8 betadot        !Angular velocity
+
+            !"b" is the mocomp baseline. The distance between the ideal satellite
+            ! and the actual satellite at midrange. Arg is the angle subtended by
+            ! b at a midrange target.
+            real*8 b,cosarg
+
+            !Delta is the squint angle to the target when satellite position 
+            ! is projected on to the reference path  [Fig 3]
+            real*8 cosdelta,sindelta,tandelta
+            real*8 rho,rhoprime
+            real*8 ht1,re                !Reference height, Radius of local sphere
+            real*8 phase,wvl         !Wavelength
+            real*8 vel           !ideal satellite velocity
+            real*8 t
+
+            !Actual satellite position
+            real*8 s0,c0,h0
+            real*8 sch(3), vsch(3)
+            real*8 xyz(3), vxyz(3)
+            real*8 dxyz(3), r_v(3), r_vdot(3)
+
+            !Ideal satellite position
+            ! c=0 and h is fixed
+            real*8 s_sc
+
+            !Alpha is angle between ideal satellite and target at the center of the 
+            ! local sphere.  [Fig 1] 
+            real*8 cosalpha,sinalpha
+            real*8 cosdeltaalpha    !cos(delta+alpha)
+   
+            real*8 f0 
+            !Gamma is the angle between target and ideal satellite at corresponding 
+            ! zero doppler position at the center of local sphere [Fig 1] 
+            real*8 cosgamma,singamma
+
+            !Alphaprime is the angle between the actual satellite and target at the 
+            ! center of the local sphere [Fig 4]
+            real*8 sinalphaprime, cosalphaprime
+
+            !Epsilon is the angle between the actual satellite and the ideal satellite
+            ! along the line of constant doppler [Fig 3., labelled segment d]
+            real*8 sinepsilon, cosepsilon
+
+            !Doppler coefficients
+            real*8 fd,fdd,fddd
+
+            !For the interpolator
+            real*4 fintp
+
+            ! Local variables  
+            integer i,j,lines,line,irec,nnn,nlinesaz,ibin,irange,iline,numLines
+            real*8  pi,sol
+            integer ilrl
+
+            pi = getPi()      !Pi
+            sol = getSpeedOfLight()   !Speed of light
+
+            lines = orb%nVectors !!Number of state vectors
+            i = 0
+!!            call initOrbit_f(morb, lines, i) !!Initialize the mocomp orbit with same number
+
+            if (orb%nVectors .ne. morb%nVectors) then
+                print *, 'Not enough state vectors allocated to the mocomp orbit'
+                stop
+            endif
+
+            do iline=1,lines   !!For each state vector
+        
+                !! C-indexing for this function
+                call getStateVector_f(orb, iline-1, t, xyz,vxyz)
+
+                !!!!Convert position to SCH
+                call convert_sch_to_xyz(ptm, sch, xyz, XYZ_2_SCH)
+
+                !!!!Convert velocity to SCH
+                call convert_schdot_to_xyzdot(ptm, sch, vsch, vxyz, XYZ_2_SCH)
+
+
+                !!!Get dxyz and r_v from this
+                dxyz = xyz - ptm%r_ov
+                call matvec(ptm%r_matinv, dxyz, r_v)
+                call matvec(ptm%r_matinv, vxyz, r_vdot)
+
+                s0=sch(1)         !Actual satellite position
+                c0=sch(2)
+                h0=sch(3)
+
+
+                ! Equation 26. Angles at ideal satellite for given range.
+                ! Postive angle alpha. Independent of look side.
+                cosalpha=(re*re+(ht1+re)*(ht1+re)-rho*rho)/(2.D0*re*(ht1+re))
+                sinalpha=sqrt(1-cosalpha**2)
+
+                !Doppler centroid at given range
+                f0 = fd + fdd*rho + fddd*rho*rho
+
+
+                if(abs(f0).gt.1.e-1) then   ! If the doppler centroid is not negligible
+                    !Estimate beta using Equation 10.
+                    !Beta depends on sign of doppler not on look side.
+                    tanbeta=-f0*wvl*rho/(2.D0*re*cosalpha*vel)
+                    cosbeta=cos(atan(tanbeta))
+                    sinbeta=sin(atan(tanbeta))
+
+                    !Estimate gamma using Equation 6.
+                    !Gamma is also independent of look side.
+                    cosgamma=cosalpha/cosbeta
+                    singamma=sqrt(1-cosgamma**2)
+
+                    !Estimate delta using Equation 25
+                    !Delta depends on look side
+                    sindelta=ilrl*(cosgamma-cosbeta*cosalpha)/sinbeta/sinalpha ! Equation 25 doesn't work for fd=0
+                    tandelta=tan(asin(sindelta))
+                else
+                    tandelta=0.D0
+                end if
+
+                !The projected position of the ideal satellite.
+                !Change in sign of delta accounts for change in look side.
+                s_sc=s0-re*asin(tandelta*tan(c0/re)) ! Equation 24
+                
+                !!Temp variable
+
+        
+                !!!!Set up mocomp position
+                sch(1) = s_sc
+                sch(2) = 0.0d0
+                sch(3) = ht1
+
+
+                !!!!This looks dubious but is a start
+                !!!!Might need to figure out a way to map velocity as well
+                !tanbeta = tan(c0/re)
+                !vsch(1) = vsch(1) - vsch(2) * tandelta * (1.0d0 + tanbeta**2)/sqrt(1.0d0 - tandelta**2 * tanbeta**2) 
+
+                !!!Absolutely simple model. Dont expect it to work well enough.
+                !vsch(1) = vel
+
+                !!!!Complicated model derived by differentiating Eqn 24 w.r.t
+                !!!!time
+                !!Temp variables
+                sinbeta = r_v(1) * r_vdot(2) - r_v(2) * r_vdot(1)
+                cosbeta = r_v(1)**2 + r_v(2)**2
+                tanbeta = sinbeta / cosbeta
+
+
+                sinbeta = r_vdot(3) - (r_v(3)*(r_v(1)*r_vdot(1)+r_v(2)*r_vdot(2)))/ cosbeta
+                cosbeta = sqrt(cosbeta - (tandelta*r_v(3))**2)
+
+                !!!Total ds/dt represented here. Scaled by re
+                tanbeta = tanbeta - tandelta* sinbeta / cosbeta
+
+
+                !!!!Transform back to XYZ
+                call convert_sch_to_xyz(ptm, sch, xyz, SCH_2_XYZ)
+!!!                call convert_schdot_to_xyzdot(ptm, sch, vsch, vxyz, SCH_2_XYZ)
+
+
+                !!!!!Compute new r_v for ideal satellite position
+                dxyz = xyz - ptm%r_ov
+                call matvec(ptm%r_matinv, dxyz, r_v)
+
+                vsch(1) = -tanbeta * r_v(2)
+                vsch(2) = tanbeta * r_v(1)
+                vsch(3) = 0.0d0
+
+
+                call matvec(ptm%r_mat, vsch, vxyz)
+                
+
+                call setStateVector_f(morb, iline-1, t, xyz, vxyz) 
+
+
+            end do
+
+        return
+      end subroutine
 

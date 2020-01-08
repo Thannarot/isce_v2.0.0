@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,13 +43,10 @@ def runGeocode(self, prodlist, unwrapflag, bbox):
     else:
         tobeGeocoded = prodlist
 
-    #####Remove the unwrapped interferogram if no unwrapping is done
-    if not unwrapflag:
-        try:
-            tobeGeocoded.remove(insar.unwrappedIntFilename)
-        except ValueError:
-            pass
-
+    #remove files that have not been processed
+    for toGeo in tobeGeocoded:
+        if not os.path.exists(toGeo):
+            tobeGeocoded.remove(toGeo)
     print('Number of products to geocode: ', len(tobeGeocoded))
 
     stdWriter = create_writer("log", "", True, filename="geo.log")
@@ -63,7 +60,7 @@ def runGeocode(self, prodlist, unwrapflag, bbox):
     else:
         snwe = list(bbox)
         if len(snwe) != 4:
-            raise valueError('Bounding box should be a list/tuple of length 4')
+            raise ValueError('Bounding box should be a list/tuple of length 4')
 
     #####Geocode one by one
     first = False
@@ -117,8 +114,9 @@ def runGeocode(self, prodlist, unwrapflag, bbox):
             objGeo.method = method
 
         if(inImage):
-            demImage = isceobj.createDemImage()
-            IU.copyAttributes(insar.demImage, demImage)
+            #demImage = isceobj.createDemImage()
+            #IU.copyAttributes(insar.demImage, demImage)
+            demImage = insar.demImage.clone()
             objGeo(peg=insar.peg, frame=insar.masterFrame,
                            planet=planet, dem=demImage, tobegeocoded=inImage,
                            geoPosting=None, masterslc=insar.formSLC1)

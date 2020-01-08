@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,9 +37,11 @@ else:
 from configuration import sconsConfigFile
 #allow scons to take the input argument --setupfile=someOtherFile to allow change of the default SConfigISCE
 AddOption('--setupfile',dest='setupfile',type='string',default='SConfigISCE')
+AddOption('--isrerun',dest='isrerun',type='string',default='no')
 
 env = Environment(ENV = os.environ)
 sconsSetupFile = GetOption('setupfile')
+isrerun = GetOption('isrerun')
 
 sconsConfigFile.setupScons(env,sconsSetupFile)
 #add some information that are necessary to build the framework such as specific includes, libpath and so on
@@ -65,8 +67,9 @@ dataCasterInc = os.path.join(buildDir,'components/iscesys/ImageApi/DataCaster/in
 lineAccessorInc = os.path.join(buildDir,'components/isceobj/LineAccessor/include')
 stdOEInc =  os.path.join(buildDir,'components/iscesys/StdOE/include')
 utilInc =  os.path.join(buildDir,'components/isceobj/Util/include')
+utilLibInc =  os.path.join(buildDir,'components/isceobj/Util/Library/include')
 
-env.AppendUnique(CPPPATH = [imageApiInc,dataCasterInc,lineAccessorInc,stdOEInc,utilInc])
+env.AppendUnique(CPPPATH = [imageApiInc,dataCasterInc,lineAccessorInc,stdOEInc,utilInc,utilLibInc])
 env['HELPER_DIR'] = os.path.join(env['PRJ_SCONS_INSTALL'],'helper')
 env['HELPER_BUILD_DIR'] = os.path.join(env['PRJ_SCONS_BUILD'],'helper')
 
@@ -80,11 +83,63 @@ installDir = env['PRJ_SCONS_INSTALL']
 moduleList.append(os.path.join(installDir,'applications'))
 moduleList.append(os.path.join(installDir,'components'))
 env['ISCEPATH'] = moduleList
+env.PrependUnique(LIBS=['gdal'])
 Export('env')
 
 
 inst = env['PRJ_SCONS_INSTALL']
 
+####new part
+#####PSA. Check for header files and libraries up front
+confinst = Configure(env)
+hdrparams = [('python3 header', 'Python.h', 'Install python3-dev or add path to Python.h to CPPPATH'),
+          ('fftw3', 'fftw3.h', 'Install fftw3 or libfftw3-dev or add path to fftw3.h to CPPPATH and FORTRANPATH'),
+          ('gdal header', 'gdal_priv.h', 'Install gdal or add path to gdal includes to CPPPATH'),
+          ('hdf5', 'hdf5.h', 'Install HDF5 of libhdf5-dev or add path to hdf5.h to CPPPATH'),
+          ('X11', 'X11/Xlib.h', 'Install X11 or libx11-dev or add path to X11 directory to X11INCPATH'),
+          ('Xm', 'Xm/Xm.h', 'Install libXm or libXm-dev or add path to Xm directory to MOTIFINCPATH'),
+          ('openmp', 'omp.h', 'Compiler not built with OpenMP. Use a different compiler or add path to omp.h to CPPPATH'),]
+
+allflag  = False
+for (name,hname,msg) in hdrparams:
+    if not (confinst.CheckCHeader(hname) or confinst.CheckCXXHeader(hname)):
+        print('Could not find: {0} header for {1}'.format(hname, name))
+        print('Error: {0}'.format(msg))
+        allflag = True
+#        raw_input("Press Enter to continue ...")
+
+libparams=  [('libhdf5', 'hdf5', 'Install hdf5 or libhdf5-dev'),
+             ('libgdal', 'gdal', 'Install gdal'),
+          ('libfftw3f', 'fftw3f', 'Install fftw3 or libfftw3-dev'),
+          ('libXm', 'Xm', 'Install Xm or libXm-dev'),
+          ('libXt', 'Xt', 'Install Xt or libXt-dev')]
+
+for (name,hname,msg) in libparams:
+    if not confinst.CheckLib(hname):
+        print('Could not find: {0} header for {1}'.format(hname, name))
+        print('Error: {0}'.format(msg))
+        allflag = True
+#        raw_input("Press Enter to continue ...")
+
+fortparams = [('fftw3', 'fftw3.f', 'Install fftw3 or libfftw3-dev or add path to FORTRANPATH'),]
+for (name,hname,msg) in fortparams:
+    if env.FindFile('fftw3.f', env['FORTRANPATH']) is None:
+        print('Checking for F include {0}... no'.format(name))
+        print('Could not find: {0} header for {1}'.format(hname, name))
+        print('Error: {0}'.format(msg))
+        allflag = True
+        raw_input("Press Enter to continue ...")
+    else:
+        print('Checking for F include {0}... yes'.format(name))
+
+if allflag:
+    print('Not all components of ISCE will be installed and can result in errors.')
+    raw_input('Press Enter to continue.... Ctrl-C to exit')
+else:
+    print('Scons appears to find everything needed for installation')
+
+env = confinst.Finish()
+###End of new part
 
 file = '__init__.py'
 if not os.path.exists(file):
@@ -121,15 +176,29 @@ fvers_lines = ["release_version = '"+release_version+"'\n",
 
 fvers.write(''.join(fvers_lines))
 fvers.close()
+v = 0
+if isrerun == 'no':
+    v = os.system('scons -Q install --isrerun=yes')
+if v == 0:
+    env.Alias('install',inst)
+    applications = os.path.join('applications','SConscript')
+    SConscript(applications)
+    components = os.path.join('components','SConscript')
+    SConscript(components)
+    defaults = os.path.join('defaults','SConscript')
+    SConscript(defaults)
+    library = os.path.join('library','SConscript')
+    SConscript(library)
+    contrib = os.path.join('contrib','SConscript')
+    SConscript(contrib)
 
-env.Alias('install',inst)
-applications = os.path.join('applications','SConscript')
-SConscript(applications)
-components = os.path.join('components','SConscript')
-SConscript(components)
-defaults = os.path.join('defaults','SConscript')
-SConscript(defaults)
-library = os.path.join('library','SConscript')
-SConscript(library)
-contrib = os.path.join('contrib','SConscript')
-SConscript(contrib)
+    if 'test' in sys.argv:
+        #Run the unit tests
+        env['Test'] = True
+    else:
+        #Don't run tests.
+        #This option only installs test support package for future test runs.
+        env['Test'] = False
+
+    tests = os.path.join('test', 'SConscript')
+    SConscript(tests)

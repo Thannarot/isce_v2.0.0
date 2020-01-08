@@ -27,6 +27,8 @@
       integer*4    FDSC3
       double precision rhww1,a41,a21,delw,dxsamp1,gcal,fwidth,omega,omega0,rc1,pi2,phase,phase1,r1
       double precision theta2,t,ts,theta1,win1,wgt
+      double precision testing 
+      double precision ptest(3), vtest(3), rtest(3)
       real*4 t1,t0
       integer icaltone1,icaltone2,ifs,ifrst,iusedopp,ipatch,irec,k1start,k1end,k2,line
       integer lun,nl,npfin1,nwr,npts
@@ -38,6 +40,8 @@
       sol = getSpeedOfLight()
       pi = getPI()
 
+      !!Set up SCH basis
+      call radar_to_xyz(elp, peg, ptm)
 
       fd1 = dopplerCoefficients(1)
       fdd1 = dopplerCoefficients(2)
@@ -95,19 +99,46 @@
       allocate(vschMoc(dim1_vsch,dim2_vsch))
       allocate(timeMoc(dim1_time))
       allocate(phasegrad(ranfft))        !Storing phase gradients. Why not ranfft?
-      do i = 1,dim1_sch
-        do j = 1,dim2_sch
-          schMoc(i,j) = sch(i,j)
-        enddo
-      enddo
-      do i = 1,dim1_vsch
-         do j = 1,dim2_vsch
-            vschMoc(i,j) = vsch(i,j)
-         enddo
-      enddo
-      do j = 1,dim2_sch
-        timeMoc(j) = time(j)
-      enddo
+      
+      
+      !!!!!Can replace this whole thing with
+      !!!!!Values derived from interpolation
+      !do i = 1,dim1_sch
+        !do j = 1,dim2_sch
+          !schMoc(i,j) = sch(i,j)
+        !enddo
+      !enddo
+      !do i = 1,dim1_vsch
+         !do j = 1,dim2_vsch
+            !vschMoc(i,j) = vsch(i,j)
+         !enddo
+      !enddo
+      !do j = 1,dim2_sch
+        !timeMoc(j) = time(j)
+      !enddo
+
+      !!!!!New part
+      do j = 1, dim2_sch
+         testing = sensingStart + (j-1.0d0)/prf1
+         i = interpolateWGS84Orbit_f(orbit, testing, ptest, vtest)
+         if (i .ne. 0) then
+          print *, 'Orbit interpolation failed in line ', j
+          stop
+        endif
+
+        testing = (j-1.0d0)/prf1
+!!        print *, 'Line : j', timeMoc(j), testing
+!!        print *, 'Old Pos: ', schMoc(1:3,j)
+!!        print *, 'Old Vel: ', vschMoc(1:3,j)
+        call convert_sch_to_xyz(ptm, schMoc(1,j), ptest, XYZ_2_SCH)
+        call convert_schdot_to_xyzdot(ptm, schMoc(1,j), vschMoc(1,j), vtest, XYZ_2_SCH)
+!!        print *, 'New Pos: ', schMoc(1:3,j)
+!!        print *, 'New Vel: ', vschMoc(1:3,j)
+        timeMoc(j) = testing 
+     enddo
+        
+
+
       !jng zero everything
       ref1 = 0
       amps = 0
@@ -162,6 +193,8 @@
       call write_out(ptStdWriter,MESSAGE)
       write(MESSAGE,*) 'Earth Radius of Curvature(m) ', rcurv
       call write_out(ptStdWriter,MESSAGE)
+      write(MESSAGE,*) 'Peg Radius of Curvature(m)', ptm%r_radcur
+      call write_out(ptStdWriter,MESSAGE)
       write(MESSAGE,*) 'Spacecraft height 1 (m) ', ht1
       call write_out(ptStdWriter,MESSAGE)
       write(MESSAGE,*) 'Range of first pixel in range compressed file 1 (m) ',rawr001 
@@ -194,6 +227,10 @@
       call write_out(ptStdWriter,MESSAGE)
       write(MESSAGE,*) 'Fractional bandwidth to remove ', pctbw
       call write_out(ptStdWriter,MESSAGE)
+
+!!       print *, 'Orbit information: '
+!!       call printOrbit_f(orbit)
+
 
       t0 = secnds(0.0)          ! start timer
 
@@ -403,7 +440,6 @@
       if(deskew .eq. 'y' .or. deskew .eq. 'Y') ideskew = 1
 
 !c Figure out approximate starting range in order to center the mocomp image.
-      
       midsch = schMoc(1:3, dim2_sch/2)
       call getIdealRange(midsch(1), midsch(2), midsch(3),&
             rawr01, ht1, rcurv, wavl, velin, fd1, ilrl, slcr01)
@@ -522,28 +558,33 @@
 
          if(nlooks.gt.1)then
 
-         call look(nrangeout,nazpatch,nlooks,amps,ptStdWriter)
-         write(MESSAGE,*)'writing patch out...'
-         call write_out(ptStdWriter,MESSAGE)
+             call look(nrangeout,nazpatch,nlooks,amps,ptStdWriter)
+             write(MESSAGE,*)'writing patch out...'
+             call write_out(ptStdWriter,MESSAGE)
          
 !c    write in range line format
-         do line=ifs/nlooks+1,(ifs+na_valid)/nlooks
-            do k=1,nrangeout
-               outlinep(k)=amps(line,k)
+            do line=ifs/nlooks+1,(ifs+na_valid)/nlooks
+                do k=1,nrangeout
+                    outlinep(k)=amps(line,k)
+                end do
+                call setLineSequential(slcAccessor,outlinep)
             end do
-            call setLineSequential(slcAccessor,outlinep)
-         end do
          
          else
+            
+            if(ipatch.eq.1) then
+                slcSensingStart = sensingStart + (ifs + irec ) / prf1
+                print *, 'Starting index: ', irec+ifs
+            endif
 
             write(MESSAGE,*)'writing single look complex data out...'
             call write_out(ptStdWriter,MESSAGE)
-         do line=ifs+1,(ifs+na_valid)
-            do k=1,nrangeout
-               outlinep(k)=trans1(line,k)
+            do line=ifs+1,(ifs+na_valid)
+                do k=1,nrangeout
+                    outlinep(k)=trans1(line,k)
+                end do
+                call setLineSequential(slcAccessor,outlinep)
             end do
-            call setLineSequential(slcAccessor,outlinep)
-         end do
 
          end if
 
@@ -553,11 +594,39 @@
          call write_out(ptStdWriter,MESSAGE)
       end do                    !end patch loop
 
+
 !c  save sc position at mocomp track
       do k=1,mocompSize
          if(i_mocomp(k).eq.0)exit
          mocompPositionSize = k
       end do
+
+!!  Create mocomp orbit here before exitting - PSA
+      ipatch = nrangeout/2
+      rho_mocomp = slcr01 + (ipatch-1) * delr  
+      print *, 'Range for mocomping: ', rho_mocomp
+
+      call estMocompOrbit(rho_mocomp,ht1,rcurv,wavl,velin,fd1,fdd1, &
+                 fddd1,ilrl,orbit,ptm,mocompOrbit)
+
+
+      !!!Uncomment this to test accuracy of line-by-line svs vs interpolated svs
+      !do k=1, mocompPositionSize
+        !testing = sensingStart + (k-1) / prf1
+        !i = interpolateWGS84Orbit_f(mocompOrbit,testing,ptest,vtest)
+        !if (i .ne. 0) then
+            !print *, 'Orbit interpolation failed in line ', j
+            !stop
+        !endif
+
+        !call convert_sch_to_xyz(ptm, vtest, ptest, XYZ_2_SCH)
+
+        !if (mod(k,100).eq.1) then
+            !print *, 'Line: ', k,vtest(1)-s_mocomp(k),vtest(2),vtest(3)-ht1
+        !endif
+
+      !enddo
+
 
       t1=secnds(t0)
       write(MESSAGE,*)'Elapsed time =', t1, ' seconds.'
@@ -575,7 +644,8 @@
       deallocate(vschMoc)
       deallocate(timeMoc)
       deallocate(phasegrad)
-      
+     
+      print *, 'End of formslc'
       
       end
       subroutine radopp(fd, fdd, fddd, r, del)

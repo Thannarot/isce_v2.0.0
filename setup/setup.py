@@ -405,10 +405,12 @@ class ISCEDeps(object):
         except:
             pass
         version = sys.version_info
-        #self.python_version = "%d.%d" % version[:2] # ML 2014-04-02
-        p = subprocess.Popen(['python3', '-V'], stdout=subprocess.PIPE)
-        stv = p.communicate()[0]
-        self.python_version = "%s.%s" % tuple(stv.split(' ')[1].split('.')[:2]) # python_version is now the python3 version (not the sys.version_info) 
+        self.python_version = "{}.{}".format(version.major, version.minor)
+#        p = subprocess.Popen(['python3', '-V'], stdout=subprocess.PIPE)
+#        x =  p.communicate()[0]
+#        stv = ''.join([e if isinstance(e,str) else e.decode("utf-8") for e in x])
+#        self.python_version = "%s.%s" % tuple(stv.split(' ')[1].split('.')[:2])
+# python_version is now the python3 version (not the sys.version_info)
         self.uname = kwargs["uname"]
         self.bash_vars = [] #environment variables to be written in bash file
         self.dependency_log = {}

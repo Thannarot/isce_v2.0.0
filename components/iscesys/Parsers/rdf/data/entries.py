@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Belz
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -108,13 +108,13 @@ class RDFField(_RDFField):
             try:
                 value, units = SI(value, units)
             except errors.UnknownUnitWarning:
-                print >> sys.stderr, ("UnknownUnitWarning:" +
-                                      (cls._Units << str(units)))
+                print("UnknownUnitWarning:" +
+                      (cls._Units << str(units)), file=sys.stderr)
         return value, units
 
 
-    ## eval(self.value) -with some protection/massage 
-    ## safe for list, tuples, nd.arrays, set, dict, 
+    ## eval(self.value) -with some protection/massage
+    ## safe for list, tuples, nd.arrays, set, dict,
     ## anything that can survive repr - this is really a work in progress,
     ## since there is a lot of python subtly involved.
     ## \returns evaluated version of RDFField.value
@@ -128,7 +128,7 @@ class RDFField(_RDFField):
             except (TypeError, NameError, AttributeError, SyntaxError):
                 result = self.value
         return result
-    
+
 
     def index(self):
         return len(self.left_field())
@@ -141,10 +141,10 @@ class RDFField(_RDFField):
         result = ((self.units >> self._Units) +
                   (self.dimensions >> self._Dimensions) +
                   (self.element >> self._Element))
-            
-        short =  max(0, index-len(result)) 
 
-        x = result + (" "*short) 
+        short =  max(0, index-len(result))
+
+        x = result + (" "*short)
 #        print len(x)
 
         return x
@@ -162,7 +162,7 @@ class RDFField(_RDFField):
     def __str__(self, index=0):
         """place OPERATOR at index or don't"""
         return (
-            self.left_field(index=index)  + 
+            self.left_field(index=index)  +
             self._operator + S +
             self.right_field()
             )
@@ -180,7 +180,7 @@ class RDFField(_RDFField):
     __hex__ = _cast(hex)
     __oct__ = _cast(oct)
     __int__ = _cast(int)
-    __long__ = _cast(long)
+    __long__ = _cast(int)
     __float__ = _cast(float)
     __complex__ = _cast(complex)
 
@@ -188,17 +188,17 @@ class RDFField(_RDFField):
     def __radd__(self, key):
         return RDFPreRecord(key, self)
 
-    
-    
+
+
 ## This assignment is a bit deeper: Just a key and a field
-_RDFRecord = collections.namedtuple("RDFRecord", "key field")    
+_RDFRecord = collections.namedtuple("RDFRecord", "key field")
 
 ## The pre Record is built from data and is a len=1 iterator: iterating builds
 ## the final product: RDFRecord-- thus line reads or include file reads yield
 ## the same (polymorphic) result: iterators that yield Records.
 class RDFPreRecord(_RDFRecord):
     """Users should not see this class"""
-    
+
     ## iter() is about polymorphism - since an INCLUDE can yield a whole list
     ## of records - the client needs to be able to iterate it w/o typechecking
     ## this does it- you iter it once, and builds the FINAL form of the record
@@ -230,16 +230,16 @@ class RDFRecord(_RDFRecord):
         return key + field
 
 
-    
+
 
 ## The RDF Comment is a comment string, endowed with False RDF-ness
 class RDFComment(str):
     """This is string that always evaluates to False.
-    
+
     Why?
 
     False gets thrown out before being sent to the RDF constructor
-    
+
     But!
 
     It is not None, so you can keep it in your RDFAccumulator
@@ -255,4 +255,3 @@ class RDFComment(str):
     ## \retval iter(())  An empty iterator that passes a for-loop silently
     def __iter__(self):
         return iter(())
-

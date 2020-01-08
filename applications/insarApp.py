@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Authors: Giangi Sacco, Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -33,6 +33,7 @@ import isceobj
 import iscesys
 from iscesys.Component.Application import Application
 from iscesys.Compatibility import Compatibility
+from iscesys.Component.Configurable import SELF
 import isceobj.InsarProc as InsarProc
 from isceobj.Scene.Frame import FrameMixin
 
@@ -44,340 +45,503 @@ logging.config.fileConfig(
 logger = logging.getLogger('isce.insar')
 
 
-SENSOR_NAME = Application.Parameter('sensorName',
-                                    public_name='sensor name',
-                                    default=None,
-                                    type=str,
-                                    mandatory=True,
-                                    doc="Sensor name"
+SENSOR_NAME = Application.Parameter(
+    'sensorName',
+    public_name='sensor name',
+    default=None,
+    type=str,
+    mandatory=True,
+    doc="Sensor name"
                                     )
-OFFSET_METHOD = Application.Parameter('offsetMethod',
-                                    public_name='slc offset method',
-                                    default="offsetprf",
-                                    type=str,
-                                    mandatory=False,
-                                    doc=("SLC offset estimation method name. "+
-                                         "Use value=ampcor to run ampcor")
+
+OFFSET_METHOD = Application.Parameter(
+    'offsetMethod',
+    public_name='slc offset method',
+    default="offsetprf",
+    type=str,
+    mandatory=False,
+    doc=("SLC offset estimation method name. "+
+         "Use value=ampcor to run ampcor")
                                     )
-OFFSET_SEARCH_WINDOW_SIZE = Application.Parameter('offsetSearchWindowSize',
-                                public_name='offset search window size',
-                                default=None,
-                                type=int,
-                                mandatory=False,
-                                doc=("Search window size used in offsetprf "+
-                                     "and rgoffset.")
+
+OFFSET_SEARCH_WINDOW_SIZE = Application.Parameter(
+    'offsetSearchWindowSize',
+    public_name='offset search window size',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=("Search window size used in offsetprf "+
+         "and rgoffset.")
                                 )
-PEG_LAT = Application.Parameter('pegLat',
-                                public_name='peg latitude (deg)',
-                                default=None,
-                                type='float',
-                                mandatory=False,
-                                doc='Peg Latitude in degrees'
+
+PEG_SELECT = Application.Parameter(
+    'pegSelect',
+    public_name='peg select',
+    default='average',
+    mandatory=False,
+    doc='Peg selection method. Can be master, slave or average'
                                 )
-PEG_LON = Application.Parameter('pegLon',
-                                public_name='peg longitude (deg)',
-                                default=None,
-                                type='float',
-                                mandatory=False,
-                                doc='Peg Longitude in degrees'
+
+PEG_LAT = Application.Parameter(
+    'pegLat',
+    public_name='peg latitude (deg)',
+    default=None,
+    type=float,
+    mandatory=False,
+    doc='Peg Latitude in degrees'
                                 )
-PEG_HDG = Application.Parameter('pegHdg',
-                                public_name='peg heading (deg)',
-                                default=None,
-                                type='float',
-                                mandatory=False,
-                                doc='Peg Heading in degrees'
+
+PEG_LON = Application.Parameter(
+    'pegLon',
+    public_name='peg longitude (deg)',
+    default=None,
+    type=float,
+    mandatory=False,
+    doc='Peg Longitude in degrees'
                                 )
-PEG_RAD = Application.Parameter('pegRad',
-                                public_name='peg radius (m)',
-                                default=None,
-                                type='float',
-                                mandatory=False,
-                                doc='Peg Radius of Curvature in meters'
+
+PEG_HDG = Application.Parameter(
+    'pegHdg',
+    public_name='peg heading (deg)',
+    default=None,
+    type=float,
+    mandatory=False,
+    doc='Peg Heading in degrees'
                                 )
-FILTER_STRENGTH = Application.Parameter('filterStrength',
-                                public_name='filter strength',
-                                default = None,
-                                type='float',
-                                mandatory=False,
-                                doc='Goldstein Werner Filter strength'
+
+PEG_RAD = Application.Parameter(
+    'pegRad',
+    public_name='peg radius (m)',
+    default=None,
+    type=float,
+    mandatory=False,
+    doc='Peg Radius of Curvature in meters'
                                 )
-CORRELATION_METHOD = Application.Parameter('correlation_method',
-                                           public_name='correlation_method',
-                                           default='cchz_wave',
-                                           type='str',
-                                           mandatory=False,
-                                           doc=(
-        """Select coherence estimation method:
-                  cchz=cchz_wave
-                  phase_gradient=phase gradient"""
+
+FILTER_STRENGTH = Application.Parameter(
+    'filterStrength',
+    public_name='filter strength',
+    default = None,
+    type=float,
+    mandatory=False,
+    doc='Goldstein Werner Filter strength'
+                                )
+
+CORRELATION_METHOD = Application.Parameter(
+   'correlation_method',
+   public_name='correlation_method',
+   default='cchz_wave',
+   type=str,
+   mandatory=False,
+   doc=(
+   """Select coherence estimation method:
+      cchz=cchz_wave
+      phase_gradient=phase gradient"""
         )
                                            )
-DOPPLER_METHOD = Application.Parameter('dopplerMethod',
-                                       public_name='doppler method',
-                                       default='useDOPIQ',
-                                       type=str, mandatory=False,
-                                       doc= (
-        "Doppler calculation method.Choices: 'useDOPIQ', 'useCalcDop', \n" +
-        "'useDoppler'.")
-                                       )
-USE_DOP = Application.Parameter('use_dop',
-                                public_name='use_dop',
-                                default="average",
-                                type='float',
-                                mandatory=False,
-                                doc=(
-        "Choose whether to use master, slave, or average Doppler for\n"+
-        "processing."
-        )
-                                )
+DOPPLER_METHOD = Application.Parameter(
+    'dopplerMethod',
+    public_name='doppler method',
+    default='useDOPIQ',
+    type=str, mandatory=False,
+    doc= "Doppler calculation method.Choices: 'useDOPIQ', 'useCalcDop', 'useDoppler'."
+)
 
-UNWRAPPER_NAME = Application.Parameter('unwrapper_name',
-                                public_name='unwrapper name',
-                                default='grass',
-                                type=str,
-                                mandatory=False,
-                                doc="Unwrapping method to use. To be used in  combination with UNWRAP."
-                                )
+USE_DOP = Application.Parameter(
+    'use_dop',
+    public_name='use_dop',
+    default="average",
+    type=float,
+    mandatory=False,
+    doc="Choose whether to use master, slave, or average Doppler for processing."
+)
+
+UNWRAPPER_NAME = Application.Parameter(
+    'unwrapper_name',
+    public_name='unwrapper name',
+    default='grass',
+    type=str,
+    mandatory=False,
+    doc="Unwrapping method to use. To be used in  combination with UNWRAP."
+)
 
 # to be replaced by DO_UNWRAP;
-UNWRAP = Application.Parameter('unwrap',
-                               public_name='unwrap',
-                               default=False,
-                               type=bool,
-                               mandatory=False,
-                               doc="True if unwrapping is desired. To be unsed in combination with UNWRAPPER_NAME."
-                               )
+UNWRAP = Application.Parameter(
+    'unwrap',
+    public_name='unwrap',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc="True if unwrapping is desired. To be used in combination with UNWRAPPER_NAME."
+)
 
 # not fully supported yet; use UNWRAP instead
-DO_UNWRAP = Application.Parameter('do_unwrap',
-                               public_name='do unwrap',
-                               default=False,
-                               type=bool,
-                               mandatory=False,
-                               doc="True if unwrapping is desired. To be unsed in combination with UNWRAPPER_NAME."
+DO_UNWRAP = Application.Parameter(
+    'do_unwrap',
+    public_name='do unwrap',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc="True if unwrapping is desired. To be unsed in combination with UNWRAPPER_NAME."
+)
+
+DO_UNWRAP_2STAGE = Application.Parameter(
+    'do_unwrap_2stage',
+    public_name='do unwrap 2 stage',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc="True if unwrapping is desired. To be unsed in combination with UNWRAPPER_NAME."
+)
+
+UNWRAPPER_2STAGE_NAME = Application.Parameter(
+    'unwrapper_2stage_name',
+    public_name='unwrapper 2stage name',
+    default='REDARC0',
+    type=str,
+    mandatory=False,
+    doc="2 Stage Unwrapping method to use. Available: MCF, REDARC0, REDARC1, REDARC2"
+)
+
+SOLVER_2STAGE = Application.Parameter(
+    'solver_2stage',
+    public_name='SOLVER_2STAGE',
+    default='pulp',
+    type=str,
+    mandatory=False,
+    doc='Linear Programming Solver for 2Stage; Options: pulp, gurobi, glpk; Used only for Redundant Arcs'
+)
+
+DO_OFFSETPRF = Application.Parameter(
+    'do_offsetprf',
+    public_name='do offsetprf',
+    default=True,
+    type=bool,
+    mandatory=False,
+    doc="Set to False if offsetprf is not required."
                                )
 
-DO_OFFSETPRF = Application.Parameter('do_offsetprf',
-                               public_name='do offsetprf',
-                               default=True,
-                               type=bool,
-                               mandatory=False,
-                               doc="Set to False if offsetprf is not required."
+DO_RGOFFSET = Application.Parameter(
+    'do_rgoffset',
+    public_name='do rgoffset',
+    default=True,
+    type=bool,
+    mandatory=False,
+    doc="Set to False if offsetprf is not required."
                                )
 
-DO_RGOFFSET = Application.Parameter('do_rgoffset',
-                               public_name='do rgoffset',
-                               default=True,
-                               type=bool,
-                               mandatory=False,
-                               doc="Set to False if offsetprf is not required."
-                               )
-
-USE_HIGH_RESOLUTION_DEM_ONLY = Application.Parameter('useHighResolutionDemOnly',
-                                                public_name=(
-        'useHighResolutionDemOnly'
-        ),
-                                                default=False,
-                                                type=int,
-                                                mandatory=False,
-                                                doc=(
-        """If True and a dem is not specified in input, it will only
-           download the SRTM highest resolution dem if it is available
-           and fill the missing portion with null values (typically -32767)."""
-        )
-                                                )
-DEM_FILENAME = Application.Parameter('demFilename',
-                                     public_name='demFilename',
-                                     default='',
-                                     type=str,
-                                     mandatory=False,
-                                     doc="Filename of the DEM init file"
-                                     )
-GEO_POSTING = Application.Parameter('geoPosting',
-                                    public_name='geoPosting',
-                                    default=None,
-                                    type='float',
-                                    mandatory=False,
-                                    doc=(
-        "Output posting for geocoded images in degrees (latitude = longitude)"
-        )
+USE_HIGH_RESOLUTION_DEM_ONLY = Application.Parameter(
+    'useHighResolutionDemOnly',
+    public_name='useHighResolutionDemOnly',
+    default=False,
+    type=int,
+    mandatory=False,
+    doc=(
+    """If True and a dem is not specified in input, it will only
+    download the SRTM highest resolution dem if it is available
+    and fill the missing portion with null values (typically -32767)."""
     )
-POSTING = Application.Parameter('posting',
-                                public_name='posting',
-                                default=15,
-                                type=int,
-                                mandatory=False,
-                                doc="posting for interferogram"
+                                                )
+DEM_FILENAME = Application.Parameter(
+     'demFilename',
+     public_name='demFilename',
+     default='',
+     type=str,
+     mandatory=False,
+     doc="Filename of the DEM init file"
+                                     )
+
+GEO_POSTING = Application.Parameter(
+    'geoPosting',
+    public_name='geoPosting',
+    default=None,
+    type=float,
+    mandatory=False,
+    doc=(
+    "Output posting for geocoded images in degrees (latitude = longitude)"
+    )
+                                    )
+POSTING = Application.Parameter(
+    'posting',
+    public_name='posting',
+    default=15,
+    type=int,
+    mandatory=False,
+    doc="posting for interferogram"
                                 )
-RANGE_LOOKS = Application.Parameter('rangeLooks',
-                                    public_name='range looks',
-                                    default=None,
-                                    type='float',
-                                    mandatory=False,
-                                    doc='Number of range looks to use in resamp'
+RANGE_LOOKS = Application.Parameter(
+    'rangeLooks',
+    public_name='range looks',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc='Number of range looks to use in resamp'
                                     )
-AZ_LOOKS = Application.Parameter('azLooks',
-                                 public_name='azimuth looks',
-                                 default=None,
-                                 type='float',
-                                 mandatory=False,
-                                 doc='Number of azimuth looks to use in resamp'
+AZ_LOOKS = Application.Parameter(
+    'azLooks',
+    public_name='azimuth looks',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc='Number of azimuth looks to use in resamp'
                                  )
-PATCH_SIZE = Application.Parameter('patchSize',
-                                  public_name='azimuth patch size',
-                                  default=None,
-                                  type=int,
-                                  mandatory=False,
-                                   doc=(
-        "Size of overlap/save patch size for formslc"
-        )
+PATCH_SIZE = Application.Parameter(
+    'patchSize',
+     public_name='azimuth patch size',
+     default=None,
+     type=int,
+     mandatory=False,
+      doc=(
+    "Size of overlap/save patch size for formslc"
+    )
                                    )
-GOOD_LINES = Application.Parameter('goodLines',
-                                   public_name='patch valid pulses',
-                                   default=None,
-                                   type=int,
-                                   mandatory=False,
-                                   doc=(
-        "Size of overlap/save save region for formslc"
-        )
+
+GOOD_LINES = Application.Parameter(
+    'goodLines',
+    public_name='patch valid pulses',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=(
+    "Size of overlap/save save region for formslc"
+     )
                                    )
-NUM_PATCHES = Application.Parameter('numPatches',
-                                    public_name='number of patches',
-                                    default=None,
-                                    type=int,
-                                    mandatory=False,
-                                    doc=(
-        "How many patches to process of all available patches"
-        )
+
+NUM_PATCHES = Application.Parameter(
+    'numPatches',
+    public_name='number of patches',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=(
+    "How many patches to process of all available patches"
+    )
                                     )
-GROSS_AZ = Application.Parameter('grossAz',
-                                 public_name='gross azimuth offset',
-                                 default=None,
-                                 type=int,
-                                 mandatory=False,
-                                 doc=(
-        "Override the value of the gross azimuth offset for offset " +
-        "estimation prior to interferogram formation"
-        )
+
+GROSS_AZ = Application.Parameter(
+    'grossAz',
+    public_name='gross azimuth offset',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=(
+    "Override the value of the gross azimuth offset for offset " +
+    "estimation prior to interferogram formation"
+    )
                                  )
-GROSS_RG = Application.Parameter('grossRg',
-                                 public_name='gross range offset',
-                                 default=None,
-                                 type=int,
-                                 mandatory=False,
-                                 doc=(
-        "Override the value of the gross range offset for offset" +
-        "estimation prior to interferogram formation"
-        )
+
+GROSS_RG = Application.Parameter(
+    'grossRg',
+    public_name='gross range offset',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=(
+    "Override the value of the gross range offset for offset" +
+    "estimation prior to interferogram formation"
+    )
                                  )
-CULLING_SEQUENCE = Application.Parameter('culling_sequence',
-                                         public_name='Culling Sequence',
-                                         default= (10,5,3),
-                                         type=(tuple, list, iter),
-                                         doc="TBD"
+
+CULLING_SEQUENCE = Application.Parameter(
+    'culling_sequence',
+    public_name='Culling Sequence',
+    default= (10,5,3),
+    container=tuple,
+    type=int,
+    doc="TBD"
                                          )
-CULLING_ERROR_LIMIT = Application.Parameter('culling_error_limit',
-                                        public_name='Culling error limit',
-                                        default=100,
-                                        type = int,
-                                        mandatory = False,
-                                        doc = 'Minimum number of culled offsets to be used for offset field polynomial estimation')
-GEOCODE_LIST = Application.Parameter('geocode_list',
-                                      public_name='geocode list',
-                                      default = None,
-                                      type=(tuple, list, iter),
-                                      doc = "List of products to geocode.")
-GEOCODE_BOX = Application.Parameter('geocode_bbox',
-                                    public_name='geocode bounding box',
-                                    default = None,
-                                    type=(tuple,list,iter),
-                                    doc='Bounding box for geocoding - South, North, West, East in degrees')
-PICKLE_DUMPER_DIR = Application.Parameter('pickleDumpDir',
-                                          public_name='pickle dump directory',
-                                          default='PICKLE',
-                                          type=str,
-                                          mandatory=False,
-                                          doc=(
-        "If steps is used, the directory in which to store pickle objects."
-        )
-                                          )
-PICKLE_LOAD_DIR = Application.Parameter('pickleLoadDir',
-                                        public_name='pickle load directory',
-                                        default='PICKLE',
-                                        type=str,
-                                        mandatory=False,
-                                        doc=(
-        "If steps is used, the directory from which to retrieve pickle objects"
-        )
+
+CULLING_ERROR_LIMIT = Application.Parameter(
+    'culling_error_limit',
+    public_name='Culling error limit',
+    default=100,
+    type = int,
+    mandatory = False,
+    doc = 'Minimum number of culled offsets to be used for offset field polynomial estimation'
                                         )
 
-MASTER = Application.Facility('master',
-                              public_name='Master',
-                              module='isceobj.Sensor',
-                              factory='createSensor',
-                              args=('sensorName',),
-                              mandatory=True,
-                              doc="Master raw data component"
-                              )
-SLAVE = Application.Facility('slave',
-                             public_name='Slave',
-                             module='isceobj.Sensor',
-                             factory='createSensor',
-                             args=('sensorName',),
-                             mandatory=True,
-                             doc="Slave raw data component"
-                             )
-MASTERDOP = Application.Facility('masterdop',
-                                 public_name='Master Doppler',
-                                 module='isceobj.Doppler',
-                                 factory='createDoppler',
-                                 args=('dopplerMethod',),
-                                 mandatory=False,
-                                 doc="Master Doppler calculation method"
-                                 )
-SLAVEDOP = Application.Facility('slavedop',
-                                public_name='Slave Doppler',
-                                module='isceobj.Doppler',
-                                factory='createDoppler',
-                                args=('dopplerMethod',),
-                                mandatory=False,
-                                doc="Master Doppler calculation method"
-                                )
-DEM = Application.Facility('dem',
-                           public_name='Dem',
-                           module='isceobj.Image',
-                           factory='createDemImage',
-                           mandatory=False,
-                           doc=(
-        "Dem Image configurable component.  Do not include this in the "+
-        "input file and an SRTM Dem will be downloaded for you."
-        )
-                           ),
-RUN_FORM_SLC = Application.Facility('runFormSLC',
-                                    public_name='Form SLC',
-                                    module='isceobj.InsarProc',
-                                    factory='createFormSLC',
-                                    args=('self.sensorName,'),# self? how./ why?
-                                    mandatory=False,
-                                    doc="SLC formation module"
-                                    )
-RUN_OFFSETPRF = Application.Facility('runOffsetprf',
-                                     public_name='slc offsetter',
-                                     module='isceobj.InsarProc',
-                                     factory='createOffsetprf',
-                                     args=('self.offsetMethod'),
-                                     mandatory=False,
-                                     doc="Offset a pair of SLC images."
-                                    )
-RUN_UNWRAPPER = Application.Facility('runUnwrapper',
-                                      public_name='Run unwrapper',
-                                      module='isceobj.Unwrap',
-                                      factory='createUnwrapper',
-                                      args=('self.unwrap', 'self.unwrapper_name',),
-                                      mandatory=False,
-                                      doc="Unwrapping module"
+GEOCODE_LIST = Application.Parameter(
+    'geocode_list',
+     public_name='geocode list',
+     default = None,
+     container=list,
+     type=str,
+     doc = "List of products to geocode."
                                       )
+
+GEOCODE_BOX = Application.Parameter(
+    'geocode_bbox',
+    public_name='geocode bounding box',
+    default = None,
+    container=list,
+    type=float,
+    doc='Bounding box for geocoding - South, North, West, East in degrees'
+                                    )
+
+PICKLE_DUMPER_DIR = Application.Parameter(
+    'pickleDumpDir',
+    public_name='pickle dump directory',
+    default='PICKLE',
+    type=str,
+    mandatory=False,
+    doc=(
+    "If steps is used, the directory in which to store pickle objects."
+    )
+                                          )
+PICKLE_LOAD_DIR = Application.Parameter(
+    'pickleLoadDir',
+    public_name='pickle load directory',
+    default='PICKLE',
+    type=str,
+    mandatory=False,
+    doc=(
+    "If steps is used, the directory from which to retrieve pickle objects."
+    )
+                                        )
+
+RENDERER = Application.Parameter(
+    'renderer',
+    public_name='renderer',
+    default='pickle',
+    type=str,
+    mandatory=False,
+    doc=(
+    "Format in which the data is serialized when using steps. Options are xml (default) or pickle."
+    )
+                                        )
+
+#Facility declarations
+MASTER = Application.Facility(
+    'master',
+    public_name='Master',
+    module='isceobj.Sensor',
+    factory='createSensor',
+    args=(SENSOR_NAME, 'master'),
+    mandatory=True,
+    doc="Master raw data component"
+                              )
+
+SLAVE = Application.Facility(
+    'slave',
+    public_name='Slave',
+    module='isceobj.Sensor',
+    factory='createSensor',
+    args=(SENSOR_NAME,'slave'),
+    mandatory=True,
+    doc="Slave raw data component"
+                             )
+
+MASTERDOP = Application.Facility(
+    'masterdop',
+    public_name='Master Doppler',
+    module='isceobj.Doppler',
+    factory='createDoppler',
+    args=(DOPPLER_METHOD,),
+    mandatory=False,
+    doc="Master Doppler calculation method"
+                                 )
+
+SLAVEDOP = Application.Facility(
+    'slavedop',
+    public_name='Slave Doppler',
+    module='isceobj.Doppler',
+    factory='createDoppler',
+    args=(DOPPLER_METHOD,),
+    mandatory=False,
+    doc="Master Doppler calculation method"
+                                )
+
+DEM = Application.Facility(
+    'dem',
+    public_name='Dem',
+    module='isceobj.Image',
+    factory='createDemImage',
+    mandatory=False,
+    doc=(
+    "Dem Image configurable component.  Do not include this in the "+
+    "input file and an SRTM Dem will be downloaded for you."
+    )
+                           )
+
+DEM_STITCHER = Application.Facility(
+    'demStitcher',
+    public_name='demStitcher',
+    module='iscesys.DataManager',
+    factory='createManager',
+    args=('dem1','iscestitcher',),
+    mandatory=False,
+    doc="Object that based on the frame bounding boxes creates a DEM"
+)
+
+RUN_ESTIMATE_HEIGHTS = Application.Facility(
+    'runEstimateHeights',
+    public_name='Estimate Heights',
+    module='isceobj.InsarProc',
+    factory='createEstimateHeights',
+    args=(SELF(), SENSOR_NAME),
+    mandatory=False,
+    doc="mocomp height estimation module"
+        )
+
+RUN_FORM_SLC = Application.Facility(
+    'runFormSLC',
+    public_name='Form SLC',
+    module='isceobj.InsarProc',
+    factory='createFormSLC',
+    args=(SELF(), SENSOR_NAME),
+    mandatory=False,
+    doc="SLC formation module"
+)
+
+RUN_OFFSETPRF = Application.Facility(
+    'runOffsetprf',
+    public_name='slc offsetter',
+    module='isceobj.InsarProc',
+    factory='createOffsetprf',
+    args=(SELF(), OFFSET_METHOD, DO_OFFSETPRF),
+    mandatory=False,
+    doc="Offset a pair of SLC images."
+)
+
+RUN_RGOFFSET = Application.Facility(
+    'runRgoffset',
+    public_name='dem offseter',
+    module = 'isceobj.InsarProc',
+    factory= 'createRgoffset',
+    args=(SELF(), OFFSET_METHOD, DO_RGOFFSET),
+    mandatory=False,
+    doc="Dem offset estimator."
+)
+
+RUN_UNWRAPPER = Application.Facility(
+    'runUnwrapper',
+    public_name='Run unwrapper',
+    module='isceobj.InsarProc',
+    factory='createUnwrapper',
+    args=(SELF(), DO_UNWRAP, UNWRAPPER_NAME, UNWRAP),
+    mandatory=False,
+    doc="Unwrapping module"
+)
+
+RUN_UNWRAP_2STAGE = Application.Facility(
+    'runUnwrap2Stage',
+    public_name='Run unwrapper 2 Stage',
+    module='isceobj.InsarProc',
+    factory='createUnwrap2Stage',
+    args=(SELF(), DO_UNWRAP_2STAGE, UNWRAPPER_NAME),
+    mandatory=False,
+    doc="Unwrapping module"
+)
+
+_INSAR = Application.Facility(
+    '_insar',
+    public_name='insarproc',
+    module='isceobj.InsarProc',
+    factory='createInsarProc',
+    args = ('insarAppContext',isceobj.createCatalog('insarProc')),
+    mandatory=False,
+    doc="InsarProc object"
+)
 
 
 ## Common interface for all insar applications.
@@ -388,6 +552,7 @@ class _InsarBase(Application, FrameMixin):
     parameter_list = (SENSOR_NAME,
                       OFFSET_METHOD,
                       OFFSET_SEARCH_WINDOW_SIZE,
+                      PEG_SELECT,
                       PEG_LAT,
                       PEG_LON,
                       PEG_HDG,
@@ -417,32 +582,43 @@ class _InsarBase(Application, FrameMixin):
                       GEOCODE_LIST,
                       GEOCODE_BOX,
                       PICKLE_DUMPER_DIR,
-                      PICKLE_LOAD_DIR)
+                      PICKLE_LOAD_DIR,
+                      RENDERER,
+                      DO_UNWRAP_2STAGE,
+                      UNWRAPPER_2STAGE_NAME,
+                      SOLVER_2STAGE)
 
     facility_list = (MASTER,
                      SLAVE,
                      MASTERDOP,
                      SLAVEDOP,
                      DEM,
+                     DEM_STITCHER,
+                     RUN_ESTIMATE_HEIGHTS,
                      RUN_FORM_SLC,
                      RUN_UNWRAPPER,
-                     RUN_OFFSETPRF)
+                     RUN_UNWRAP_2STAGE,
+                     RUN_OFFSETPRF,
+                     RUN_RGOFFSET,
+                     _INSAR)
 
     _pickleObj = "_insar"
 
     def __init__(self, family='', name='',cmdline=None):
         import isceobj
-        super(_InsarBase, self).__init__(family=family, name=name,
+        super().__init__(family=family, name=name,
             cmdline=cmdline)
 
+        from isceobj.InsarProc import InsarProc
         from iscesys.StdOEL.StdOELPy import create_writer
         self._stdWriter = create_writer("log", "", True, filename="insar.log")
         self._add_methods()
-
+        self._insarProcFact = InsarProc
+        '''
         procDoc = isceobj.createCatalog('insarProc')
-        self._insar = InsarProc.InsarProc(name='insarApp_conf',
-            procDoc=procDoc
-            )
+        #self._insar = InsarProc.InsarProc(name='insarApp_conf',
+        #    procDoc=procDoc
+        #    )
         self.insar.procDoc._addItem("ISCE_VERSION",
             "Release: %s, svn-%s, %s. Current svn-%s" %
             (isce.release_version, isce.release_svn_revision,
@@ -450,10 +626,11 @@ class _InsarBase(Application, FrameMixin):
             ),
             ["insarProc"]
             )
-
+        '''
         return None
 
     def _init(self):
+
         message =  (
             ("ISCE VERSION = %s, RELEASE_SVN_REVISION = %s,"+
              "RELEASE_DATE = %s, CURRENT_SVN_REVISION = %s") %
@@ -495,6 +672,14 @@ class _InsarBase(Application, FrameMixin):
 
 
     def _configure(self):
+
+        self.insar.procDoc._addItem("ISCE_VERSION",
+            "Release: %s, svn-%s, %s. Current svn-%s" %
+            (isce.release_version, isce.release_svn_revision,
+             isce.release_date, isce.svn_revision
+            ),
+            ["insarProc"]
+            )
         #This is a temporary fix to get the user interface back to the dem
         #facility interface while changes are being made in the DemImage class
         #to include within it the capabilities urrently in extractInfo and
@@ -547,10 +732,15 @@ class _InsarBase(Application, FrameMixin):
                 self.demFilename = "demFilename"
                 self.insar.demImage = self.dem
             except Exception as err:
-                print(
-                    "The Dem specified was not properly initialized. An SRTM" +
-                    " Dem will be downloaded."
-                    )
+                pass
+                #The following print statement is sometimes misleading when
+                #checkInitialization fails for a reason other than the dem
+                #not being found. The checkInitialization error should be
+                #handled more appropriately.
+                #print(
+                #    "The Dem specified was not properly initialized. An SRTM" +
+                #    " Dem will be downloaded."
+                #    )
                 #self.dem was not properly initialized
                 #and self.demFilename is undefined.
                 #There is a check on self.demFilename
@@ -576,111 +766,39 @@ class _InsarBase(Application, FrameMixin):
                         logger.warn('Geocoding eastern extent changed to match DEM')
                         self.geocode_bbox[3] = dem_snwe[3]
 
-        #if not provided by the user use the default from InsarProc
+        #Ensure consistency in geocode_list maintained by insarApp and
+        #InsarProc. If it is configured in both places, the one in insarApp
+        #will be used. It is complicated to try to merge the two lists
+        #because InsarProc permits the user to change the name of the files
+        #and the linkage between filename and filetype is lost by the time
+        #geocode_list is fully configured.  In order to safely change file
+        #names and also specify the geocode_list, then insarApp should not
+        #be given a geocode_list from the user.
         if(self.geocode_list is None):
+            #if not provided by the user use the list from InsarProc
             self.geocode_list = self.insar.geocode_list
+        else:
+            #if geocode_list defined here, then give it to InsarProc
+            #for consistency between insarApp and InsarProc and warn the user
 
-        return None
+            #check if the two geocode_lists differ in content
+            g_count = 0
+            for g in self.geocode_list:
+                if g not in self.insar.geocode_list:
+                    g_count += 1
+            #warn if there are any differences in content
+            if g_count > 0:
+                print()
+                logger.warn((
+                    "Some filenames in insarApp.geocode_list configuration "+
+                    "are different from those in InsarProc. Using names given"+
+                    " to insarApp."))
+                print("insarApp.geocode_list = {}".format(self.geocode_list))
+                print(("InsarProc.geocode_list = {}".format(
+                        self.insar.geocode_list)))
 
+            self.insar.geocode_list = self.geocode_list
 
-    def _facilities(self):
-        """
-        Define the user configurable facilities for this application.
-        """
-        self.master = self.facility(
-            'master',
-            public_name='Master',
-            module='isceobj.Sensor',
-            factory='createSensor',
-            args=(self.sensorName, 'master'),
-            mandatory=True,
-            doc="Master raw data component"
-        )
-        self.slave  = self.facility(
-            'slave',
-            public_name='Slave',
-            module='isceobj.Sensor',
-            factory='createSensor',
-            args=(self.sensorName, 'slave'),
-            mandatory=True,
-            doc="Slave raw data component"
-        )
-        self.masterdop = self.facility(
-            'masterdop',
-            public_name='Master Doppler',
-            module='isceobj.Doppler',
-            factory='createDoppler',
-            args=(self.dopplerMethod,),
-            mandatory=False,
-            doc="Master Doppler calculation method"
-        )
-        self.slavedop  = self.facility(
-            'slavedop',
-            public_name='Slave Doppler',
-            module='isceobj.Doppler',
-            factory='createDoppler',
-            args=(self.dopplerMethod,),
-            mandatory=False,
-            doc="Master Doppler calculation method"
-        )
-        self.dem = self.facility(
-            'dem',
-            public_name='Dem',
-            module='isceobj.Image',
-            factory='createDemImage',
-            mandatory=False,
-            doc=(
-                "Dem Image configurable component.  Do not include this "+
-                "in the input file and an SRTM Dem will be downloaded for you."
-                )
-            )
-        self.demStitcher = self.facility(
-            'demStitcher',
-            public_name='demStitcher',
-            module='contrib.demUtils',
-            factory='createDemStitcher',
-            args=('iscestitcher',),
-            mandatory=False,
-            doc=(
-                "Object that based on the frame bounding boxes creates a DEM"
-                )
-            )
-        self.runFormSLC  = self.facility(
-            'runFormSLC',
-            public_name='Form SLC',
-            module='isceobj.InsarProc',
-            factory='createFormSLC',
-            args=(self, self.sensorName,),
-            mandatory=False,
-            doc="SLC formation module"
-        )
-        self.runOffsetprf  = self.facility(
-            'runOffsetprf',
-            public_name='slc offsetter',
-            module='isceobj.InsarProc',
-            factory='createOffsetprf',
-            args=(self, self.offsetMethod, self.do_offsetprf,),
-            mandatory=False,
-            doc="SLC offset estimator."
-        )
-        self.runRgoffset = self.facility(
-                'runRgoffset',
-                public_name='dem offseter',
-                module = 'isceobj.InsarProc',
-                factory= 'createRgoffset',
-                args=(self, self.offsetMethod, self.do_rgoffset,),
-                mandatory=False,
-                doc="Dem offset estimator."
-        )
-        self.runUnwrapper = self.facility(
-            'runUnwrapper',
-            public_name='Run Unwrapper',
-            module='isceobj.InsarProc',
-            factory='createUnwrapper',
-            args=(self,self.do_unwrap,self.unwrapper_name,self.unwrap),
-            mandatory=False,
-            doc="Unwrapping module"
-        )
         return None
 
     @property
@@ -718,25 +836,53 @@ class _InsarBase(Application, FrameMixin):
         return
 
     ## Method return True iff it changes the demFilename.
+    from isceobj.Util.decorators import use_api
+    @use_api
     def verifyDEM(self):
+        masterF = self._insar.masterFrame
+        slaveF = self._insar.slaveFrame
+        info = self.extractInfo(masterF, slaveF)
         #if an image has been specified, then no need to create one
         if not self.dem.filename:
-            #the following lines should be included in the check on demFilename
-            import math
-            masterF = self._insar.masterFrame
-            slaveF = self._insar.slaveFrame
-            info = self.extractInfo(masterF, slaveF)
             self.createDem(info)
         else:
             self.insar.demImage = self.dem
 
-        #at this point a dem image has been set into self.insar, wheater it
-        #was sitched together or read in input
+        #ensure that the dem vrt file exists by creating (or recreating) it
+        self.insar.demImage.renderVRT()
+
+        #at this point a dem image has been set into self.insar, whether it
+        #was stitched together or read in input
         demImage =  self.insar.demImage
-        #check what is the dem reference if EGM96 then convert to WGS84
-        if demImage.reference.upper() == 'EGM96':
-            self.insar.demImage = self.demStitcher.correct(demImage)
-            pass
+        #if the demImage is already in wgs84 (because was provided in input) then skip and proceed
+        if demImage.reference.upper() != 'WGS84':
+            wgs84demFilename = self.insar.demImage.filename+'.wgs84'
+            wgs84demxmlFilename = wgs84demFilename+'.xml'
+            #if the dem reference is EGM96 and the WGS84 corrected
+            #dem files are not found, then create the WGS84 files
+            #using the demStitcher's correct method
+            if( demImage.reference.upper() == 'EGM96' and
+                not (os.path.isfile(wgs84demFilename) and
+                     os.path.isfile(wgs84demxmlFilename))
+            ):
+                self.insar.demImage = self.demStitcher.correct(demImage)
+            #make sure to load the wgs84 if present
+            elif(os.path.isfile(wgs84demFilename) and
+                     os.path.isfile(wgs84demxmlFilename)):
+                from isceobj import createDemImage
+                self.insar.demImage  = createDemImage()
+                self.insar.demImage.load(wgs84demxmlFilename)
+                if(self.insar.demImage.reference.upper() != 'WGS84'):
+                    print('The dem',wgs84demFilename,'is not wgs84')
+                    raise Exception
+
+        #ensure that the wgs84 dem vrt file exists
+        self.insar.demImage.renderVRT()
+
+        #get water mask
+        self.runCreateWbdMask(info)
+
+
         return None
 
 
@@ -776,13 +922,15 @@ class _InsarBase(Application, FrameMixin):
                     (self._insar.timeEnd-self._insar.timeStart))
         return None
 
+
     ## Add instance attribute RunWrapper functions, which emulate methods.
     def _add_methods(self):
         self.runPreprocessor = InsarProc.createPreprocessor(self)
         self.extractInfo = InsarProc.createExtractInfo(self)
         self.createDem = InsarProc.createCreateDem(self)
+        self.runCreateWbdMask = InsarProc.createCreateWbdMask(self)
+        self.runMaskImages = InsarProc.createMaskImages(self)
         self.runPulseTiming = InsarProc.createPulseTiming(self)
-        self.runEstimateHeights = InsarProc.createEstimateHeights(self)
         self.runSetmocomppath = InsarProc.createSetmocomppath(self)
         self.runOrbit2sch = InsarProc.createOrbit2sch(self)
         self.updatePreprocInfo = InsarProc.createUpdatePreprocInfo(self)
@@ -794,7 +942,6 @@ class _InsarBase(Application, FrameMixin):
         self.runTopo = InsarProc.createTopo(self)
         self.runCorrect = InsarProc.createCorrect(self)
         self.runShadecpx2rg = InsarProc.createShadecpx2rg(self)
-#        self.runRgoffset = InsarProc.createRgoffset(self)
         self.runResamp_only = InsarProc.createResamp_only(self)
         self.runCoherence = InsarProc.createCoherence(self)
         self.runFilter = InsarProc.createFilter(self)
@@ -808,7 +955,6 @@ class _InsarBase(Application, FrameMixin):
                      doc=("Print a helpful message and "+
                           "set the startTime of processing")
                   )
-
         # Run a preprocessor for the two sets of frames
         self.step('preprocess',
                   func=self.runPreprocessor,
@@ -890,8 +1036,16 @@ class _InsarBase(Application, FrameMixin):
         self.step('filter', func=self.runFilter,
                   args=(self.filterStrength,))
 
+        #add water mask to coherence and interferogram
+        self.step('mask', func=self.runMaskImages)
+
         # Unwrap ?
         self.step('unwrap', func=self.runUnwrapper)
+
+        # Conditional 2 stage unwrapping
+        self.step('unwrap2stage', func=self.runUnwrap2Stage,
+                  args=(self.unwrapper_2stage_name, self.solver_2stage))
+
         return None
 
     ## Main has the common start to both insarApp and dpmApp.
@@ -900,14 +1054,12 @@ class _InsarBase(Application, FrameMixin):
 
         # Run a preprocessor for the two sets of frames
         self.runPreprocessor()
-
         #Verify whether user defined  a dem component.  If not, then download
         # SRTM DEM.
         self.verifyDEM()
 
         # Run pulsetiming for each set of frames
         self.runPulseTiming()
-
         self.runEstimateHeights()
 
         # Run setmocomppath
@@ -961,7 +1113,7 @@ class Insar(_InsarBase):
         #to allow inheritance with different family name use the locally
         #defined only if the subclass (if any) does not specify one
 
-        super(Insar, self).__init__(
+        super().__init__(
             family=family if family else  self.__class__.family, name=name,
             cmdline=cmdline)
 
@@ -975,7 +1127,7 @@ class Insar(_InsarBase):
 
     ## extends _InsarBase_steps, but not in the same was as main
     def _steps(self):
-        super(Insar, self)._steps()
+        super()._steps()
 
         # Geocode
         self.step('geocode', func=self.runGeocode,
@@ -990,7 +1142,7 @@ class Insar(_InsarBase):
         import time
         timeStart = time.time()
 
-        super(Insar, self).main()
+        super().main()
 
         # self.runCorrect()
 
@@ -1006,7 +1158,7 @@ class Insar(_InsarBase):
         self.insar.topoIntImage=self.insar.resampOnlyImage
         #self.runTopo()
         self.runCorrect()
-  
+
         # Coherence ?
         self.runCoherence(method=self.correlation_method)
 
@@ -1014,8 +1166,13 @@ class Insar(_InsarBase):
         # Filter ?
         self.runFilter(self.filterStrength)
 
+        #add water mask to coherence and interferogram
+        self.runMaskImages()
         # Unwrap ?
         self.runUnwrapper()
+
+        # 2Stage Unwrapping
+        self.runUnwrap2Stage(self.unwrapper_2stage_name, self.solver_2stage)
 
         # Geocode
         self.runGeocode(self.geocode_list, self.unwrap, self.geocode_bbox)
@@ -1025,14 +1182,17 @@ class Insar(_InsarBase):
 
         self.renderProcDoc()
 
-
         return None
 
 
 
 
 if __name__ == "__main__":
-    import sys
+    #make an instance of Insar class named 'insarApp'
     insar = Insar(name="insarApp")
+    #configure the insar application
     insar.configure()
-    insar.run()
+    #invoke the base class run method, which returns status
+    status = insar.run()
+    #inform Python of the status of the run to return to the shell
+    raise SystemExit(status)

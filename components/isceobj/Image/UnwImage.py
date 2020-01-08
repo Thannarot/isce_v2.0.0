@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,16 +48,32 @@ from iscesys.Component.Component import Component
 #Moreover each parameter can be set with the corresponding accessor method setParameter() (see the class member methods).
 #@see DataAccessor.Image.
 #@see Component.Component.
+IMAGE_TYPE = Component.Parameter('imageType',
+                       public_name='IMAGE_TYPE',
+                       default='unw',
+                       type=str,
+                       mandatory=False,
+                       private=True,
+                       doc='Image type used for displaying.')
 class UnwImage(BILImage):
 
-
-    def __init__(self):
-
+    parameter_list = (
+                  IMAGE_TYPE,
+                  ) 
+   
+    def updateParameters(self):
+        self.extendParameterList(BILImage,UnwImage)
+        super(UnwImage,self).updateParameters()
         
-        BILImage.__init__(self)
+    family = 'unwimage'
+   
+    def __init__(self,family='',name=''):
+
+        self.updateParameters()
+
+        super(UnwImage, self).__init__(family if family else  self.__class__.family, name=name)
 
         self.initOptionalAndMandatoryLists()
-        self.imageType = 'unw'        
         
         
         self.logger = logging.getLogger('isce.Image.UnwImage')
@@ -78,8 +94,3 @@ class UnwImage(BILImage):
 
 #end class
 
-
-
-
-if __name__ == "__main__":
-    sys.exit(main())

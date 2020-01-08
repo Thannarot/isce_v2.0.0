@@ -18,7 +18,7 @@
  * @param ymax last azimuth row offset
  */
 int
-corr_flag(char *corFilename, char *flagFilename, int width, double thr, int start, int xmin, int xmax, int ymin, int ymax)
+corr_flag(char *corFilename, char *flagFilename, int width, double thr, int start, int xmin, int xmax, int ymin, int ymax, int cbands)
 {
     float **cc, *ccb;		/* correlation data */
 
@@ -45,7 +45,9 @@ corr_flag(char *corFilename, char *flagFilename, int width, double thr, int star
   fprintf(stdout,"line width, correlation threshold: %d  %8.3lf\n",width, thr);
 
   fseek(c_file, 0L, REL_EOF);			/* determine # lines in the file */
-  nlines=(int)ftell(c_file)/(8*width);
+
+  nlines=(int)ftell(c_file)/(cbands*4*width);
+
   fprintf(stdout,"#lines in the correlation file: %d\n",nlines); 
   rewind(c_file);
 
@@ -66,10 +68,11 @@ corr_flag(char *corFilename, char *flagFilename, int width, double thr, int star
     exit(1) ;
   }
   for (i=0; i < width; i++) bz[i]=LSNR;
-  ccb = (float *) malloc(sizeof(float)*2*width*yh);
+
+  ccb = (float *) malloc(sizeof(float)*cbands*width*yh);
   if(ccb ==  NULL) {
-    fprintf(stdout,"failure to allocate space for correlation data\n");
-    exit(1) ;
+        fprintf(stdout,"failure to allocate space for correlation data\n");
+        exit(1) ;
   }
 
   fbf = (unsigned char *) malloc(sizeof(unsigned char)*width*yh);
@@ -87,9 +90,11 @@ corr_flag(char *corFilename, char *flagFilename, int width, double thr, int star
   
   for (i=0; i< yh; i++){
     fb[i] = (unsigned char *)(fbf + i*width + xmin);
-    cc[i] =  (float *)(ccb + 2*i*width + width+xmin);
+    cc[i] =  (float *)(ccb + cbands*i*width + (cbands-1)*width +xmin);
   }
-      
+
+
+
   flag_file = fopen(flagFilename,"r+"); 
   if (flag_file == NULL){
       fprintf(stdout, "flag file does not exist, creating file: %s\n",flagFilename);
@@ -107,8 +112,9 @@ corr_flag(char *corFilename, char *flagFilename, int width, double thr, int star
 /**************** Read in correlation data *********************/
    
   fprintf(stdout,"reading correlation data file...\n");
-  fseek(c_file, offs*width*2*sizeof(float), REL_BEGIN); 
-  fread((char *)ccb, sizeof(float), 2*yh*width, c_file); 
+
+  fseek(c_file, offs*width*cbands*sizeof(float), REL_BEGIN); 
+  fread((char *)ccb, sizeof(float), cbands*yh*width, c_file); 
  
   fprintf(stdout,"setting low SNR flag...\n");
  

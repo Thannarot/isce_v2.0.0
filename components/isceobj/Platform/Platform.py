@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -24,13 +24,15 @@ from iscesys.Component.Component import Component
 from isceobj.Planet.Planet import Planet
 from isceobj.Util.decorators import type_check
 
-
-PLANET = Component.Parameter('_planet',
+PLANET = Component.Facility(
+    '_planet',
     public_name='PLANET',
-    default=None,
-    type = Planet,
-    mandatory = True,
-    doc = 'Planet description')
+    module='isceobj.Planet',
+    factory='createPlanet',
+    args=('Earth',),
+    mandatory=False,
+    doc="Planet factory"
+)
 
 SPACECRAFT_NAME = Component.Parameter('spacecraftName',
     public_name='SPACECRAFT_NAME',
@@ -80,12 +82,15 @@ class Platform(Component):
     family = 'platform'
     logging_name = 'isce.isceobj.platform'
 
-    parameter_list = (PLANET,
+    parameter_list = (
                       SPACECRAFT_NAME,
                       MISSION,
                       ANTENNA_LENGTH,
                       POINTING_DIRECTION)
     
+    facility_list = (
+                      PLANET,
+                      )
     
     def __init__(self, name=''):
         super(Platform, self).__init__(family=self.__class__.family, name=name)

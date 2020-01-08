@@ -1,20 +1,20 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,7 +224,7 @@ SINGLE_PATCH = Component.Parameter('singlePatch',
 
 corrTypes = ['NONE', 'NOSLOPE', 'SLOPE', 'PHASESIGMA', 'ALL']
 filtTypes = ['LP','PS']
-unwTreeTypes = ['GZW', 'CC'] 
+unwTreeTypes = ['GZW', 'CC']
 
 class Icu(Component):
 
@@ -259,9 +259,9 @@ class Icu(Component):
                       NUMBER_TREESETS)
 
 
-    def icu(self, intImage=None, ampImage=None, filtImage=None, unwImage=None, 
+    def icu(self, intImage=None, ampImage=None, filtImage=None, unwImage=None,
             corrImage=None, gccImage=None, phsigImage=None, conncompImage=None):
-        
+
         if (intImage == None):
             print("Error. interferogram image not set.")
             raise Exception
@@ -321,8 +321,8 @@ class Icu(Component):
 
         self.createImages(intImage)
         self.setState()
-        
-        icu.icu_Py(self.intAcc, self.ampAcc, self.filtAcc, 
+
+        icu.icu_Py(self.intAcc, self.ampAcc, self.filtAcc,
                 self.corrAcc, self.gccAcc, self.phsigAcc,
                 self.unwAcc, self.conncompAcc)
 
@@ -332,25 +332,28 @@ class Icu(Component):
 
     def finalizeImages(self):
         '''
-        Close any images that were created here and 
+        Close any images that were created here and
         not provided by user.
         '''
-            
+
         for img in self._createdHere:
-            img.renderHdr()
             img.finalizeImage()
+            img.renderHdr()
 
         self._createdHere = []
 
         return
 
+    from isceobj.Util.decorators import use_api
+    @use_api
     def createImages(self, intImage):
         '''
         Create any outputs that need to be generated always here.
         '''
-        if self.conncompAcc == 0:
+        if (self.conncompAcc == 0) and self.unwrappingFlag:
             img = isceobj.createImage()
             img.filename = os.path.splitext(intImage.getFilename())[0] + '.conncomp'
+            self.conncompFilename = img.filename
             img.dataType = 'BYTE'
             img.scheme = 'BIL'
             img.imageType = 'bil'
@@ -361,7 +364,7 @@ class Icu(Component):
 
             self.conncompAcc = img.getImagePointer()
 
-    
+
     def setState(self):
 
         icu.setWidth_Py(self.width)
@@ -375,7 +378,7 @@ class Icu(Component):
 
         icu.setFilteringFlag_Py(int(self.filteringFlag))
         icu.setFilterType_Py(filtTypes.index(self.filterType.upper()))
-        
+
         icu.setUnwrappingFlag_Py(int(self.unwrappingFlag))
         icu.setLPRangeWinSize_Py(self.LPRangeWinSize)
         icu.setLPAzimuthWinSize_Py(self.LPAzimuthWinSize)
@@ -411,12 +414,14 @@ class Icu(Component):
 
         self.intAcc = 0
         self.ampAcc = 0
-        self.filtAcc = 0 
+        self.filtAcc = 0
         self.corrAcc = 0
         self.gccAcc = 0
         self.phsigAcc = 0
         self.unwAcc = 0
         self.conncompAcc = 0
+        self.conncompFilename = ''
+
         self._createdHere = []
 
         return
@@ -428,7 +433,7 @@ if __name__ == "__main__":
     import isceobj
     from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 
-    wid = 2659 
+    wid = 2659
     objInt = isceobj.createIntImage()
     objInt.initImage('test.int', 'read', wid)
     objInt.createImage()
@@ -444,7 +449,7 @@ if __name__ == "__main__":
     objFilt.createImage()
 
     objUnw = isceobj.createAmpImage()
-    objUnw.bands = 2 
+    objUnw.bands = 2
     objUnw.scheme = 'BIL'
     objUnw.setFilename('test.unw')
     objUnw.setWidth(wid)

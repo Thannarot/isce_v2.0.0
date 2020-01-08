@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,6 +22,9 @@
 import isceobj
 import stdproc
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
+from isceobj.Util.Polynomial import Polynomial
+from isceobj.Util.Poly2D import Poly2D
+from contrib.demUtils.SWBDStitcher import SWBDStitcher
 
 import logging
 logger = logging.getLogger('isce.insar.runTopo') 
@@ -33,21 +36,22 @@ def runTopo(self):
     objMocompbaseline = self.insar.mocompBaseline
     objFormSlc1  =  self.insar.formSLC1
 
-    objDem = isceobj.createDemImage()
-    demImage = self.insar.demImage
+    #objDem = isceobj.createDemImage()
+    #demImage = self.insar.demImage
 
-    IU.copyAttributes(demImage, objDem)
-
+    #IU.copyAttributes(demImage, objDem)
+    objDem = self.insar.demImage.clone()
 
     topoIntImage = self._insar.getTopoIntImage()
-    intImage = isceobj.createIntImage()
-    IU.copyAttributes(topoIntImage, intImage)
+    #intImage = isceobj.createIntImage()
+    #IU.copyAttributes(topoIntImage, intImage)
+    intImage = topoIntImage.clone()
     intImage.setAccessMode('read')
 
     posIndx = 1
     mocompPosition1 = objFormSlc1.getMocompPosition()
-    
-    centroid = self.insar.dopplerCentroid.getDopplerCoefficients(inHz=False)[0]
+
+
 
     planet = self.insar.masterFrame.getInstrument().getPlatform().getPlanet()
     prf1 = self.insar.masterFrame.getInstrument().getPulseRepetitionFrequency()
@@ -59,6 +63,8 @@ def runTopo(self):
     objTopo.wireInputPort(name='dem', object=objDem)
     objTopo.wireInputPort(name='interferogram', object=intImage)
     objTopo.wireInputPort(name='masterslc', object = self.insar.formSLC1) #Piyush
+    
+    centroid = self.insar.dopplerCentroid.getDopplerCoefficients(inHz=False)[0]
     objTopo.setDopplerCentroidConstantTerm(centroid)
 
     v = self.insar.procVelocity
@@ -97,5 +103,9 @@ def runTopo(self):
                            logger, "runTopo")
 
     self._insar.setTopo(objTopo)
+    if self.insar.applyWaterMask:
+        sw = SWBDStitcher()
+        sw.toRadar(self.insar.wbdImage.filename,self.insar.latFilename,
+                   self.insar.lonFilename,self.insar.waterMaskImageName)
 
     return objTopo

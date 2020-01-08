@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -83,15 +83,15 @@ class Display(object):
             command = image + ' -s ' + str(width) +  '  -amp ' + dataType + ' -rtlr ' + str(width*int(dataType[2:])) + ' -CW -unw '  + dataType + ' -rhdr ' + str(width*int(dataType[2:])) + ' -cmap cmy ' + ' '.join(argv)
         elif ext in self._ext['cor']:
             self.setIfNotPresent(argv,'-wrap','1.2')
-            command = image + ' -s ' + str(width) +  '  -rmg -RMG-Mag -CW -RMG-Hgt '  + ' '.join(argv)
-            command = image + ' -s ' + str(width) +  '  -rmg -RMG-Mag -CW -RMG-Hgt '  + ' '.join(argv)
+            if numBands == 2:
+                command = image + ' -s ' + str(width) +  '  -rmg -RMG-Mag -CW -RMG-Hgt '  + ' '.join(argv)
+                command = image + ' -s ' + str(width) +  '  -rmg -RMG-Mag -CW -RMG-Hgt '  + ' '.join(argv)
+            elif numBands == 1:
+                command = image + ' -s ' + str(width) + ' -cmap cmy ' + ' '.join(argv)
         elif ext in self._ext['dem']:
             self.setIfNotPresent(argv,'-wrap','100')
             self.setIfNotPresent(argv,'-cmap','cmy')
             command =  image + ' -slope '  + dataType + ' -s ' + str(width) + ' ' + image + ' ' + dataType +' -s ' + str(width) + ' ' + ' '.join(argv)
-        elif ext in self._ext['msk']:
-            self.setIfNotPresent(argv,'-wrap','1.2')
-            command = image + ' -s ' + str(width) + ' -rmg -RMG-Mag -CW -RMG-Hgt '  + ' '.join(argv)
         elif ext in self._ext['amp']:
             #get the numeric part of the data type which corresponds to the size
             chdr = dataType[2:]
@@ -454,7 +454,7 @@ class Display(object):
             maxLat = max(lat1,lat2)
             minLat = min(lat1,lat2)
             icon = os.path.join(cwd,os.path.basename(self._names[i])) + '.png'
-            command = 'convert ' + ppm + ' -resize 25% -transparent black' + ' ' + icon
+            command = 'convert ' + ppm + ' -resize 80% -transparent black' + ' ' + icon
             os.system(command)
             os.remove(ppm)
             self.appendToKmlFile(fp,os.path.basename(self._names[i]),icon,[maxLat,minLat,maxLon,minLon])
@@ -499,8 +499,8 @@ class Display(object):
 
 
         size = DA.getTypeSize('LONG') #the size depends on the platform. the ImageAPI does e sizeof(long int) and returns the size
-        #NOTE the unw and msk  don;t need a datatype so put ''
-        self._mapDataType = {'xml':{'BYTE':'-i1','SHORT':'-i2','CFLOAT':'-c8','FLOAT':'-r4','INT':'-i4','LONG':'-i'+ str(size),'DOUBLE':'-r8'},'rsc':{'cpx':'-c8','rmg':'-r4','scor':'-r4','dem':'-i2','byt':'-i1','amp':'-r4','unw':'-r4','msk':'','cor':''}}
+        #NOTE the unw  doent't need a datatype so put ''
+        self._mapDataType = {'xml':{'BYTE':'-i1','SHORT':'-i2','CFLOAT':'-c8','FLOAT':'-r4','INT':'-i4','LONG':'-i'+ str(size),'DOUBLE':'-r8'},'rsc':{'cpx':'-c8','rmg':'-r4','scor':'-r4','dem':'-i2','byt':'-i1','amp':'-r4','unw':'-r4','cor':''}}
 
         self._docIn = [
                        '  mdx.py  : displays one or more data files simultaneously by ',
@@ -550,7 +550,6 @@ class Display(object):
         self._ext['dem'] = ['dem','dte','dtm']
         self._ext['unw'] = ['unw']
         self._ext['cor'] = ['cor']
-        self._ext['msk'] = ['msk']
         self._ext['byt'] = ['byt','flg']
         self._ext['amp'] = ['amp']
         self._ext['bil'] = ['bil']

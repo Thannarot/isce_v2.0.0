@@ -1,10 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <component>
-    <property name="XML">
+  <property name="XML">
         path/TSX1_SAR__SSC______SM_S_SRA_20091205T042212_20091205T042220.xml
     </property>
-    <property name="OUTPUT">20091205.raw</property>
+  <property name="OUTPUT">20091205.raw</property>
 </component>
-
 <!--
 Shown above is the bare minimum input XML file for TERRASARX sensor.
 The master and slave catalog xml files have the same structure.
@@ -17,7 +17,7 @@ to the processing directory.
 
     The doppler method must be set as follows in the insarApp.xml file
 
-    <property name="doppler method">useDOPTSX</property>
+    <property name="doppler method">useDEFAULT</property>
 
 
 The paths involved in specifying the location of the TerraSARX input xml file

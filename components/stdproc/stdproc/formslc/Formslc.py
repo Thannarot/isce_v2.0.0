@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,7 +22,13 @@
 from isceobj.Image.Image import Image
 from iscesys.Component.Component import Component, Port
 from stdproc.stdproc.formslc import formslc
-
+from iscesys.Traits import datetimeType
+from iscesys import DateTimeUtil as DTU
+from isceobj.Util import combinedlibmodule
+from isceobj.Orbit.Orbit import Orbit
+import numpy as np
+import copy
+import datetime
 
 NUMBER_GOOD_BYTES = Component.Parameter(
     'numberGoodBytes',
@@ -106,7 +112,8 @@ RANGE_CHIRP_EXTENSION_POINTS = Component.Parameter(
     default=0,
     type=int,
     mandatory=False,
-    doc=('Number of points to extend in range. Set negative for truncation.')
+    doc=('Change to default number of points to extend in range. Set negative for truncation.'+
+         'Presently only affects near range extension')
 )
 AZIMUTH_PATCH_SIZE = Component.Parameter(
     'azimuthPatchSize',
@@ -266,7 +273,7 @@ SPECTRAL_SHIFT_FRACTION = Component.Parameter(
     default=0,
     type=float,
     mandatory=False,
-    doc='Spectral weights for azimuth spectrum.'
+    doc='Spectral shift for range spectrum.'
 )
 IQ_FLIP = Component.Parameter(
     'IQFlip',
@@ -296,7 +303,8 @@ POSITION = Component.Parameter(
     'position',
     public_name='POSITION',
     default=[],
-    type=list,
+    container=list,
+    type=float,
     mandatory=True,
     doc='Position vector'
 )
@@ -304,7 +312,8 @@ TIME = Component.Parameter(
     'time',
     public_name='TIME',
     default=[],
-    type=list,
+    container=list,
+    type=float,  #?datetimeType,
     mandatory=True,
     doc='Time vector'
 )
@@ -312,7 +321,8 @@ DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter(
     'dopplerCentroidCoefficients',
     public_name='DOPPLER_CENTROID_COEFFICIENTS',
     default=[],
-    type=list,
+    container=list,
+    type=float,
     mandatory=True,
     doc='Doppler centroid coefficients'
 )
@@ -320,36 +330,111 @@ MOCOMP_POSITION = Component.Parameter(
     'mocompPosition',
     public_name='MOCOMP_POSITION',
     default=[],
-    type=list,
-    mandatory=None,
+    container=list,
+    type=float,
+    mandatory=False,
+    private=True,
+    intent='output',
     doc='Motion compensated position'
 )
 MOCOMP_INDEX = Component.Parameter(
     'mocompIndx',
     public_name='MOCOMP_INDEX',
     default=[],
-    type=list,
-    mandatory=None,
+    container=list,
+    type=int,
+    mandatory=False,
+    private=True,
+    intent='output',
     doc='Valid indexes of the motion compensated position'
 )
 STARTING_RANGE = Component.Parameter(
     'startingRange',
     public_name='STARTING_RANGE',
     default=None,
-    mandatory=None,
+    type=float,
+    mandatory=False,
+    private=True,
+    intent='output',
     doc='Modified starting range for the SLC'
 )
-
+LOOK_SIDE = Component.Parameter(
+        'lookSide',
+        public_name='LOOK_SIDE',
+        default = -1,
+        type = int,
+        mandatory = True,
+        doc = 'Right: -1, Left: 1')
 ##KK,ML 2013-07-15
 SHIFT = Component.Parameter(
     'shift',
     public_name='azshiftpixels',
     default=-0.5,
     type=float,
-    mandatory=None,
+    mandatory=False,
+    private=False,
     doc='Number of pixels to shift in the azimuth direction'
 )
 ##KK,ML
+
+SENSING_START = Component.Parameter(
+        'sensingStart',
+        public_name='SENSING_START',
+        default=None,
+        type=datetimeType,
+        mandatory=False,
+        doc='Sensing start time for 1st line of raw data')
+
+SLC_SENSING_START = Component.Parameter(
+        'slcSensingStart',
+        public_name = 'SLC_SENSING_START',
+        default = None,
+        type=datetimeType,
+        mandatory=False,
+        doc='Sensing start time for 1st line of slc data')
+
+MOCOMP_RANGE = Component.Parameter(
+        'mocompRange',
+        public_name = 'MOCOMP_RANGE',
+        default = None,
+        type=float,
+        mandatory=False,
+        doc = 'Range at which motion compensation orbit is estimated')
+
+SLC_IMAGE = Component.Facility(
+    'slcImage',
+    public_name='slcImage',
+    module='isceobj.Image',
+    args=(),
+    factory='createSlcImage',
+    mandatory=True,
+    doc='Single Look Complex Image object'
+)
+RAW_IMAGE = Component.Facility(
+    'rawImage',
+    public_name='rawImage',
+    module='isceobj.Image',
+    args=(),
+    factory='createRawIQImage',
+    mandatory=True,
+    doc='Raw Image object'
+)
+ORBIT = Component.Facility(
+        'inOrbit',
+        public_name='ORBIT',
+        module='isceobj.Orbit',
+        args=(),
+        factory='createOrbit',
+        mandatory=True,
+        doc = 'Actual imaging orbit')
+MOCOMP_ORBIT = Component.Facility(
+        'outOrbit',
+        public_name='MOCOMP_ORBIT',
+        module='isceobj.Orbit',
+        args=(),
+        factory='createOrbit',
+        mandatory=True,
+        doc='Motion compensated orbit')
 
 
 ## This decorator takes a setter and only executes it if the argument is True
@@ -406,9 +491,19 @@ class Formslc(Component):
                       MOCOMP_POSITION,
                       MOCOMP_INDEX,
                       STARTING_RANGE,
-                      SHIFT ##KK,ML 2013-07-15
+                      SHIFT, ##KK,ML 2013-07-15
+                      SENSING_START,
+                      SLC_SENSING_START,
+                      MOCOMP_RANGE,
+                      LOOK_SIDE
                     )
 
+    facility_list = (
+                     SLC_IMAGE,
+                     RAW_IMAGE,
+                     ORBIT,
+                     MOCOMP_ORBIT,
+                     )
     ## maxAzPatchSize is defined in case the user specifies an unusually
     ## large number of valid pulses to save but no patch size on input.
     maxAzPatchSize = 32768
@@ -420,6 +515,10 @@ class Formslc(Component):
         self.computeRangeParams()
 
         try:
+
+            self.rawImage.setCaster('read','CFLOAT')
+            self.rawImage.setExtraInfo()
+            self.rawImage.createImage()
             self.rawAccessor = self.rawImage.getImagePointer()
             self.slcAccessor = self.slcImage.getImagePointer()
         except AttributeError:
@@ -429,7 +528,30 @@ class Formslc(Component):
         self.computePatchParams()
         self.allocateArrays()
         self.setState()
+
+        ###New changes
+        cOrbit = self.inOrbit.exportToC()
+        formslc.setOrbit_Py(cOrbit)
+        formslc.setSensingStart_Py(
+            DTU.seconds_since_midnight(self.sensingStart)
+        )
+
+        ####Create an empty/dummy orbit of same length as input orbit
+        mOrbit = copy.copy(self.inOrbit).exportToC()
+        formslc.setMocompOrbit_Py(mOrbit)
+
         formslc.formslc_Py(self.rawAccessor, self.slcAccessor)
+
+        ###Freeing Orbit
+        combinedlibmodule.freeCOrbit(cOrbit)
+        self.outOrbit = Orbit()
+        self.outOrbit.configure()
+        self.outOrbit.importFromC(mOrbit,
+            datetime.datetime.combine(self.sensingStart.date(),
+                                      datetime.time(0)
+            )
+        )
+        combinedlibmodule.freeCOrbit(mOrbit)
 
         #the size of this vectors where unknown until the end of the run
         posSize = formslc.getMocompPositionSize_Py()
@@ -438,6 +560,7 @@ class Formslc(Component):
         self.dim1_mocompIndx = posSize
         self.getState()
         self.deallocateArrays()
+        self.slcImage.finalizeImage()
         self.slcImage.renderHdr()
         return self.slcImage
 
@@ -593,6 +716,10 @@ class Formslc(Component):
             )
         self.mocompIndx = formslc.getMocompIndex_Py(self.dim1_mocompIndx)
         self.startingRange = formslc.getStartingRange_Py()
+        self.mocompRange = formslc.getMocompRange_Py()
+        slcSensingStart = formslc.getSlcSensingStart_Py()
+        self.slcSensingStart = datetime.datetime.combine( self.sensingStart.date(), datetime.time(0)) + datetime.timedelta(seconds=slcSensingStart)
+
 
     def setState(self):
         formslc.setStdWriter_Py(int(self.stdWriter))
@@ -642,6 +769,7 @@ class Formslc(Component):
         formslc.setPosition_Py(self.position,
                                self.dim1_position,
                                self.dim2_position)
+
         formslc.setVelocity_Py(self.velocity,
                                self.dim1_velocity,
                                self.dim2_velocity)
@@ -651,9 +779,9 @@ class Formslc(Component):
             self.dopplerCentroidCoefficients,
             self.dim1_dopplerCentroidCoefficients
             )
-        formslc.setPegPoint_Py(self.pegLatitude,
-                               self.pegLongitude,
-                               self.pegHeading)
+        formslc.setPegPoint_Py(np.radians(self.pegLatitude),
+                               np.radians(self.pegLongitude),
+                               np.radians(self.pegHeading))
         formslc.setPlanet_Py(self.spin, self.gm)
         formslc.setEllipsoid_Py(self.a, self.e2)
         formslc.setSlcWidth_Py(self.slcWidth)
@@ -851,9 +979,9 @@ class Formslc(Component):
         if image:
             if isinstance(image, Image):
                 self.rawImage = image
-                self.numberBytesPerLine = self.rawImage.getWidth()
-                self.numberGoodBytes = self.rawImage.getNumberGoodBytes()
-                self.firstSample = int(self.rawImage.getXmin()/2)
+                self.numberBytesPerLine = 2*self.rawImage.getWidth()
+                self.numberGoodBytes = 2*self.rawImage.getNumberGoodSamples()
+                self.firstSample = self.rawImage.getXmin()
             else:
                 self.logger.error(
                     "Object %s must be an instance of Image" % image
@@ -894,6 +1022,8 @@ class Formslc(Component):
                 if self.azimuthResolution is None:
                     self.azimuthResolution = self.antennaLength/2.0
                 self.numberRangeBin = frame.numberRangeBins
+                self.inOrbit = frame.orbit
+                self.sensingStart = frame.sensingStart
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
@@ -940,22 +1070,23 @@ class Formslc(Component):
                 self.logger.error(strerr)
                 raise AttributeError
 
+    '''
     def _facilities(self):
         self.slcImage = self.facility('slcImage',
             public_name='slcImage',
             module='isceobj.Image',
             factory='createSlcImage',
-            mandatory='True',
+            mandatory=True,
             doc='Single Look Complex Image object'
         )
         self.rawImage = self.facility('rawImage',
             public_name='rawImage',
             module='isceobj.Image',
-            factory='createRawImage',
-            mandatory='True',
+            factory='createRawIQImage',
+            mandatory=True,
             doc='Raw Image object'
         )
-
+    '''
     def createPorts(self):
         ## 2012/2/12: now using PortIterator.__setitem__
         self.inputPorts['rawImage'] = self.addRawImage
@@ -966,6 +1097,32 @@ class Formslc(Component):
         self.inputPorts['doppler'] = self.addDoppler
         return None
 
+    def adaptToRender(self):
+        import copy
+        # make a copy of the stateVectors to restore it after dumping
+        self._times = [copy.copy(self.sensingStart),copy.copy(self.slcSensingStart)]
+        self.sensingStart = self.sensingStart.strftime(self._fmt)
+        self.slcSensingStart = self.slcSensingStart.strftime(self._fmt)
+
+    def restoreAfterRendering(self):
+        self.sensingStart = self._times[0]
+        self.slcSensingStart = self._times[1]
+
+    def initProperties(self,catalog):
+        keys = ['SENSING_START','SLC_SENSING_START']
+
+        for k in keys:
+            kl = k.lower()
+            if kl in catalog:
+                v = catalog[kl]
+                attrname = getattr(globals()[k],'attrname')
+                val = datetime.datetime.strptime(v,self._fmt)
+                setattr(self,attrname,val)
+                catalog.pop(kl)
+        super().initProperties(catalog)
+
+
+
     def __init__(self, name=''):
         super(Formslc, self).__init__(self.__class__.family, name)
         self.configure()
@@ -973,7 +1130,6 @@ class Formslc(Component):
         #Non-parameter defaults
         self.slcImage = None
         self.rawImage = None
-        self.lookSide = -1    #By default right looking (to be consistent with old code)
 
         # Planet information
         # the code does not actually uses the ones set to -9999,
@@ -1009,19 +1165,15 @@ class Formslc(Component):
         self.slcAccessor = 0
         self.slcWidth = 0
 
-        self.createPorts()
 
-        self.dictionaryOfOutputVariables = {
-            'MOCOMP_POSITION' : 'mocompPosition' ,
-            'MOCOMP_INDEX' : 'mocompIndx',
-            'STARTING_RANGE' : 'startingRange',
-            'SLC_WIDTH': 'slcWidth'
-            }
+        ####Short orbits
+        self.inOrbit = None
+        self.outOrbit = None
+        self.sensingStart = None
+        self.slcSensingStart = None
 
+        ####For dumping and loading
+        self._times = []
+        self._fmt = '%Y-%m-%dT%H:%M:%S.%f'
 
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        self.initOptionalAndMandatoryLists()
         return None
-    pass

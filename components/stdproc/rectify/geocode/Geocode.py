@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,8 @@ from isceobj import Constants as CN
 from iscesys.Component.Component import Component, Port
 from stdproc.rectify.geocode import geocode
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
-import os 
+from isceobj.Util.Poly1D import Poly1D
+import os
 
 
 
@@ -135,14 +136,6 @@ BODY_FIXED_VELOCITY = Component.Parameter('bodyFixedVelocity',
         mandatory = True,
         doc = 'Constant S velocity used for ideal mocomp orbit')
 
-DOPPLER_CENTROID_CONSTANT_TERM = Component.Parameter('dopplerCentroidConstantTerm',
-        public_name = 'DOPPLER_CENTROID_CONSTANT_TERM',
-        default = None,
-        type = float,
-        mandatory = True,
-        doc = 'Constant Doppler Centroid value used for processing data to ideal mocomp orbit')
-
-
 PRF = Component.Parameter('prf',
         public_name = 'PRF',
         default = None,
@@ -178,7 +171,7 @@ NUMBER_AZIMUTH_LOOKS = Component.Parameter('numberAzimuthLooks',
         mandatory = True,
         doc = 'Number of azimuth looks used to generate radar image')
 
-#Named it to something meaningful - Piyush 
+#Named it to something meaningful - Piyush
 FIRST_INDEX_MOCOMP_ORBIT = Component.Parameter('isMocomp',
         public_name = 'FIRST_INDEX_MOCOMP_ORBIT',
         default = None,
@@ -222,7 +215,92 @@ NUMBER_POINTS_PER_DEM_POST = Component.Parameter('numberPointsPerDemPost',
         mandatory = True,
         doc = 'Number of points per DEM pixel incase posting at different resolution')
 
+GEO_LENGTH = Component.Parameter(
+    'geoLength',
+    public_name='GEO_LENGTH',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Length of the geocoded image'
+)
 
+
+GEO_WIDTH = Component.Parameter(
+    'geoWidth',
+    public_name='GEO_WIDTH',
+    default=None,
+    type=int,
+    mandatory=False,
+    intent='output',
+    doc='Width of the geocoded image'
+)
+
+
+LATITUDE_SPACING = Component.Parameter(
+    'latitudeSpacing',
+    public_name='LATITUDE_SPACING',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Latitude spacing'
+)
+
+
+LONGITUDE_SPACING = Component.Parameter(
+    'longitudeSpacing',
+    public_name='LONGITUDE_SPACING',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Longitude spacing'
+)
+
+
+MAXIMUM_GEO_LATITUDE = Component.Parameter(
+    'maximumGeoLatitude',
+    public_name='MAXIMUM_GEO_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Maximum latitude of geocoded image'
+)
+
+
+MAXIMUM_GEO_LONGITUDE = Component.Parameter(
+    'maximumGeoLongitude',
+    public_name='MAXIMUM_GEO_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Minimum longitude of geocoded image'
+)
+
+
+MINIMUM_GEO_LATITUDE = Component.Parameter(
+    'minimumGeoLatitude',
+    public_name='MINIMUM_GEO_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Minimum latitude of geocoded image'
+)
+
+
+MINIMUM_GEO_LONGITUDE = Component.Parameter(
+    'minimumGeoLongitude',
+    public_name='MINIMUM_GEO_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Minimum longitude of geocoded image'
+)
 class Geocode(Component):
 
     interp_methods = { 'sinc' : 0,
@@ -248,7 +326,6 @@ class Geocode(Component):
                       RANGE_FIRST_SAMPLE,
                       SPACECRAFT_HEIGHT,
                       PLANET_LOCAL_RADIUS,
-                      DOPPLER_CENTROID_CONSTANT_TERM,
                       BODY_FIXED_VELOCITY,
                       NUMBER_RANGE_LOOKS,
                       NUMBER_AZIMUTH_LOOKS,
@@ -260,34 +337,48 @@ class Geocode(Component):
                       LOS_FILENAME,
                       GEO_FILENAME,
                       LOOK_SIDE,
-                      NUMBER_POINTS_PER_DEM_POST)
+                      NUMBER_POINTS_PER_DEM_POST,
+                      LONGITUDE_SPACING,
+                      MINIMUM_GEO_LONGITUDE,
+                      GEO_LENGTH,
+                      MAXIMUM_GEO_LATITUDE,
+                      LATITUDE_SPACING,
+                      MAXIMUM_GEO_LONGITUDE,
+                      GEO_WIDTH,
+                      MINIMUM_GEO_LATITUDE
+                      )
 
 
     #####Actual geocoding
     def geocode(self, demImage=None, inputImage=None, method=None):
         self.activateInputPorts()
-       
+
         if demImage is not None:
             self.demImage = demImage
         if inputImage is not None:
             self.inputImage = inputImage
         if method is not None:
             self.method = method
-        
+
 
         if self.referenceOrbit is None:
             raise Exception('No reference orbit provided for geocoding')
 
-        self.setDefaults() 
+        self.setDefaults()
         self.createImages()
         self.allocateArray()
         self.setState()
         #this inits the image in the c++ bindings
+        #allow geocoding for non float imaages
+        if not self.inputImage.dataType.upper().count('FLOAT'):
+            self.inputImage.setCaster('read','FLOAT')
         self.inputImage.createImage()
+
+
         self.demImage.setCaster('read','FLOAT')
         self.demImage.createImage()
         demAccessor = self.demImage.getImagePointer()
-        
+
         inputAccessor = self.inputImage.getImagePointer()
         complexFlag = self.inputImage.dataType.upper().startswith('C')
         nBands = self.inputImage.getBands()
@@ -315,59 +406,76 @@ class Geocode(Component):
             demCropAcc = 0
             geocode.geocode_Py(demAccessor, inputAccessor, demCropAcc,
                     self.losAccessor,
-                    self.geoAccessor, inband, outband, 
+                    self.geoAccessor, inband, outband,
                     int(complexFlag), int(self.interp_methods[self.method]))
 
         self.getState()
+
+        self.demImage.finalizeImage()
+        self.inputImage.finalizeImage()
+        self.deallocateArray()
+        self.destroyImages()
         self.geoImage.setWidth(geocode.getGeoWidth_Py())
         self.geoImage.trueDataType = self.geoImage.getDataType()
-        self.geoImage.description = "DEM-flattened interferogram orthorectified to an equi-angular latitude, longitude grid"
+#        self.geoImage.description = "DEM-flattened interferogram orthorectified to an equi-angular latitude, longitude grid"
         self.geoImage.coord2.coordDescription = 'Latitude'
         self.geoImage.coord2.coordUnits = 'degree'
-        self.geoImage.coord2.coordStart = self.minimumGeoLatitude   #EMG Note, it looks like this is actually the starting value already in degrees, not necessarily the minimum
+        self.geoImage.coord2.coordStart = self.minimumGeoLatitude
         self.geoImage.coord2.coordDelta = self.deltaLatitude/self.numberPointsPerDemPost
         self.geoImage.coord1.coordDescription = 'Longitude'
         self.geoImage.coord1.coordUnits = 'degree'
         self.geoImage.coord1.coordStart = self.minimumGeoLongitude
         self.geoImage.coord1.coordDelta = self.deltaLongitude/self.numberPointsPerDemPost
+
+        descr = self.inputImage.getDescription()
+        if descr not in [None, '']:
+            self.geoImage.addDescription(descr)
+
         self.geoImage.renderHdr()
-        
-        self.demImage.finalizeImage()
-        self.inputImage.finalizeImage()
-        self.deallocateArray()
-        self.destroyImages()
         return None
 
     def setDefaults(self):
-
-        #the next two parameters were passed to the fortran but then recomputed and never used the way they were passed. 
+        if self.polyDoppler is None:
+            self.polyDoppler = Poly1D(name=self.name+'_geocodePoly')
+            self.polyDoppler.setNorm(1.0/(1.0*self.numberRangeLooks))
+            self.polyDoppler.setMean(0.0)
+            self.polyDoppler.initPoly(order=len(self.dopplerCentroidCoeffs)-1,
+                coeffs = self.dopplerCentroidCoeffs)
         pass
 
-    
+
     def destroyImages(self):
+        from isceobj.Util import combinedlibmodule as CL
         if self.demCropImage is not None:
-            self.demCropImage.renderHdr()
             self.demCropImage.finalizeImage()
+            self.demCropImage.renderHdr()
 
         self.geoImage.finalizeImage()
+
         if self.losImage is not None:
             descr = '''Two channel Line-Of-Sight geometry image (all angles in degrees). Represents vector drawn from target to platform.                   Channel 1: Incidence angle measured from vertical at target (always +ve).
     Channel 2: Azimuth angle measured from North in Anti-clockwise direction.'''
             self.losImage.addDescription(descr)
-            self.losImage.renderHdr()
             self.losImage.finalizeImage()
-    
+            self.losImage.renderHdr()
+
+        #####Clean out polynomial object
+        CL.freeCPoly1D(self.polyDopplerAccessor)
+        self.polyDopplerAccessor = None
+
     def createImages(self):
+        demWidth = self.computeGeoImageWidth()
+        demLength = self.computeGeoImageLength()
+
         if self.demCropFilename:
             self.demCropImage = createDemImage()
             demAccessMode = 'write'
-            demWidth = self.computeGeoImageWidth()
             self.demCropImage.initImage(self.demCropFilename,demAccessMode,demWidth)
             self.demCropImage.createImage()
             self.demCropAccessor = self.demCropImage.getImagePointer()
         else:
             self.demCropAccessor = 0
-       
+
         if self.geoFilename is None:
             raise ValueError('Output geoFilename not specified')
 
@@ -378,9 +486,15 @@ class Geocode(Component):
         self.geoImage.setFilename(self.geoFilename)
         self.geoImage.setAccessMode('write')
         self.geoImage.setWidth(demWidth)
-        self.geoImage.createImage()
-        self.geoAccessor = self.geoImage.getImagePointer()
+        self.geoImage.coord1.coordEnd = None
+        self.geoImage.coord2.coordEnd = None
 
+        if not self.geoImage.dataType.upper().count('FLOAT'):
+            self.geoImage.setCaster('write','FLOAT')
+        self.geoImage.createImage()
+        self.geoImage.createFile(demLength)
+
+        self.geoAccessor = self.geoImage.getImagePointer()
         if (self.losImage == None and self.losFilename not in ('',None)):
             self.losImage = createImage()
             accessMode= 'write'
@@ -393,16 +507,24 @@ class Geocode(Component):
             self.losImage.createImage()
             self.losAccessor = self.losImage.getImagePointer()
 
+        self.polyDopplerAccessor = self.polyDoppler.exportToC()
+
     def computeGeoImageWidth(self):
         deg2rad = math.pi/180
         dlon = self.deltaLongitude*deg2rad
-        lon_first = self.firstLongitude*deg2rad
-        dlon_out = dlon/float(self.numberPointsPerDemPost)
+        dlon_out = abs(dlon/float(self.numberPointsPerDemPost))
         min_lon = deg2rad*self.minimumLongitude
         max_lon = deg2rad*self.maximumLongitude
         geo_wid = math.ceil((max_lon-min_lon)/dlon_out) + 1
         return geo_wid
-
+    def computeGeoImageLength(self):
+        deg2rad = math.pi/180
+        dlat = self.deltaLatitude*deg2rad
+        dlat_out = abs(dlat/float(self.numberPointsPerDemPost))
+        min_lat = deg2rad*self.minimumLatitude
+        max_lat = deg2rad*self.maximumLatitude
+        geo_wid = math.ceil((max_lat-min_lat)/dlat_out) + 1
+        return geo_wid
     def setState(self):
         geocode.setStdWriter_Py(int(self.stdWriter))
         geocode.setMinimumLatitude_Py(float(self.minimumLatitude))
@@ -419,7 +541,7 @@ class Geocode(Component):
         geocode.setHeight_Py(float(self.spacecraftHeight))
         geocode.setPlanetLocalRadius_Py(float(self.planetLocalRadius))
         geocode.setVelocity_Py(float(self.bodyFixedVelocity))
-        geocode.setDopplerCentroidConstantTerm_Py(float(self.dopplerCentroidConstantTerm))
+        geocode.setDopplerAccessor_Py(self.polyDopplerAccessor)
         geocode.setPRF_Py(float(self.prf))
         geocode.setRadarWavelength_Py(float(self.radarWavelength))
         geocode.setSCoordinateFirstLine_Py(float(self.sCoordinateFirstLine))
@@ -481,9 +603,6 @@ class Geocode(Component):
     def setBodyFixedVelocity(self,var):
         self.bodyFixedVelocity = float(var)
 
-    def setDopplerCentroidConstantTerm(self,var):
-        self.dopplerCentroidConstantTerm = float(var)
-
     def setPRF(self,var):
         self.prf = float(var)
 
@@ -537,7 +656,10 @@ class Geocode(Component):
 
     def setDemCropFilename(self,var):
         self.demCropFilename = var
-    
+
+    def setPolyDoppler(self,var):
+        self.polyDoppler = var
+
     ## pattern is broken here
     def setGeocodeFilename(self,var):
         self.geoFilename = var
@@ -557,7 +679,7 @@ class Geocode(Component):
 
     def getGeoLength(self):
         return self.geoLength
-    
+
     def getLatitudeSpacing(self):
         return self.latitudeSpacing
 
@@ -591,7 +713,7 @@ class Geocode(Component):
 
     def addPeg(self):
         peg = self._inputPorts.getPort(name='peg').getObject()
-        if (peg):            
+        if (peg):
             try:
                 self.pegLatitude = math.radians(peg.getLatitude())
                 self.pegLongitude = math.radians(peg.getLongitude())
@@ -600,10 +722,10 @@ class Geocode(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-    
+
     def addPlanet(self):
         planet = self._inputPorts.getPort(name='planet').getObject()
-        if (planet):            
+        if (planet):
             try:
                 ellipsoid = planet.get_elp()
                 self.ellipsoidMajorSemiAxis = ellipsoid.get_a()
@@ -611,12 +733,12 @@ class Geocode(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-        
+
     def addFrame(self):
         frame = self._inputPorts.getPort(name='frame').getObject()
-        if (frame):            
+        if (frame):
             try:
-                #                self.rangeFirstSample = frame.getStartingRange() - Piyush     
+                #                self.rangeFirstSample = frame.getStartingRange() - Piyush
                 instrument = frame.getInstrument()
                 self.lookSide = instrument.getPlatform().pointingDirection
                 self.slantRangePixelSpacing = instrument.getRangePixelSize()
@@ -634,7 +756,9 @@ class Geocode(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-            
+
+            self.dopplerCentroidCoeffs = formslc.dopplerCentroidCoefficients
+
     def addDem(self):
         dem = self._inputPorts.getPort(name='dem').getObject()
         if (dem):
@@ -649,7 +773,7 @@ class Geocode(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-            
+
     def addGeoPosting(self):
         posting = self._inputPorts.getPort(name='geoPosting').getObject()
         print("addGeoPosting: posting = %r" % (posting,))
@@ -677,7 +801,7 @@ class Geocode(Component):
             self.deltaLongitude = self.demImage.deltaLongitude
             self.numberPointsPerDemPost = 1
         return
-    
+
     def addInterferogram(self):
         ifg = self._inputPorts.getPort(name='tobegeocoded').getObject()
         if (ifg):
@@ -688,7 +812,7 @@ class Geocode(Component):
 
                 inName = ifg.getFilename()
                 self.geoFilename = os.path.join(os.path.dirname(inName),
-                        os.path.basename(inName)+'.geo') 
+                        os.path.basename(inName)+'.geo')
                 print('Output: ' , self.geoFilename)
             except AttributeError as strerr:
                 self.logger.error(strerr)
@@ -713,10 +837,10 @@ class Geocode(Component):
 
 
     logging_name = 'isce.stdproc.geocode'
-    
+
     def __init__(self, name='') :
         super(Geocode, self).__init__(self.__class__.family, name)
-        
+
         # Dem information
         self.demImage = None
         self.demWidth = None
@@ -725,7 +849,7 @@ class Geocode(Component):
         self.firstLongitude = None
         self.deltaLatitude = None
         self.deltaLongitude = None
-        
+
         # Interferogram information
         self.inputImage = None
         self.length = None
@@ -734,37 +858,22 @@ class Geocode(Component):
         # Output
         self.demCropImage = None
         self.demCropAccessor = None
-        
-        
+
+        #Doppler information
+        self.polyDoppler = None
+        self.polyDopplerAccessor = None
+        self.dopplerCentroidConstantTerm=None
+
         self.geoImage = None
         self.geoAccessor = None
-        self.geoWidth = None
-        self.geoLength = None
 
         self.losImage = None
         self.losAccessor = 0
 
         self.referenceOrbit = []
         self.dim1_referenceOrbit = None
-        self.latitudeSpacing = None
-        self.longitudeSpacing = None
-        self.minimumGeoLatitude = None
-        self.minimumGeoLongitude = None
-        self.maximumGeoLatitude = None
-        self.maximumGeoLongitude = None
 
-        
-        self.dictionaryOfOutputVariables = { 
-            'GEO_WIDTH' : 'self.geoWidth', 
-            'GEO_LENGTH' : 'self.geoLength', 
-            'LATITUDE_SPACING' : 'self.latitudeSpacing', 
-            'LONGITUDE_SPACING' : 'self.longitudeSpacing', 
-            'MINIMUM_GEO_LATITUDE' : 'self.minimumGeoLatitude', 
-            'MINIMUM_GEO_LONGITUDE' : 'self.minimumGeoLongitude', 
-            'MAXIMUM_GEO_LATITUDE' : 'self.maximumGeoLatitude', 
-            'MAXIMUM_GEO_LONGITUDE' : 'self.maximumGeoLongitude'
-            }
-        
+
         return None
 
 
@@ -776,7 +885,7 @@ class Geocode(Component):
         ifgPort = Port(name='tobegeocoded',method=self.addInterferogram)
         geoPort = Port(name='geoPosting',method=self.addGeoPosting)
         slcPort = Port(name='masterslc',method=self.addMasterSlc)    #Piyush
-        
+
         self._inputPorts.add(framePort)
         self._inputPorts.add(pegPort)
         self._inputPorts.add(planetPort)
@@ -785,4 +894,3 @@ class Geocode(Component):
         self._inputPorts.add(geoPort)
         self._inputPorts.add(slcPort)      #Piyush
         return None
-        

@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,7 +39,7 @@ from stdproc.alosreformat.ALOS_fbs2fbd.ALOS_fbs2fbdPy import ALOS_fbs2fbdPy
 from stdproc.alosreformat.ALOS_fbd2fbs.ALOS_fbd2fbsPy import ALOS_fbd2fbsPy
 from isceobj.Util.decorators import pickled, logged
 from isceobj.Sensor import xmlPrefix
-
+from isceobj.Util.decorators import use_api
 
 # temporary comments: replaced a static dictionary with a class --convention
 # precluded namedtuple (constants).
@@ -48,26 +48,20 @@ from isceobj.Sensor import xmlPrefix
 
 LEADERFILE = Component.Parameter('_leaderFileList',
     public_name='LEADERFILE',
-    default = [],
-    type=list,
+    default = '',
+    container=list,
+    type=str,
     mandatory=True,
     doc="List of names of ALOS Leaderfile"
 )
 
 IMAGEFILE = Component.Parameter('_imageFileList',
     public_name='IMAGEFILE',
-    default = [],
-    type=list,
-    mandatory=True,
-    doc="List of names of ALOS Imagefile"
-)
-
-OUTPUT = Component.Parameter('output',
-    public_name='OUTPUT',
     default = '',
+    container=list,
     type=str,
     mandatory=True,
-    doc="Name of output raw file"
+    doc="List of names of ALOS Imagefile"
 )
 
 RESAMPLE_FLAG = Component.Parameter('_resampleFlag',
@@ -84,8 +78,10 @@ RESAMPLE_FLAG = Component.Parameter('_resampleFlag',
         """
 )
 
+from .Sensor import Sensor
+
 @pickled
-class ALOS(Component):
+class ALOS(Sensor):
     """Code to read CEOSFormat leader files for ALOS SAR data.
     The tables used to create this parser are based on document number
     ER-IS-EPO-GS-5902.1 from the European
@@ -97,8 +93,7 @@ class ALOS(Component):
 
     parameter_list = (IMAGEFILE,
                       LEADERFILE,
-                      OUTPUT,
-                      RESAMPLE_FLAG)
+                      RESAMPLE_FLAG) + Sensor.parameter_list
 
 #    polarizationMap = ['H','V','H+V']
 
@@ -125,7 +120,7 @@ class ALOS(Component):
 
     @logged
     def __init__(self, name=''):
-        super(ALOS, self).__init__(family=self.__class__.family, name=name)
+        super().__init__(family=self.__class__.family, name=name)
         self._leaderFile = None
         self._imageFile = None
         self.frame =  None
@@ -181,6 +176,11 @@ class ALOS(Component):
         self._populateOrbit()
         self._populateAttitude()
         self._populateDistortions()
+
+        productLevel = float(self.leaderFile.sceneHeaderRecord.metadata[
+            'Product level code'])
+        if productLevel == 1.0:
+            self.updateRawParameters()
         pass
 
     def _populatePlatform(self):
@@ -190,7 +190,7 @@ class ALOS(Component):
             'Sensor platform mission identifier'])
         platform.setPointingDirection(self.constants.pointing_direction)
         platform.setAntennaLength(self.constants.antenna_length)
-        platform.setPlanet(Planet('Earth'))
+        platform.setPlanet(Planet(pname='Earth'))
 
     def _populateInstrument(self):
         instrument = self.frame.getInstrument()
@@ -208,13 +208,15 @@ class ALOS(Component):
                 ]*1e-6
             rangePixelSize = SPEED_OF_LIGHT/(2.0*rangeSamplingRate)
             prf = self.leaderFile.sceneHeaderRecord.metadata[
-                'Pulse Repetition Frequency']
+                'Pulse Repetition Frequency']/1000.
+
+            print('LEADER PRF: ', prf)
             beamNumber = self.leaderFile.sceneHeaderRecord.metadata[
                 'Antenna beam number']
-            if self.imageFile.prf:
-                prf = self.imageFile.prf
-            else:
-                self.logger.info("Using nominal PRF")
+#            if self.imageFile.prf:
+#                prf = self.imageFile.prf
+#            else:
+#                self.logger.info("Using nominal PRF")
             bandwidth = self.leaderFile.calibrationRecord.metadata[
                 'Band width']*1e6
             #if (not bandwidth):
@@ -370,11 +372,17 @@ class ALOS(Component):
 
 
     def readOrbitPulse(self, leader, raw, width):
+        '''
+        No longer used. Can't rely on raw data headers. Should be done as part of extract Image.
+        '''
+
         from isceobj.Sensor import readOrbitPulse as ROP
+        print('TTTT')
         rawImage = isceobj.createRawImage()
         leaImage = isceobj.createStreamImage()
         auxImage = isceobj.createImage()
         rawImage.initImage(raw,'read',width)
+        rawImage.renderVRT()
         rawImage.createImage()
         rawAccessor = rawImage.getImagePointer()
         leaImage.initImage(leader,'read')
@@ -394,6 +402,38 @@ class ALOS(Component):
         leaImage.finalizeImage()
         auxImage.finalizeImage()
         return None
+
+    def makeFakeAux(self, outputNow):
+        '''
+        Generate an aux file based on sensing start and prf.
+        '''
+        import math, array
+
+        prf = self.frame.getInstrument().getPulseRepetitionFrequency()
+        senStart = self.frame.getSensingStart()
+        numPulses = self.frame.numberOfLines
+        # the aux files has two entries per line. day of the year and microseconds in the day
+        musec0 = (senStart.hour*3600 + senStart.minute*60 + senStart.second)*10**6 + senStart.microsecond
+        maxMusec = (24*3600)*10**6#use it to check if we went across  a day. very rare
+        day0 = (datetime.datetime(senStart.year,senStart.month,senStart.day) - datetime.datetime(senStart.year,1,1)).days + 1
+        outputArray  = array.array('d',[0]*2*numPulses)
+        self.frame.auxFile = outputNow + '.aux'
+        fp = open(self.frame.auxFile,'wb')
+        j = -1
+        for i1 in range(numPulses):
+            j += 1
+            musec = round((j/prf)*10**6) + musec0
+            if musec >= maxMusec:
+                day0 += 1
+                musec0 = musec%maxMusec
+                musec = musec0
+                j = 0
+            outputArray[2*i1] = day0
+            outputArray[2*i1+1] = musec
+
+        outputArray.tofile(fp)
+        fp.close()
+
 
     ## Can this even be done/
     ## should the pointer be an __Int__?
@@ -422,11 +462,6 @@ class ALOS(Component):
         return None
 
     def extractImage(self):
-        # just in case there was only one image and it was passed as a str
-        #instead of a list with only one element
-        if(isinstance(self._imageFileList,str)):
-            self._imageFileList = [self._imageFileList]
-            self._leaderFileList = [self._leaderFileList]
         if(len(self._imageFileList) != len(self._leaderFileList)):
             self.logger.error(
                 "Number of leader files different from number of image files.")
@@ -469,7 +504,8 @@ class ALOS(Component):
                     self.imageFile.extractImage(outputNow)
                     self.populateMetadata()
                 width = self.frame.getImage().getWidth()
-                self.readOrbitPulse(self._leaderFile,outputNow,width)
+#                self.readOrbitPulse(self._leaderFile,outputNow,width)
+                self.makeFakeAux(outputNow)
                 self.frameList.append(self.frame)
             except IOError:
                 return
@@ -497,6 +533,72 @@ class ALOS(Component):
             qualityString = 'Unknown'
 
         return qualityString
+
+
+    def updateRawParameters(self):
+        '''
+        Parse the data in python.
+        '''
+        with open(self._imageFile,'rb') as fp:
+            width = self.imageFile.width
+            numberOfLines = self.imageFile.length
+            prefix = self.imageFile.prefix
+            suffix = self.imageFile.suffix
+            dataSize = self.imageFile.dataSize
+
+            fp.seek(720, os.SEEK_SET) # Skip the header
+            tags = []
+
+            print('WIDTH: ', width)
+            print('LENGTH: ', numberOfLines)
+            print('PREFIX: ', prefix)
+            print('SUFFIX: ', suffix)
+            print('DATASIZE: ', dataSize)
+
+            for i in range(numberOfLines):
+                if not i%1000: self.logger.info("Line %s" % i)
+                imageRecord = CEOS.CEOSDB(
+                            xml = os.path.join(xmlPrefix,'alos/image_record.xml'),
+                            dataFile=fp)
+                imageRecord.parse()
+
+                tags.append(float(imageRecord.metadata[
+                            'Sensor acquisition milliseconds of day']))
+                data = fp.read(dataSize)
+                pass
+        ###Do parameter fit
+        import numpy as np
+
+
+        tarr = np.array(tags) - tags[0]
+        ref = np.arange(tarr.size) / self.frame.PRF
+        print('PRF: ', self.frame.PRF)
+        ####Check every 20 microsecs
+        off = np.arange(50)*2.0e-5
+        res = np.zeros(off.size)
+
+        ###Check which offset produces the same millisec truncation
+        ###Assumes PRF is correct
+        for xx in range(off.size):
+            ttrunc = np.floor((ref+off[xx])*1000)
+            res[xx] = np.sum(tarr-ttrunc)
+
+        res = np.abs(res)
+        
+#        import matplotlib.pyplot as plt
+#        plt.plot(res)
+#        plt.show()
+
+
+        delta = datetime.timedelta(seconds=np.argmin(res)*2.0e-5)
+        print('TIME OFFSET: ', delta)
+        self.frame.sensingStart += delta
+        self.frame.sensingMid += delta
+        self.frame.sensingStop += delta
+        return None
+
+
+
 
 class LeaderFile(object):
 
@@ -582,6 +684,9 @@ class ImageFile(object):
         self.imageFDR = None
         self.numberOfSarChannels = None
         self.prf = None
+        self.prefix=None
+        self.suffix=None
+        self.dataSize = None
         return None
 
     def parse(self, calculateRawDimensions=True):
@@ -619,6 +724,7 @@ class ImageFile(object):
             raise ValueError(productLevel)
         return None
 
+    @use_api
     def extractRaw(self,output=None):
         #if (self.numberOfSarChannels == 1):
         #    print "Single Pol Data Found"
@@ -635,10 +741,16 @@ class ImageFile(object):
             prmDict = alos.alos_Py(self.parent._leaderFile,
                 self.parent._imageFile, output)
             pass
-
+        
         # updated 07/24/2012
-        self.width = prmDict['NUMBER_BYTES_PER_LINE']
+        self.width = prmDict['NUMBER_BYTES_PER_LINE'] - 2 * prmDict['FIRST_SAMPLE']
         self.length = self.imageFDR.metadata['Number of lines per data set']
+        self.prefix = self.imageFDR.metadata[
+                    'Number of bytes of prefix data per record']
+        self.suffix = self.imageFDR.metadata[
+                    'Number of bytes of suffix data per record']
+        self.dataSize = self.imageFDR.metadata[
+                    'Number of bytes of SAR data per record']
         self.start_time = self._parseClockTime(prmDict['SC_CLOCK_START'])
         self.stop_time = self._parseClockTime(prmDict['SC_CLOCK_STOP'])
         self.startingRange = prmDict['NEAR_RANGE']
@@ -648,11 +760,16 @@ class ImageFile(object):
         rawImage.setFilename(output)
         rawImage.setAccessMode('read')
         rawImage.setWidth(self.width)
-        rawImage.setXmax(prmDict['NUMBER_BYTES_PER_LINE'])
-        rawImage.setXmin(2*prmDict['FIRST_SAMPLE'])
+        rawImage.setXmax(self.width)
+        rawImage.setXmin(0)
         self.parent.getFrame().setImage(rawImage)
+        rawImage.renderVRT()
         # updated 07/24/2012
         return None
+
+
+
+
 
     def extractSLC(self, output=None):
         """
@@ -689,30 +806,31 @@ class ImageFile(object):
                     'Number of bytes of SAR data per record']
 
                 fp.seek(self.HEADER_LINES, os.SEEK_SET) # Skip the header
+
                 for i in range(numberOfLines):
                     if not i%1000: self.parent.logger.info("Line %s" % i)
-                    if i == 0:
-                        imageRecord = CEOS.CEOSDB(
-                            xml=os.path.join(xmlPrefix,'alos/image_record.xml'),
+                    imageRecord = CEOS.CEOSDB(
+                            xml = os.path.join(xmlPrefix,'alos/image_record.xml'),
                             dataFile=fp)
-                        imageRecord.parse()
+                    imageRecord.parse()
+
+                    if i == 0:
                         self.start_time = self._getAcquisitionTime(imageRecord)
                         self.startingRange = self._getSlantRange(imageRecord)
                         self.prf = self._getPRF(imageRecord)
                     elif i == (numberOfLines-1):
-                        imageRecord = CEOS.CEOSDB(
-                            xml=os.path.join(xmlPrefix,'alos/image_record.xml'),
-                            dataFile=fp)
-                        imageRecord.parse()
                         self.stop_time = self._getAcquisitionTime(imageRecord)
-                    else:
+#                    else:
                         # Skip the first 412 bytes of each line
-                        fp.seek(prefix, os.SEEK_CUR)
-                        pass
+#                        fp.seek(prefix, os.SEEK_CUR)
+#                        pass
+
                     data = fp.read(dataSize)
                     out.write(data)
                     fp.seek(suffix, os.SEEK_CUR)
                     pass
+
+
                 pass
             pass
         return None

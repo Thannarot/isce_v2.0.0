@@ -6,7 +6,7 @@ from __future__ import absolute_import
 import isce
 from iscesys.Component.Application import Application
 
-NAME = Application.Parameter('name',
+NAME = Application.Parameter('gname',
     public_name='name to use in greeting',
     default="World",
     type=str,
@@ -14,23 +14,23 @@ NAME = Application.Parameter('name',
     doc="Name you want to be called when greeted by the code."
 )
 
+GREETING = Application.Facility('greeting',
+    public_name='Greeting message',
+    module = 'greetings',
+    factory = 'english_standard',
+    mandatory=False,
+    doc='Generate a greeting message'
+)
+
 class Greeter(Application):
 
     parameter_list = (NAME,)
-    
-    def _facilities(self):
-        self.greeting = self.facility(
-            'greeting',
-            public_name='Greeting message',
-            module = 'greetings',
-            factory = 'english_standard',
-            mandatory=False,
-            doc='Generate a greeting message'
-        )
+    facility_list = (GREETING,)
+    family = 'greeter'
 
     def main(self):
         #the main greeting message
-        self.greeting(self.name)
+        self.greeting(self.gname)
 
         #some information on the inner workings
         print()
@@ -39,7 +39,7 @@ class Greeter(Application):
         normname = DictUtils.renormalizeKey(NAME.public_name)
         print("NAME.public_name = {0}".format(NAME.public_name))
         print("normname = {0}".format(normname))
-        print("self.name = {0}".format(self.name))
+        print("self.gname = {0}".format(self.gname))
         if self.descriptionOfVariables[normname]['doc']:
             print("doc = {0}".format(self.descriptionOfVariables[normname]['doc']))
         if normname in self.unitsOfVariables.keys():
@@ -54,25 +54,24 @@ class Greeter(Application):
         print("Try entering data on the command line:")
         print("./greeter.py greeter.'name to use in greeting'=Jane")
         print("or try this,")
-    
+
         cl = "./greeter.py "
         cl += "Greeter.name\ to\ use\ \ \ IN\ greeting=Juan  "
         cl += "greeter.'Greeting Message'.factorymodule=greetings "
         cl += "greeter.'Greeting message'.factoryname=english_cowboy  "
-        cl += "greeter.name\ to\ use\ in\ greeting.units='m/s' " 
+        cl += "greeter.name\ to\ use\ in\ greeting.units='m/s' "
         cl += "greeter.'name to use in greeting'.doc='My new doc'"
         print("{0}".format(cl))
-    
+
         print("etc.")
 
         return
 
-    def __init__(self):
-        super(Greeter, self).__init__("greeter")
+    def __init__(self, name=''):
+        super().__init__(family=self.family, name=name)
         return
 
 if __name__ == '__main__':
-    greeter = Greeter()
+    greeter = Greeter(name='greetme')
+    greeter.configure()
     greeter.run()
-
-        

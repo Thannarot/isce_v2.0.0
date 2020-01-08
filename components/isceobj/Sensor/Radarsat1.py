@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,32 +28,64 @@ import isceobj.Sensor.CEOS as CEOS
 import logging
 from isceobj.Scene.Frame import Frame
 from isceobj.Orbit.Orbit import StateVector,Orbit
-from isceobj.Orbit.Spice import ECI2ECEF
 from isceobj.Planet.AstronomicalHandbook import Const
 from isceobj.Planet.Planet import Planet
 from iscesys.Component.Component import Component
+from isceobj.Util.decorators import pickled, logged
 from isceobj.Sensor import xmlPrefix
-from isceobj.Util.Poly2d import Polynomial
+from isceobj.Util import Poly2D
 from iscesys.DateTimeUtil import secondsSinceMidnight
 import numpy as np
 import struct
+import pprint
 
-class Radarsat1(Component):
+LEADERFILE = Component.Parameter(
+    '_leaderFile',
+    public_name='LEADERFILE',
+    default='',
+    type=str,
+    mandatory=True,
+    doc='RadarSAT1 Leader file'
+)
+
+IMAGEFILE = Component.Parameter(
+    '_imageFile',
+    public_name='IMAGEFILE',
+    default='',
+    type=str,
+    mandatory=True,
+    doc='RadarSAT1 image file'
+)
+
+PARFILE = Component.Parameter(
+    '_parFile',
+    public_name='PARFILE',
+    default='',
+    type=str,
+    mandatory=False,
+    doc='RadarSAT1 par file'
+)
+
+from .Sensor import Sensor
+
+class Radarsat1(Sensor):
     """
-        Code to read CEOSFormat leader files for Radarsat-1 SAR data.  The tables used to create
-        this parser are based on document number ER-IS-EPO-GS-5902.1 from the European
-        Space Agency.
+    Code to read CEOSFormat leader files for Radarsat-1 SAR data.
+    The tables used to create this parser are based on document number
+    ER-IS-EPO-GS-5902.1 from the European Space Agency.
     """
+    family = 'radarsat1'
+    logging_name = 'isce.sensor.radarsat1'
+
+    parameter_list = (LEADERFILE, IMAGEFILE, PARFILE) + Sensor.parameter_list
+
     auxLength = 50
-    def __init__(self):
-        Component.__init__(self)
-        self._leaderFile = None
-        self._imageFile = None
-        self._parFile = None
-        self.output = None
+
+    @logged
+    def __init__(self, name=''):
+        super().__init__(family=self.__class__.family, name=name)
         self.imageFile = None
         self.leaderFile = None
-
 
         #####Soecific doppler functions for RSAT1
         self.doppler_ref_range = None
@@ -69,11 +101,6 @@ class Radarsat1(Component):
         self.constants = {'polarization': 'HH',
                           'antennaLength': 15}
 
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'LEADERFILE': ['self._leaderFile','str','mandatory'],
-                                      'IMAGEFILE': ['self._imageFile','str','mandatory'],
-                                      'PARFILE' : ['self._parFile', 'str', 'optional'],
-                                      'OUTPUT': ['self.output','str','optional']}
 
     def getFrame(self):
         return self.frame
@@ -86,6 +113,11 @@ class Radarsat1(Component):
         self.imageFile.parse()
 
         self.populateMetadata()
+
+        if self._parFile:
+           self.parseParFile()
+        else:
+            self.populateCEOSOrbit()
 
     def populateMetadata(self):
         """
@@ -102,7 +134,7 @@ class Radarsat1(Component):
         platform.setMission(self.leaderFile.sceneHeaderRecord.metadata['Sensor platform mission identifier'])
         platform.setAntennaLength(self.constants['antennaLength'])
         platform.setPointingDirection(-1)
-        platform.setPlanet(Planet('Earth'))
+        platform.setPlanet(Planet(pname='Earth'))
 
         ins.setRadarWavelength(self.leaderFile.sceneHeaderRecord.metadata['Radar wavelength'])
         ins.setIncidenceAngle(self.leaderFile.sceneHeaderRecord.metadata['Incidence angle at scene centre'])
@@ -128,6 +160,12 @@ class Radarsat1(Component):
 
         self.frame.getOrbit().setOrbitSource('Header')
         self.frame.getOrbit().setOrbitQuality(self.leaderFile.platformPositionRecord.metadata['Orbital elements designator'])
+
+
+
+    def populateCEOSOrbit(self):
+        from isceobj.Orbit.Inertial import ECI2ECR
+        
         t0 = datetime.datetime(year=self.leaderFile.platformPositionRecord.metadata['Year of data point'],
                                month=self.leaderFile.platformPositionRecord.metadata['Month of data point'],
                                day=self.leaderFile.platformPositionRecord.metadata['Day of data point'])
@@ -145,16 +183,19 @@ class Radarsat1(Component):
             orb.addStateVector(vec)
 
         #####Convert orbits from ECI to ECEF frame.
-        convOrb = ECI2ECEF(orb, eci='ECI_TOD')
-        wgsorb = convOrb.convert()
+        t0 = orb._stateVectors[0]._time
+        ang = self.leaderFile.platformPositionRecord.metadata['Greenwich mean hour angle']
+
+        cOrb = ECI2ECR(orb, GAST=ang, epoch=t0)
+        wgsorb = cOrb.convert()
+
 
         orb = self.frame.getOrbit()
 
         for sv in wgsorb:
             orb.addStateVector(sv)
+            print(sv)
 
-
-        self.parseParFile()
 
 
     def extractImage(self):
@@ -199,11 +240,25 @@ class Radarsat1(Component):
         rawImage.renderHdr()
         self.frame.setImage(rawImage)
 
+
     def parseParFile(self):
         '''Parse the par file if any is available.'''
         if self._parFile not in (None, ''):
             par = ParFile(self._parFile)
-           
+
+
+            ####Update orbit
+            svs = par['prep_block']['sensor']['ephemeris']['sv_block']['state_vector']
+            datefmt='%Y%m%d%H%M%S%f'
+            for entry in svs:
+                sv = StateVector()
+                sv.setPosition([float(entry['x']), float(entry['y']), float(entry['z'])])
+                sv.setVelocity([float(entry['xv']), float(entry['yv']), float(entry['zv'])])
+                sv.setTime(datetime.datetime.strptime(entry['Date'], datefmt))
+                self.frame.orbit.addStateVector(sv)
+
+            self.frame.orbit._stateVectors = sorted(self.frame.orbit._stateVectors, key=lambda x: x.getTime())
+
             doppinfo = par['prep_block']['sensor']['beam']['DopplerCentroidParameters']
             #######Selectively update some values.
             #######Currently used only for doppler centroids.
@@ -212,30 +267,38 @@ class Radarsat1(Component):
             self.doppler_ref_azi = datetime.datetime.strptime(doppinfo['reference_date'], '%Y%m%d%H%M%S%f')
             self.doppler_predict = float(doppinfo['Predict_doppler'])
             self.doppler_DAR = float(doppinfo['DAR_doppler'])
-            
-            coeff = doppinfo['doppler_centroid_coefficients']
-            rngOrder = int(coeff['number_of_coefficients_first_dimension'])
-            azOrder = int(coeff['number_of_coefficients_second_dimension'])
 
-            self.doppler_coeff = Polynomial(rangeOrder = rngOrder, azimuthOrder=azOrder)
+            coeff = doppinfo['doppler_centroid_coefficients']
+            rngOrder = int(coeff['number_of_coefficients_first_dimension'])-1
+            azOrder = int(coeff['number_of_coefficients_second_dimension'])-1
+
+            self.doppler_coeff = Poly2D.Poly2D()
+            self.doppler_coeff.initPoly(rangeOrder = rngOrder, azimuthOrder=azOrder)
             self.doppler_coeff.setMeanRange(self.doppler_ref_range)
             self.doppler_coeff.setMeanAzimuth(secondsSinceMidnight(self.doppler_ref_azi))
 
-            for ii in range(azOrder):
-                for jj in range(rngOrder):
+            parms = []
+            for ii in range(azOrder+1):
+                row = []
+                for jj in range(rngOrder+1):
                     key = 'a%d%d'%(ii,jj)
                     val = float(coeff[key])
-                    self.doppler_coeff.setCoeff(ii,jj,val)
+                    row.append(val)
+
+                parms.append(row)
+
+            self.doppler_coeff.setCoeffs(parms)
 
 
     def extractDoppler(self):
         '''
         Evaluate the doppler polynomial and return the average value for now.
         '''
-        
+
         rmin = self.frame.getStartingRange()
         rmax = self.frame.getFarRange()
         rmid = 0.5*(rmin + rmax)
+        delr = Const.c/ (2*self.frame.instrument.rangeSamplingRate)
 
         azmid = secondsSinceMidnight(self.frame.getSensingMid())
 
@@ -251,6 +314,19 @@ class Radarsat1(Component):
         quadratic['a'] = dopav / prf
         quadratic['b'] = 0.
         quadratic['c'] = 0.
+
+
+        ######Set up the doppler centroid computation just like CSK at mid azimuth
+        order = self.doppler_coeff._rangeOrder 
+        rng = np.linspace(rmin, rmax, num=(order+2))
+        pix = (rng - rmin)/delr
+        val =[self.doppler_coeff(azmid,x) for x in rng]
+
+        print(rng,val)
+        print(delr, pix)
+        fit = np.polyfit(pix, val, order)
+        self.frame._dopplerVsPixel = list(fit[::-1])
+#        self.frame._dopplerVsPixel = [dopav,0.,0.,0.]
         return quadratic
 
     def _decodeSceneReferenceNumber(self,referenceNumber):
@@ -312,9 +388,7 @@ class VolumeDirectoryFile(object):
 
         fp.close()
 
-        import pprint
-        pp = pprint.PrettyPrinter()
-        pp.pprint(volumeFDR.metadata)
+        pprint.pprint(volumeFDR.metadata)
 
 class ImageFile(object):
 
@@ -367,37 +441,37 @@ class ImageFile(object):
         Does not CEOS reader format as we want access to sub-byte data.
         Currently only extracts the ones we want.
         '''
-         
-#% The parameters encoded in the auxilary data bits are defined in RSI-D6 
-#% also known as RSCSA-IC0009 (X-band ICD)  
-#% ------------------------------------------------------------------------- 
-#% PARAMETER NAME                          LOCATION         LENGTH   ID  
-#% ------------------------------------------------------------------------- 
-#% aux_sync_marker         = aux_bits (:,   1:  32);     % 32 bit -  1  
-#% image_ref_id            = aux_bits (:,  33:  64);     % 32 bit -  2  
-#% payload_status          = aux_bits (:,  65:  80);     % 16 bit -  3  
-#% replica_AGC             = aux_bits (:,  81:  86);     %  6 bit -  4  
-#% CALN_atten_LPT_pow_set  = aux_bits (:,  89:  96);     %  8 bit -  6  
-#% pulse_waveform_number   = aux_bits (:,  97: 100);     %  4 bit -  7  
-#% temperature             = aux_bits (:, 113: 144);     % 32 bit -  9  
-#% beam_sequence           = aux_bits (:, 145: 160);     % 16 bit - 10  
-#% ephemeris               = aux_bits (:, 161: 176);     % 16 bit - 11 
-#% number_of_beams         = aux_bits (:, 177: 178);     %  2 bit - 12  
-#% ADC_rate                = aux_bits (:, 179: 180);     %  2 bit - 13  
-#% pulse_count_1           = aux_bits (:, 185: 192);     %  8 bit - 15 
-#% pulse_count_2           = aux_bits (:, 193: 200);     %  8 bit - 16 
-#% PRF_beam                = aux_bits (:, 201: 213);     % 13 bit - 17  
-#% beam_select             = aux_bits (:, 214: 215);     %  2 bit - 18   
-#% Rx_window_start_time    = aux_bits (:, 217: 228);     % 12 bit - 20  
-#% Rx_window_duration      = aux_bits (:, 233: 244);     % 12 bit - 22  
-#% altitude                = aux_bits (:, 249: 344);     % 96 bit - 24  
-#% time                    = aux_bits (:, 345: 392);     % 48 bit - 25  
-#% SC_T02_defaults         = aux_bits (:, 393: 393);     %  1 bit - 26  
-#% first_replica           = aux_bits (:, 394: 394);     %  1 bit - 27  
-#% Rx_AGC_setting          = aux_bits (:, 395: 400);     %  6 bit - 28  
-#% ------------------------------------------------------------------------- 
-#%                                    Total  => 50 bytes (400 bits)               
-#% ------------------------------------------------------------------------- 
+
+#% The parameters encoded in the auxilary data bits are defined in RSI-D6
+#% also known as RSCSA-IC0009 (X-band ICD)
+#% -------------------------------------------------------------------------
+#% PARAMETER NAME                          LOCATION         LENGTH   ID
+#% -------------------------------------------------------------------------
+#% aux_sync_marker         = aux_bits (:,   1:  32);     % 32 bit -  1
+#% image_ref_id            = aux_bits (:,  33:  64);     % 32 bit -  2
+#% payload_status          = aux_bits (:,  65:  80);     % 16 bit -  3
+#% replica_AGC             = aux_bits (:,  81:  86);     %  6 bit -  4
+#% CALN_atten_LPT_pow_set  = aux_bits (:,  89:  96);     %  8 bit -  6
+#% pulse_waveform_number   = aux_bits (:,  97: 100);     %  4 bit -  7
+#% temperature             = aux_bits (:, 113: 144);     % 32 bit -  9
+#% beam_sequence           = aux_bits (:, 145: 160);     % 16 bit - 10
+#% ephemeris               = aux_bits (:, 161: 176);     % 16 bit - 11
+#% number_of_beams         = aux_bits (:, 177: 178);     %  2 bit - 12
+#% ADC_rate                = aux_bits (:, 179: 180);     %  2 bit - 13
+#% pulse_count_1           = aux_bits (:, 185: 192);     %  8 bit - 15
+#% pulse_count_2           = aux_bits (:, 193: 200);     %  8 bit - 16
+#% PRF_beam                = aux_bits (:, 201: 213);     % 13 bit - 17
+#% beam_select             = aux_bits (:, 214: 215);     %  2 bit - 18
+#% Rx_window_start_time    = aux_bits (:, 217: 228);     % 12 bit - 20
+#% Rx_window_duration      = aux_bits (:, 233: 244);     % 12 bit - 22
+#% altitude                = aux_bits (:, 249: 344);     % 96 bit - 24
+#% time                    = aux_bits (:, 345: 392);     % 48 bit - 25
+#% SC_T02_defaults         = aux_bits (:, 393: 393);     %  1 bit - 26
+#% first_replica           = aux_bits (:, 394: 394);     %  1 bit - 27
+#% Rx_AGC_setting          = aux_bits (:, 395: 400);     %  6 bit - 28
+#% -------------------------------------------------------------------------
+#%                                    Total  => 50 bytes (400 bits)
+#% -------------------------------------------------------------------------
         aux_bytes = np.fromfile(fp, dtype='B', count=self.parent.auxLength)
         metadata = {}
         sec = (np.bitwise_and(aux_bytes[44], np.byte(31)) << 12) | (np.bitwise_and(aux_bytes[45], np.byte(255)) << 4) | (np.bitwise_and(aux_bytes[46], np.byte(240)) >> 4)
@@ -443,7 +517,7 @@ class ImageFile(object):
         line[mask] -= 8
         line[np.logical_not(mask)] += 8
         line.tofile(fp)
-        
+
 
     def extractImage(self, output=None):
         """
@@ -481,10 +555,11 @@ class ImageFile(object):
 
             imageData.parseFast()
             auxData = self.extractAUXinformation(fp)
-            
+
+#            pprint.pprint(imageData.metadata)
             #####Check length of current record
-            #######12 CEOS + 180 prefix + 50 
-            dataLen = imageData.recordLength - self.imageFDR.metadata['Number of bytes of prefix data per record'] - auxLength-12 
+            #######12 CEOS + 180 prefix + 50
+            dataLen = imageData.recordLength - self.imageFDR.metadata['Number of bytes of prefix data per record'] - auxLength-12
             recTime = auxData['Record Time']
             if firstRecTime is None:
                 firstRecTime = recTime
@@ -497,12 +572,16 @@ class ImageFile(object):
                 startUTC = datetime.datetime(imageData.metadata['Sensor acquisition year'],1,1) + datetime.timedelta(imageData.metadata['Sensor acquisition day of year']-1) + datetime.timedelta(seconds=auxData['Record Time'])
                 prevRecTime = recTime
 
+#                pprint.pprint(imageData.metadata)
                 if (auxData['hasReplica']):
                     lineWidth = dataLen - replicaLength
                 else:
                     lineWidth = dataLen
 
 
+#            pprint.pprint(auxData)
+
+            
             IQLine = np.fromfile(fp, dtype='B', count=dataLen)
 
             if (recTime > (prevRecTime + 0.001)):
@@ -515,17 +594,23 @@ class ImageFile(object):
                 IQLine[dataLen-replicaLength:] = 16
                 dataLen = dataLen-replicaLength
 
+#            print('Line: ', line, dataLen, lineWidth, auxData['Replica length'])
+
+            if dataLen >= lineWidth:
+                IQout = IQLine
+            else:
+                IQout = 16 * np.ones(lineWidth, dtype='b')
+                IQout[:dataLen] = IQLine
 
 
             lineGap = int(0.5+(recTime-prevRecTime)*nominalPRF)
-#            print(line, lineGap, recTime, prevRecTime, imageData.metadata['Record Number'], nominalPRF)
             if ((lineGap == 1) or (line==0)):
-                self.writeRawData(output, IQLine[:lineWidth])
+                self.writeRawData(output, IQout[:lineWidth])
                 lineCount += 1
                 prevRecTime = recTime
             elif ((lineGap > 1) and (lineGap < self.maxLineGap)):
                 for kk in range(lineGap):
-                    self.writeRawData(output, IQLine[:lineWidth])
+                    self.writeRawData(output, IQout[:lineWidth])
                     lineCount += 1
                 prevRecTime = recTime + (lineGap - 1)*8.0e-4
             elif (lineGap >= self.maxLineGap):
@@ -547,7 +632,7 @@ class ImageFile(object):
         """
         self.length = self.imageFDR.metadata['Number of SAR DATA records']
         self.width = self.imageFDR.metadata['SAR DATA record length']
-        
+
         return None
 
 
@@ -583,7 +668,7 @@ class ParFile(object):
         data = fid.readlines()
         fid.close()
 
-        node = self.data 
+        node = self.data
 
         for line in data:
             inline = line.strip()
@@ -594,7 +679,17 @@ class ParFile(object):
             if inline.endswith('{'):
                 sectionName = inline.split()[0]
                 newNode = Node(node)
-                node[sectionName] = newNode
+
+                if sectionName in node.data.keys():
+#                    print(node[sectionName])
+#                    print('Entering same named section: ', sectionName)
+                    if not isinstance(node[sectionName], list):
+                        node[sectionName] = [ node[sectionName] ]
+
+                    node[sectionName].append(newNode)
+                else:
+                    node[sectionName] = newNode
+
                 node = newNode
 
 
@@ -610,8 +705,3 @@ class ParFile(object):
                     raise Exception('Could not parse line: ', inline)
 
                 node[key.strip()] = val.strip()
-
-
-                
-
-

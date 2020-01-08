@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2012 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2012 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,6 +29,7 @@
 
 extern "C"
 {
+    #include "orbit.h"
     void mocompTSX_f(uint64_t *,uint64_t *);
     PyObject * mocompTSX_C(PyObject *, PyObject *);
     void setStdWriter_f(uint64_t *);
@@ -79,6 +80,22 @@ extern "C"
     PyObject * setLookSide_C(PyObject *, PyObject *);
     void getStartingRange_f(double *);
     PyObject* getStartingRange_C(PyObject *, PyObject *);
+    void setOrbit_f(cOrbit*);
+    PyObject *setOrbit_C(PyObject *, PyObject*);
+    void setMocompOrbit_f(cOrbit*);
+    PyObject *setMocompOrbit_C(PyObject*, PyObject*);
+    PyObject *setEllipsoid_C(PyObject *self, PyObject *args);
+    void setEllipsoid_f(double *a, double *e2);
+    PyObject *setPlanet_C(PyObject *self, PyObject *args);
+    void setPlanet_f(double *spin, double *gm);
+    PyObject *setPegPoint_C(PyObject *self, PyObject *args);
+    void setPegPoint_f(double *lat, double *lon, double *hdg);
+    void getSlcSensingStart_f(double*);
+    PyObject *getSlcSensingStart_C(PyObject*, PyObject*);
+    void setSensingStart_f(double*);
+    PyObject *setSensingStart_C(PyObject*, PyObject*);
+    void getMocompRange_f(double*);
+    PyObject *getMocompRange_C(PyObject*, PyObject*);
 }
 
 static PyMethodDef mocompTSX_methods[] =
@@ -111,6 +128,14 @@ static PyMethodDef mocompTSX_methods[] =
     {"getMocompPositionSize_Py", getMocompPositionSize_C, METH_VARARGS, " "},
     {"setLookSide_Py", setLookSide_C, METH_VARARGS, " "},
     {"getStartingRange_Py", getStartingRange_C, METH_VARARGS, " "},
+    {"setOrbit_Py", setOrbit_C, METH_VARARGS, " "},
+    {"setMocompOrbit_Py", setMocompOrbit_C, METH_VARARGS, " "},
+    {"getMocompRange_Py", getMocompRange_C, METH_VARARGS, " "},
+    {"setPegPoint_Py", setPegPoint_C, METH_VARARGS, " "},
+    {"setEllipsoid_Py", setEllipsoid_C, METH_VARARGS, " "},
+    {"setPlanet_Py", setPlanet_C, METH_VARARGS, " "},
+    {"setSensingStart_Py", setSensingStart_C, METH_VARARGS, " "},
+    {"getSlcSensingStart_Py", getSlcSensingStart_C, METH_VARARGS, " "},
     {NULL, NULL, 0, NULL}
 };
 #endif

@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -41,11 +41,21 @@ def runPreprocessor(self):
         self._isce.frames[sceneid] = {}
         self._isce.dopplers[sceneid] = {}
         self._isce.rawImages[sceneid] = {}
+        self._isce.iqImages[sceneid] = {}
         self._isce.squints[sceneid] = {}
         for pol in self._isce.selectedPols:
             sid = self._isce.formatname(sceneid, pol)
-            rawfile = os.path.join(self.getoutputdir(sceneid), self._isce.formatname(sceneid, pol, 'raw'))
-            sensor = getsensorobj(scene, pol, rawfile, sensorname)
+            rawfile = os.path.join(self.getoutputdir(sceneid),
+                self._isce.formatname(sceneid, pol, 'raw'))
+
+            if not 'uavsar_rpi' in sensorname.lower():
+                sensor = getsensorobj(scene, pol, rawfile, sensorname, sceneid)
+            else:
+                #uavsar_rpi requires that we name a 'master' and a 'slave'
+                #this sensor is strictly pairwise processing
+                name = 'master' if sceneid == self._isce.refScene else 'slave'
+                sensor = getsensorobj(scene, pol, rawfile, sensorname, name)
+
             catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
             rawobj = run(sensor, doppler, catalog=catalog, sceneid=sid) ##actual processing
             self._isce.frames[sceneid][pol] = rawobj.getFrame() ##add frames to main object
@@ -55,12 +65,15 @@ def runPreprocessor(self):
             self._isce.procDoc.addAllFromCatalog(catalog)
 
             rawimage = initRawImage(rawobj)
-            if rawobj.frame.image.imageType == 'slc': ##it's an slc image
-                slcfile = rawfile.output[:-3] + 'slc'
-                os.rename(rawfile, slcfile)
+            if rawobj.frame.image.imageType == 'slc': ##it's a slc image
+                slcfile = rawfile[:-3] + 'raw' #ML 21-8-2014 changed slc to raw
+                os.system("ln -s "+os.path.join(os.getcwd(), rawobj.frame.image.filename)+" "+slcfile)
+#                os.rename(rawfile, slcfile)
+                self._isce.slcImages[sceneid] = {} #ML 21-8-2014
                 self._isce.slcImages[sceneid][pol] = rawimage
             else: ##it's a real raw image
                 self._isce.rawImages[sceneid][pol] = rawimage ##add raw images to main object
+                self._isce.iqImages[sceneid][pol] = rawobj.getIQImage() ##add iqImages to main object
 
     # KK 2013-12-12: calculate baselines for selected pairs
     for sceneid1, sceneid2 in self._isce.selectedPairs:
@@ -86,10 +99,30 @@ def runPreprocessor(self):
 
 # KK 2013-12-12: calculate baselines between 2 frames
 def getBaseline(frame1, frame2, catalog=None, sceneid='NO_ID'):
-    baseObj = Baseline()
-    baseObj.wireInputPort(name='masterFrame',object=frame1)
-    baseObj.wireInputPort(name='slaveFrame',object=frame2)
-    baseObj.baseline()
+    optlist = ['all', 'top', 'middle', 'bottom']
+    success = False
+    baseLocation = None
+    for option in optlist:
+        baseObj = Baseline()
+        baseObj.configure()
+        baseObj.baselineLocation = option
+        baseObj.wireInputPort(name='masterFrame',object=frame1)
+        baseObj.wireInputPort(name='slaveFrame',object=frame2)
+        try:
+            baseObj.baseline()
+            success = True
+            baseLocation = option
+        except:
+            logger.debug(('runPreprocessor.getBaseline '+
+                          'option "{0}" failed'.format(option)))
+            pass
+        if success:
+            logger.debug(('runPreprocessor.getBaseline: '+
+                          'option "{0}" success'.format(option)))
+            break
+    if not success:
+        raise Exception('Baseline computation failed with all possible options. Images may not overlap.')
+
     if catalog is not None:
         catalog.addItem('horizontal_baseline_top', baseObj.hBaselineTop, sceneid)
         catalog.addItem('horizontal_baseline_rate', baseObj.hBaselineRate, sceneid)
@@ -102,16 +135,18 @@ def getBaseline(frame1, frame2, catalog=None, sceneid='NO_ID'):
 # KK
 
 
-def getsensorobj(scene, pol, output, sensorname):
+def getsensorobj(scene, pol, output, sensorname, name):
     polkey = reformatscene(scene, pol, sensorname) ##change pol key to imagefile/xml/hdf5 depending on sensor
-    scene['output'] = output
-    sensor = Sensor.createSensor(sensorname)
+    #scene['output'] = output
+    sensor = Sensor.createSensor(sensorname, name)
     sensor._ignoreMissing = True
     sensor.catalog = scene
     sensor.configure()
+    setattr(sensor, polkey, scene[polkey]) #ML 21-8-2014
+    setattr(sensor, 'output', output) #ML 21-8-2014
     #sensor.initRecursive(scene, {}) ##populate sensor
     del scene[polkey]
-    del scene['output']
+    #del scene['output']
     return sensor
 
 
@@ -126,10 +161,13 @@ def reformatscene(scenedict, pol, sensorname):
         'RADARSAT2': 'xml',
         'TERRASARX': 'xml',
         'GENERIC': 'hdf5',
-        'ERS_ENVI': 'imagefile' #KK 2013-11-26 (ers in envi format)
+        'ERS_ENVI': 'imagefile', #KK 2013-11-26 (ers in envi format)
+        'UAVSAR_RPI':'annotationfile',
+        'UAVSAR_STACK':'annotationfile',
+        'SENTINEL1A':'tiff'
         }
     try:
-        key = imageKey[sensorname]
+        key = imageKey[sensorname.upper()]
     except KeyError:
         sys.exit("Unknown sensorname '%s'" % sensorname)
     else:
@@ -152,6 +190,7 @@ def run(sensor, doppler, catalog=None, sceneid='NO_ID'):
         frame = objMakeRaw.getFrame()
         instrument = frame.getInstrument()
         platform = instrument.getPlatform()
+        orbit = frame.getOrbit()
 
         planet = platform.getPlanet()
         catalog.addInputsFrom(planet, 'planet')
@@ -172,6 +211,7 @@ def run(sensor, doppler, catalog=None, sceneid='NO_ID'):
         catalog.addInputsFrom(frame, '%s.frame' % sceneid)
         catalog.addInputsFrom(instrument, '%s.instrument' % sceneid)
         catalog.addInputsFrom(platform, '%s.platform' % sceneid)
+        catalog.addInputsFrom(orbit, '%s.orbit' % sceneid)
 
         catalog.printToLog(logger, "runPreprocessor: %s" % sceneid)
 
@@ -207,4 +247,3 @@ def initRawImage(makeRawObj):
         objRaw.setXmin(makeRawObj.frame.getImage().getXmin())
         objRaw.setXmax(bytesPerLine)
     return objRaw
-

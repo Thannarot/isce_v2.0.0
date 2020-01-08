@@ -25,35 +25,35 @@ using namespace std;
 
 /**
     \brief
-    * Factory class that provides a selected type of writer. 
+    * Factory class that provides a selected type of writer.
 
 **/
 class WriterFactory
 {
     public:
-	/// Consrtuctor
+        /// Consrtuctor
     WriterFactory()
     {
     }
-	 
+
     BaseWriter * getWriter(string type);
     StdOEL * createWriters();
-	StdOEL * createWriters(string outW);
-	StdOEL * createWriters(string outW,string errW);
-	StdOEL * createWriters(string outW,string errW, string logW);
+        StdOEL * createWriters(string outW);
+        StdOEL * createWriters(string outW,string errW);
+        StdOEL * createWriters(string outW,string errW, string logW);
     void finalize(StdOEL * stdOel);
 
-	/// Destructor
-	~WriterFactory()
-	{	
-	}
-	
-    
+        /// Destructor
+        ~WriterFactory()
+        {
+        }
+
+
     private:
 
     StdOEL * createStdOEL();
-	//variables
+        //variables
     map<string,string> WriterType;
-	
+
 };
-#endif FactoryWriter_h
+#endif //FactoryWriter_h

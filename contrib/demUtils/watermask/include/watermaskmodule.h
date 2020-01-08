@@ -26,8 +26,7 @@ extern "C"
     PyObject* watermaskxy_C(PyObject *, PyObject *);
 }
 
-static char * moduleDoc = "module for creating SRTM land water mask";
-static PyMethodDef watermask_methods[] = 
+static PyMethodDef watermask_methods[] =
 {
     {"watermask_Py", watermask_C, METH_VARARGS, " "},
     {"watermaskxy_Py", watermaskxy_C, METH_VARARGS, " "},

@@ -22,7 +22,7 @@
 using namespace std;
 
 
-static char * const __doc__ = "Python extension for addsubmodel";
+static const char * const __doc__ = "Python extension for addsubmodel";
 
 PyModuleDef moduledef = {
     // header
@@ -160,4 +160,3 @@ PyObject* unwUnwProcess_C(PyObject* self, PyObject* args)
     ((addsubmodel*)(ptr))->unwUnwprocess(in,model,out);
     return Py_BuildValue("i",0);
 }
-

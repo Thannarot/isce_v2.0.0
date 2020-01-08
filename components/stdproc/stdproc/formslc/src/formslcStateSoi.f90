@@ -1,18 +1,18 @@
 !c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-!c Copyright: 2010 to the present, California Institute of Technology.
-!c ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-!c Any commercial use must be negotiated with the Office of Technology Transfer
-!c at the California Institute of Technology.
+!c copyright: 2010 to the present, california institute of technology.
+!c all rights reserved. united states government sponsorship acknowledged.
+!c any commercial use must be negotiated with the office of technology transfer
+!c at the california institute of technology.
 !c 
-!c This software may be subject to U.S. export control laws. By accepting this
-!c software, the user agrees to comply with all applicable U.S. export laws and
-!c regulations. User has the responsibility to obtain export licenses,  or other
+!c this software may be subject to u.s. export control laws. by accepting this
+!c software, the user agrees to comply with all applicable u.s. export laws and
+!c regulations. user has the responsibility to obtain export licenses,  or other
 !c export authority as may be required before exporting such information to
 !c foreign countries or providing access to foreign persons.
 !c 
-!c Installation and use of this software is restricted by a license agreement
-!c between the licensee and the California Institute of Technology. It is the
-!c User's responsibility to abide by the terms of the license agreement.
+!c installation and use of this software is restricted by a license agreement
+!c between the licensee and the california institute of technology. it is the
+!c user's responsibility to abide by the terms of the license agreement.
 !c
 !c Author: Giangi Sacco
 !c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -21,6 +21,8 @@
 
       
       module formslcStateSoi
+          use orbitModule
+          use geometryModule
       integer ngood            !Number of good bytes in a line
       integer nbytes           !Number of bytes in a line
       integer ifirstline       !First line to process
@@ -71,26 +73,24 @@
       double precision, allocatable, dimension(:) ::  dopplerCoefficients
       integer dim1_dopplerCoefficients
       
-      type peg_type
-        double precision :: r_lat !< Peg point latitude
-        double precision :: r_lon !< Peg point longitude
-        double precision :: r_hdg !< Peg point heading
-      end type peg_type
-      type ellipsoid
-        double precision :: r_a !< Semi-major axis
-        double precision :: r_e2 !< Eccentricity squared
-      end type ellipsoid
       type planet_type
         double precision :: r_spindot !< Planet spin rate
         double precision :: r_gm !< Planet GM
       end type planet_type
 
-      type(peg_type) :: peg
-      type(ellipsoid) :: elp
+      type(pegType) :: peg
+      type(ellipsoidType) :: elp
       type(planet_type) :: pln
 
       integer  nrangeout        !Number of range bins in the output
       double precision rawr01   !Modified raw starting range with extensions
       double precision slcr01   !SLC starting range modified by mocomp
       double precision shift    !Number of pixels for azimuth shift (KK, ML 2013-07-15)
+
+      type(orbitType) :: orbit  !Input short orbit
+      type(orbitType) :: mocompOrbit !Output short orbit
+      double precision :: sensingStart !UTC time corresponding to first raw line
+      double precision :: slcSensingStart !UTC time corresponding to first slc line
+      double precision :: rho_mocomp   !Range used for motion compensation
+      type(pegtransType) :: ptm  !For WGS84 to SCH
       end module formslcStateSoi

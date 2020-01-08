@@ -1,6 +1,6 @@
 c****************************************************************
 
-	subroutine radar_to_xyz(elp,peg,ptm)
+	subroutine radar_to_xyz(elp,peg,ptm,height)
 
 c****************************************************************
 c**
@@ -41,6 +41,8 @@ c	INPUT VARIABLES:
 	end type pegtype
 	type (pegtype) peg
    
+        real*8, intent(in), optional :: height
+        
 c   	OUTPUT VARIABLES:
 
 	type pegtrans
@@ -56,6 +58,7 @@ c	LOCAL VARIABLES:
         integer i,j,i_type
         real*8 r_llh(3),r_p(3),r_slt,r_clt,r_clo,r_slo,r_up(3)
         real*8 r_chg,r_shg,rdir
+        real*8 r_height
 
 c	DATA STATEMENTS:none
 
@@ -64,8 +67,17 @@ C	FUNCTION STATEMENTS:
 
 c  	PROCESSING STEPS:
 
+c Check if the height is given
+
+      if (present(height)) then
+          r_height = height
+      else
+          r_height = 0.0d0
+      endif
+
 c       first determine the rotation matrix
 
+        
         r_clt = cos(peg%r_lat)
         r_slt = sin(peg%r_lat)
         r_clo = cos(peg%r_lon)
@@ -91,12 +103,12 @@ c       first determine the rotation matrix
 
 c       find the translation vector
 
-        ptm%r_radcur = rdir(elp%r_a,elp%r_e2,peg%r_hdg,peg%r_lat)
+        ptm%r_radcur = rdir(elp%r_a,elp%r_e2,peg%r_hdg,peg%r_lat) + r_height
 
         i_type = 1
 	r_llh(1) = peg%r_lat
 	r_llh(2) = peg%r_lon
-	r_llh(3) = 0.0d0
+	r_llh(3) = r_height
         call latlon(elp,r_p,r_llh,i_type)
 
         r_clt = cos(peg%r_lat)

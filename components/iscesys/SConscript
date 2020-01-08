@@ -50,4 +50,7 @@ Dumpers = 'Dumpers/SConscript'
 SConscript(Dumpers)
 Display = 'Display/SConscript'
 SConscript(Display)
-
+SConscript('Traits/SConscript')
+SConscript('DataRetriever/SConscript')
+SConscript('Stitcher/SConscript')
+SConscript('DataManager/SConscript')

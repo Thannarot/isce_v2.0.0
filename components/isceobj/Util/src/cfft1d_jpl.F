@@ -1,9 +1,16 @@
       subroutine cfft1d_jpl(n,c,dir)
-
+      use, intrinsic :: iso_c_binding
+      implicit none
       integer*4  n, dir, ier
       complex*8    c(*)
-      integer nmax 
+      integer nmax
       parameter (nmax = 32768)
+      interface
+        integer(C_INT) function sfftw_import_wisdom_from_filename(filename) bind(C, name='sfftw_import_wisdom_from_filename')
+        use, intrinsic :: iso_c_binding
+        character(C_CHAR), dimension(*), intent(in) :: filename
+        end function sfftw_import_wisdom_from_filename
+      end interface
 
 cc
 cc HP platform and using its library
@@ -20,10 +27,10 @@ cc
       save work1,work2,work4,work8,work16
       save work32,work64,work128,work256,work512
       save work16nok,work8nok
-      
+
 
       if(dir .eq. 0) then
-         if(n.eq.32768)call c1dfft(c,n,work32k,-3,ier)         
+         if(n.eq.32768)call c1dfft(c,n,work32k,-3,ier)
          if(n.eq.16384)call c1dfft(c,n,work16,-3,ier)
          if(n.eq.8192)call c1dfft(c,n,work8,-3,ier)
          if(n.eq.4096)call c1dfft(c,n,work4,-3,ier)
@@ -85,7 +92,7 @@ c     The should be updated in the future to use SCSL routines
 
 
       if(dir .eq. 0) then
-         if (n.eq.32768) call cfft1di(n,work32k)         
+         if (n.eq.32768) call cfft1di(n,work32k)
          if (n.eq.16384) call cfft1di(n,work16k)
          if (n.eq. 8192) call cfft1di(n,work8k)
          if (n.eq. 4096) call cfft1di(n,work4k)
@@ -136,10 +143,10 @@ C Sun WIPSpro Fortran 77
       common /fftwork/work32k,work16k,work8k,work4k,work2k,
      &                work1k,work512,work256,work128,work64,
      &                work32,work16,work8
-      
 
 
-      
+
+
       if(dir .eq. 0) then
          if (n.eq.32768) call cffti(n,work32k)
          if (n.eq.16384) call cffti(n,work16k)
@@ -170,7 +177,7 @@ C Sun WIPSpro Fortran 77
       if (n.eq.   16) call cfftf(n,c,work16)
       if (n.eq.    8) call cfftf(n,c,work8)
 
-cbjs      Was 
+cbjs      Was
 cbjs      call cfft1d_sun(n, c, dir)
 cbjs      but was dumping core on free()
 cbjs      so trying sun FFT from joanne.
@@ -188,7 +195,9 @@ c     NOTE: if above condition changed, also need to update fftw3stub.c
 
       integer*8 plani(16),planf(16),planFlagCreate(16),planFlagDestroy(16)
       complex*8 in(nmax)
-      integer i, j
+      integer i, j, length
+      character(len=1024) :: wisdomFile
+      integer(c_int) :: ret
       logical, save :: firstTime = .true.
       save plani,planf, planFlagCreate, planFlagDestroy, in
       if(firstTime .eqv. .true.) then
@@ -196,8 +205,18 @@ c     NOTE: if above condition changed, also need to update fftw3stub.c
               planFlagCreate(i) = 0
               planFlagDestroy(i) = 0
           enddo
+          call get_environment_variable("WISDOM_FILE", wisdomFile,length)
+          print*,"wisdomFile, length = ", wisdomFile(1:length), length
+          if (length .ne. 0) then
+              ret = sfftw_import_wisdom_from_filename(wisdomFile(1:length) // C_NULL_CHAR)
+              write(6,*) ret
+
+              if (ret .eq. 0) then
+                  stop 'cannot import fftw wisdom file'
+              endif
+          endif
           firstTime = .false.
-      endif 
+      endif
 
 !c replace giant call block with direct call using planf(i)
 
@@ -215,7 +234,7 @@ c     NOTE: if above condition changed, also need to update fftw3stub.c
              call sfftw_plan_dft_1d(planf(i),n,in,in,FFTW_FORWARD,FFTW_MEASURE)
              call sfftw_plan_dft_1d(plani(i),n,in,in,FFTW_BACKWARD,FFTW_MEASURE)
              planFlagCreate(i) = 1
-         endif 
+         endif
          return
       end if
 
@@ -255,11 +274,11 @@ c     NOTE: if above condition changed, also need to update fftw3stub.c
       end if
       if(dir .eq. 2) then
          do i=2,16
-            if(2**i.eq.n)go to 10 
+            if(2**i.eq.n)go to 10
          end do
          write(6,*) 'fftw: length unsupported:: ',n
          stop
-         !forward and inverse were both crated 
+         !forward and inverse were both crated
 10       if(planFlagDestroy(i)  .eq. 0) then
               planFlagDestroy(i) = 1
               planFlagCreate(i) = 0
@@ -268,8 +287,8 @@ c     NOTE: if above condition changed, also need to update fftw3stub.c
          endif
          !call sfftw_cleanup()
          return
-      
-      
+
+
       end if
 
 

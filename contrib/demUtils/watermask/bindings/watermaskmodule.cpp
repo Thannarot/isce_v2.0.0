@@ -18,7 +18,7 @@
 #include "watermaskmodule.h"
 using namespace std;
 
-static char * const __doc__ = "module for watermask.f";
+static const char * const __doc__ = "module for watermask.f";
 
 PyModuleDef moduledef = {
     // header

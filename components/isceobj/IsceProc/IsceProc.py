@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -30,14 +30,155 @@ from iscesys.DateTimeUtil.DateTimeUtil import DateTimeUtil as DTU
 from iscesys.Compatibility import Compatibility
 from isceobj.Scene.Frame import FrameMixin
 
+PROCEED_IF_ZERO_DEM = Component.Parameter(
+    '_proceedIfZeroDem',
+    public_name='proceed if zero dem',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc='Flag to apply continue processing if a dem is not available or cannot be downloaded.'
+)
+
+IS_MOCOMP = Component.Parameter('is_mocomp',
+    public_name='is_mocomp',
+    default=1,
+    type=int,
+    mandatory=False,
+    doc=''
+)
+
+PEG = Component.Facility('_peg',
+                          public_name='peg',
+                          module='isceobj.Location.Peg',
+                          factory='Peg',
+                          mandatory=False,
+                          doc='')
 
 class IsceProc(Component, FrameMixin):
 
-    def __init__(self, procDoc=None):
+    parameter_list = (IS_MOCOMP,
+                      PROCEED_IF_ZERO_DEM)
+    facility_list = (PEG,)
+
+    family = 'isceappcontext'
+
+    # Getters
+    @property
+    def proceedIfZeroDem(self):
+        return self._proceedIfZeroDem
+    @proceedIfZeroDem.setter
+    def proceedIfZeroDem(self, v):
+        self._proceedIfZeroDem = v
+    @property
+    def selectedPols(self):
+        return self._selectedPols
+    @selectedPols.setter
+    def selectedPols(self, v):
+        self._selectedPols = v
+        return
+
+    @property
+    def selectedScenes(self):
+        return self._selectedScenes
+    @selectedScenes.setter
+    def selectedScenes(self, v):
+        self._selectedScenes = v
+        return
+
+    @property
+    def selectedPairs(self):
+        return self._selectedPairs
+    @selectedPairs.setter
+    def selectedPairs(self, v):
+        self._selectedPairs = v
+        return
+
+    @property
+    def coregStrategy(self):
+        return self._coregStrategy
+    @coregStrategy.setter
+    def coregStrategy(self, v):
+        self._coregStrategy = v
+        return
+
+    @property
+    def refScene(self):
+        return self._refScene
+    @refScene.setter
+    def refScene(self, v):
+        self._refScene = v
+        return
+
+    @property
+    def refPol(self):
+        return self._refPol
+    @refPol.setter
+    def refPol(self, v):
+        self._refPol = v
+        return
+
+    @property
+    def frames(self):
+        return self._frames
+    @frames.setter
+    def frames(self, v):
+        self._frames = v
+        return
+
+    @property
+    def pairsToCoreg(self):
+        return self._pairsToCoreg
+    @pairsToCoreg.setter
+    def pairsToCoreg(self, v):
+        self._pairsToCoreg = v
+        return
+
+    @property
+    def srcFiles(self):
+        return self._srcFiles
+    @srcFiles.setter
+    def srcFiles(self, v):
+        self._srcFiles = v
+        return
+
+    @property
+    def demImage(self):
+        return self._demImage
+    @demImage.setter
+    def demImage(self, v=None):
+        self._demImage = v
+        return
+
+    @property
+    def geocode_list(self):
+        return self._geocode_list
+    @geocode_list.setter
+    def geocode_list(self, v):
+        self._geocode_list = v
+        return
+
+    @property
+    def dataDirectory(self):
+        return self._dataDirectory
+    @dataDirectory.setter
+    def dataDirectory(self, v):
+        self._dataDirectory = v
+        return
+
+    @property
+    def processingDirectory(self):
+        return self._processingDirectory
+    @processingDirectory.setter
+    def processingDirectory(self, v):
+        self._processingDirectory = v
+        return
+
+    def __init__(self, name='', procDoc=None):
         """
         Initiate all the attributes that will be used
         """
-        self.procDoc = procDoc
+        self.name = self.__class__.family
+
         self.workingDirectory = os.getcwd()
         self.dataDirectory = None
         self.processingDirectory = None
@@ -50,12 +191,13 @@ class IsceProc(Component, FrameMixin):
         self.dopplers = {}
         self.orbits = {}
         self.shifts = {} # azimuth shifts
-        self.peg = None
+
         self.pegAverageHeights = {}
         self.pegProcVelocities = {}
         self.fdHeights = {}
-        self.is_mocomp = None
+
         self.rawImages = {}
+        self.iqImages = {}
         self.slcImages = {}
         self.formSLCs = {}
         self.squints = {}
@@ -74,7 +216,6 @@ class IsceProc(Component, FrameMixin):
         self.resampImageName = 'resampImage'
         self.resampOnlyImageName = 'resampOnlyImage.int'
         self.offsetImageName = 'Offset.mht'
-        self.demImage = None
         self.demInitFile = 'DemImage.xml'
         self.firstSampleAcrossPrf = 50
         self.firstSampleDownPrf = 50
@@ -132,10 +273,10 @@ class IsceProc(Component, FrameMixin):
                         self.unwrappedIntFilename,
                         self.phsigFilename,
                         self.losFilename,
-                        self.topophaseFlatFilename, 
-                        self.filt_topophaseFlatFilename, 
+                        self.topophaseFlatFilename,
+                        self.filt_topophaseFlatFilename,
                         self.resampOnlyImageName.replace('.int', '.amp')
-                       ] 
+                       ]
 
         # Polarimetric calibration
         self.focusers = {}
@@ -143,6 +284,9 @@ class IsceProc(Component, FrameMixin):
         self.tecOutputName = 'tec'
         self.phaseOutputName = 'phase'
 
+        super().__init__(family=self.__class__.family, name=name)
+        self.procDoc = procDoc
+        return None
 
     def __setstate__(self, state):
         """
@@ -282,5 +426,3 @@ class RadarSwath(object):
         self.rawimage = rawimage
         self.slcimage = slcimage
         self.squint = squint
-
-

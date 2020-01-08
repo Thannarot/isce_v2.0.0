@@ -1,20 +1,20 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,6 +25,7 @@
 from xml.etree.ElementTree import ElementTree
 import datetime
 import isceobj
+
 from isceobj.Scene.Frame import Frame
 from isceobj.Planet.Planet import Planet
 from isceobj.Orbit.Orbit import StateVector, Orbit
@@ -40,40 +41,55 @@ tab = "    "
 lookMap = { 'RIGHT' : -1,
             'LEFT' : 1}
 
-class Radarsat2(Component):
+TIFF = Component.Parameter(
+    'tiff',
+    public_name='TIFF',
+    default='',
+    type=str,
+    mandatory=True,
+    doc='RadarSAT2 tiff imagery file'
+)
+
+XML = Component.Parameter(
+    'xml',
+    public_name='XML',
+    default='',
+    type=str,
+    mandatory=True,
+    doc='RadarSAT2 xml metadata file'
+)
+
+from .Sensor import Sensor
+class Radarsat2(Sensor):
     """
-        A Class representing RadarSAT 2 data
+        A Class representing RADARSAT 2 data
     """
-    def __init__(self):
-        Component.__init__(self)        
-        self.xml = None
-        self.tiff = None
-        self.output = None
-        self.product = _Product()                                
+
+    family='radarsat2'
+    parameter_list = (XML, TIFF) + Sensor.parameter_list
+
+    def __init__(self, family='', name=''):
+        super().__init__(family if family else  self.__class__.family, name=name)
+        self.product = _Product()
         self.frame = Frame()
         self.frame.configure()
-        
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'XML': ['self.xml','str','mandatory'],
-                                      'TIFF': ['self.tiff','str','mandatory'],
-                                      'OUTPUT': ['self.output','str','optional']}
-        
-                                               
+
+
     def getFrame(self):
         return self.frame
-    
+
     def parse(self):
         try:
             fp = open(self.xml,'r')
         except IOError as strerr:
             print("IOError: %s" % strerr)
             return
-        self._xml_root = ElementTree(file=fp).getroot()                     
+        self._xml_root = ElementTree(file=fp).getroot()
         self.product.set_from_etnode(self._xml_root)
         self.populateMetadata()
-        
+
         fp.close()
-    
+
     def populateMetadata(self):
         """
             Create metadata objects from the metadata files
@@ -81,9 +97,9 @@ class Radarsat2(Component):
         mission = self.product.sourceAttributes.satellite
         swath = self.product.sourceAttributes.radarParameters.beams
         frequency = self.product.sourceAttributes.radarParameters.radarCenterFrequency
-        prf = self.product.sourceAttributes.radarParameters.prf        
+        orig_prf = self.product.sourceAttributes.radarParameters.prf  # original PRF not necessarily effective PRF
         rangePixelSize = self.product.imageAttributes.rasterAttributes.sampledPixelSpacing
-        rangeSamplingRate = Const.c/(2*rangePixelSize)        
+        rangeSamplingRate = Const.c/(2*rangePixelSize)
         pulseLength = self.product.sourceAttributes.radarParameters.pulseLengths[0]
         pulseBandwidth = self.product.sourceAttributes.radarParameters.pulseBandwidths[0]
         polarization = self.product.sourceAttributes.radarParameters.polarizations
@@ -94,6 +110,11 @@ class Radarsat2(Component):
         samples = self.product.imageAttributes.rasterAttributes.numberOfSamplesPerLine
         startingRange = self.product.imageGenerationParameters.slantRangeToGroundRange.slantRangeTimeToFirstRangeSample * (Const.c/2)
         incidenceAngle = (self.product.imageGenerationParameters.sarProcessingInformation.incidenceAngleNearRange + self.product.imageGenerationParameters.sarProcessingInformation.incidenceAngleFarRange)/2
+        # some RS2 scenes have oversampled SLC images because processed azimuth bandwidth larger than PRF EJF 2015/08/15
+        azimuthPixelSize = self.product.imageAttributes.rasterAttributes.sampledLineSpacing  # ground spacing in meters
+        totalProcessedAzimuthBandwidth = self.product.imageGenerationParameters.sarProcessingInformation.totalProcessedAzimuthBandwidth
+        prf = orig_prf * np.ceil(totalProcessedAzimuthBandwidth / orig_prf) # effective PRF can be double original, suggested by Piyush
+        print("effective PRF %f, original PRF %f" % (prf, orig_prf) )
 
         lineFlip =  (self.product.imageAttributes.rasterAttributes.lineTimeOrdering.upper() == 'DECREASING')
 
@@ -109,7 +130,7 @@ class Radarsat2(Component):
 
         ####Populate platform
         platform = self.frame.getInstrument().getPlatform()
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
         platform.setMission(mission)
         platform.setPointingDirection(lookSide)
         platform.setAntennaLength(15.0)
@@ -136,16 +157,16 @@ class Radarsat2(Component):
         sensingMid = dataStartTime + datetime.timedelta(microseconds=int(diffTime*1e6))
         self.frame.setSensingMid(sensingMid)
         self.frame.setPassDirection(passDirection)
-        self.frame.setPolarization(polarization) 
+        self.frame.setPolarization(polarization)
         self.frame.setStartingRange(startingRange)
         self.frame.setFarRange(startingRange + (samples-1)*rangePixelSize)
         self.frame.setNumberOfLines(lines)
         self.frame.setNumberOfSamples(samples)
         self.frame.setProcessingFacility(facility)
         self.frame.setProcessingSoftwareVersion(version)
-        
+
         # Initialize orbit objects
-        # Read into temp orbit first. 
+        # Read into temp orbit first.
         # Radarsat 2 needs orbit extensions.
         tempOrbit = Orbit()
 
@@ -155,7 +176,7 @@ class Radarsat2(Component):
         for i in range(len(stateVectors)):
             position = [stateVectors[i].xPosition, stateVectors[i].yPosition, stateVectors[i].zPosition]
             velocity = [stateVectors[i].xVelocity, stateVectors[i].yVelocity, stateVectors[i].zVelocity]
-            vec = StateVector()            
+            vec = StateVector()
             vec.setTime(stateVectors[i].timeStamp)
             vec.setPosition(position)
             vec.setVelocity(velocity)
@@ -169,6 +190,38 @@ class Radarsat2(Component):
         for sv in newOrb:
             self.frame.getOrbit().addStateVector(sv)
 
+# save the Doppler centroid coefficients, converting units from product.xml file
+# units in the file are quadratic coefficients in Hz, Hz/sec, and Hz/(sec^2)
+# ISCE expects Hz, Hz/(range sample), Hz((range sample)^2
+# note that RS2 Doppler values are estimated at time dc.dopplerCentroidReferenceTime,
+# so the values might need to be adjusted for ISCE usage
+# added EJF 2015/08/17
+        dc = self.product.imageGenerationParameters.dopplerCentroid
+        poly = dc.dopplerCentroidCoefficients
+        # need to convert units
+        poly[1] = poly[1]/rangeSamplingRate
+        poly[2] = poly[2]/rangeSamplingRate**2
+        self.doppler_coeff = poly
+
+# similarly save Doppler azimuth fm rate values, converting units
+# units in the file are quadratic coefficients in Hz, Hz/sec, and Hz/(sec^2)
+# Guessing that ISCE expects Hz, Hz/(range sample), Hz((range sample)^2
+# note that RS2 Doppler values are estimated at time dc.dopplerRateReferenceTime,
+# so the values might need to be adjusted for ISCE usage
+# added EJF 2015/08/17
+        dr = self.product.imageGenerationParameters.dopplerRateValues
+        fmpoly = dr.dopplerRateValuesCoefficients
+        # need to convert units
+        fmpoly[1] = fmpoly[1]/rangeSamplingRate
+        fmpoly[2] = fmpoly[2]/rangeSamplingRate**2
+        self.azfmrate_coeff = fmpoly
+
+        # now calculate effective PRF from the azimuth line spacing after we have the orbit info EJF 2015/08/15
+        # this does not work because azimuth spacing is on ground. Instead use bandwidth ratio calculated above  EJF
+#        SCHvelocity = self.frame.getSchVelocity()
+#        SCHvelocity = 7550.75  # hard code orbit velocity for now m/s
+#        prf = SCHvelocity/azimuthPixelSize
+#        instrument.setPulseRepetitionFrequency(prf)
 
     def extractImage(self, verbose=True):
         '''
@@ -244,27 +297,57 @@ class Radarsat2(Component):
         tMid = tNear + 0.5*self.frame.getNumberOfSamples()/fs
         t0 = dc.dopplerCentroidReferenceTime
         poly = dc.dopplerCentroidCoefficients
-       
+
         fd_mid = 0.0
         for kk in range(len(poly)):
             fd_mid += poly[kk] * (tMid - t0)**kk
-        
+
+        ####For insarApp
         quadratic['a'] = fd_mid / ins.getPulseRepetitionFrequency()
         quadratic['b'] = 0.
         quadratic['c'] = 0.
+
+
+        ####For roiApp
+        ####More accurate
+        from isceobj.Util import Poly1D
+
+        coeffs = poly
+        dr = self.frame.getInstrument().getRangePixelSize()
+        rref = 0.5 * Const.c * t0
+        r0 = self.frame.getStartingRange()
+        norm = 0.5*Const.c/dr
+
+        dcoeffs = []
+        for ind, val in enumerate(coeffs):
+            dcoeffs.append( val / (norm**ind))
+
+
+        poly = Poly1D.Poly1D()
+        poly.initPoly(order=len(coeffs)-1)
+        poly.setMean( (rref - r0)/dr - 1.0)
+        poly.setCoeffs(dcoeffs)
+
+
+        pix = np.linspace(0, self.frame.getNumberOfSamples(), num=len(coeffs)+1)
+        evals = poly(pix)
+        fit = np.polyfit(pix,evals, len(coeffs)-1)
+        self.frame._dopplerVsPixel = list(fit[::-1])
+        print('Doppler Fit: ', fit[::-1])
+
         return quadratic
 
 class Radarsat2Namespace(object):
     def __init__(self):
         self.uri = "http://www.rsi.ca/rs2/prod/xml/schemas"
-        
+
     def elementName(self,element):
         return "{%s}%s" % (self.uri,element)
 
     def convertToDateTime(self,string):
         dt = datetime.datetime.strptime(string,"%Y-%m-%dT%H:%M:%S.%fZ")
-        return dt 
-  
+        return dt
+
 class _Product(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -274,9 +357,9 @@ class _Product(Radarsat2Namespace):
         self.imageGenerationParameters = _ImageGenerationParameters()
         self.imageAttributes = _ImageAttributes()
 
-    def set_from_etnode(self,node):             
-        for z in node.getchildren():                                
-            if z.tag == self.elementName('productId'):                                
+    def set_from_etnode(self,node):
+        for z in node.getchildren():
+            if z.tag == self.elementName('productId'):
                 self.productId = z.text
             elif z.tag == self.elementName('documentIdentifier'):
                 self.documentId = z.text
@@ -286,7 +369,7 @@ class _Product(Radarsat2Namespace):
                 self.imageGenerationParameters.set_from_etnode(z)
             elif z.tag == self.elementName('imageAttributes'):
                 self.imageAttributes.set_from_etnode(z)
-                
+
     def __str__(self):
         retstr  = "Product:"+sep+tab
         retlst  = ()
@@ -295,12 +378,12 @@ class _Product(Radarsat2Namespace):
         retstr += "documentIdentifier=%s"+sep
         retlst += (self.documentId,)
         retstr += "%s"+sep
-        retlst += (str(self.sourceAttributes),)  
+        retlst += (str(self.sourceAttributes),)
         retstr += "%s"+sep
-        retlst += (str(self.imageGenerationParameters),)   
+        retlst += (str(self.imageGenerationParameters),)
         retstr += ":Product"
         return retstr % retlst
-                
+
 class _SourceAttributes(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -315,7 +398,7 @@ class _SourceAttributes(Radarsat2Namespace):
         self.radarParameters = _RadarParameters()
         self.rawDataAttributes = _RawDataAttributes()
         self.orbitAndAttitude = _OrbitAndAttitude()
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('satellite'):
@@ -332,7 +415,7 @@ class _SourceAttributes(Radarsat2Namespace):
                 self.beamModeId = z.text
             elif z.tag == self.elementName('beamModeMnemonic'):
                 self.beamModeMnemonic = z.text
-            elif z.tag == self.elementName('rawDataStartTime'):                
+            elif z.tag == self.elementName('rawDataStartTime'):
                 self.rawDataStartTime = self.convertToDateTime(z.text)
             elif z.tag == self.elementName('radarParameters'):
                 self.radarParameters.set_from_etnode(z)
@@ -340,7 +423,7 @@ class _SourceAttributes(Radarsat2Namespace):
                 self.rawDataAttributes.set_from_etnode(z)
             elif z.tag == self.elementName('orbitAndAttitude'):
                 self.orbitAndAttitude.set_from_etnode(z)
-                
+
     def __str__(self):
         retstr  = "SourceAttributes:"+sep+tab
         retlst  = ()
@@ -358,7 +441,7 @@ class _SourceAttributes(Radarsat2Namespace):
         retlst += (str(self.orbitAndAttitude),)
         retstr += ":SourceAttributes"
         return retstr % retlst
-                
+
 class _RadarParameters(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -379,7 +462,7 @@ class _RadarParameters(Radarsat2Namespace):
         self.rawBitsPerSample = None
         self.samplesPerEchoLine = None
         self.referenceNoiseLevels = [_ReferenceNoiseLevel()]*3
-        
+
     def set_from_etnode(self,node):
         i = 0
         for z in node.getchildren():
@@ -416,7 +499,7 @@ class _RadarParameters(Radarsat2Namespace):
             elif z.tag == self.elementName('referenceNoiseLevels'):
                 self.referenceNoiseLevels[i].set_from_etnode(z)
                 i += 1
-                
+
     def __str__(self):
         retstr = "RadarParameters:"+sep+tab
         retlst = ()
@@ -429,7 +512,7 @@ class _RadarParameters(Radarsat2Namespace):
         retstr += "pulses=%s"+sep+tab
         retlst += (self.pulses,)
         retstr += "rank=%s"+sep
-        retlst += (self.rank,)  
+        retlst += (self.rank,)
         retstr += ":RadarParameters"+sep
         return retstr % retlst
 
@@ -440,7 +523,7 @@ class _ReferenceNoiseLevel(Radarsat2Namespace):
         self.stepSize = None
         self.numberOfNoiseLevelValues = None
         self.noiseLevelValues = []
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('pixelFirstNoiseValue'):
@@ -451,12 +534,12 @@ class _ReferenceNoiseLevel(Radarsat2Namespace):
                 self.numberOfNoiseLevelValues = int(z.text)
             elif z.tag == self.elementName('noiseLevelValues'):
                 self.noiseLevelValues = list(map(float,z.text.split()))
-        
+
     def __str__(self):
         retstr  = "ReferenceNoiseLevel:"+sep+tab
         retlst  = ()
         retstr += "pixelFirstNoiseValue=%s"+sep+tab
-        retlst += (self.pixelFirstNoiseValue,)        
+        retlst += (self.pixelFirstNoiseValue,)
         retstr += "stepSize=%s"+sep+tab
         retlst += (self.stepSize,)
         retstr += "numberOfNoiseLevelValues=%s"+sep+tab
@@ -473,17 +556,17 @@ class _RawDataAttributes(Radarsat2Namespace):
         self.gapSize = None
         self.numberOfMissingLines = None
         self.rawDataAnalysis = [_RawDataAnalysis]*4
-                
+
     def set_from_etnode(self,node):
         pass
-    
+
     def __str__(self):
         return ""
-    
+
 class _RawDataAnalysis(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
-    
+
     def set_from_etnode(self,node):
         pass
 
@@ -492,14 +575,14 @@ class _OrbitAndAttitude(Radarsat2Namespace):
         Radarsat2Namespace.__init__(self)
         self.orbitInformation = _OrbitInformation()
         self.attitudeInformation = _AttitudeInformation()
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('orbitInformation'):
                 self.orbitInformation.set_from_etnode(z)
             elif z.tag == self.elementName('attitudeInformation'):
                 self.attitudeInformation.set_from_etnode(z)
-                
+
     def __str__(self):
         retstr = "OrbitAndAttitude:"+sep
         retlst = ()
@@ -530,7 +613,7 @@ class _OrbitInformation(Radarsat2Namespace):
                 sv = _StateVector()
                 sv.set_from_etnode(z)
                 self.stateVectors.append(sv)
-                
+
     def __str__(self):
         retstr = "OrbitInformation:"+sep+tab
         retlst = ()
@@ -542,8 +625,8 @@ class _OrbitInformation(Radarsat2Namespace):
         retlst += (self.orbitDataFile,)
         retstr += ":OrbitInformation"+sep
         return retstr % retlst
-        
-                
+
+
 class _StateVector(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -557,7 +640,7 @@ class _StateVector(Radarsat2Namespace):
 
     def set_from_etnode(self,node):
         for z in node.getchildren():
-            if z.tag == self.elementName('timeStamp'):                
+            if z.tag == self.elementName('timeStamp'):
                 self.timeStamp = self.convertToDateTime(z.text)
             elif z.tag == self.elementName('xPosition'):
                 self.xPosition = float(z.text)
@@ -598,7 +681,7 @@ class _AttitudeInformation(Radarsat2Namespace):
         self.attitudeDataSource = None
         self.attitudeOffsetApplied = None
         self.attitudeAngles = []
-    
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('attitudeDataSource'):
@@ -607,9 +690,9 @@ class _AttitudeInformation(Radarsat2Namespace):
                 self.attitudeOffsetApplied = z.text
             elif z.tag == self.elementName('attitudeAngles'):
                 aa = _AttitudeAngles()
-                aa.set_from_etnode(z)            
+                aa.set_from_etnode(z)
                 self.attitudeAngles.append(aa)
-                
+
     def __str__(self):
         retstr = "AttitudeInformation:"+sep+tab
         retlst = ()
@@ -629,10 +712,10 @@ class _AttitudeAngles(Radarsat2Namespace):
         self.yaw = None
         self.roll = None
         self.pitch = None
-    
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
-            if z.tag == self.elementName('timeStamp'):                
+            if z.tag == self.elementName('timeStamp'):
                 self.timeStamp = self.convertToDateTime(z.text)
             elif z.tag == self.elementName('yaw'):
                 self.yaw = float(z.text)
@@ -640,7 +723,7 @@ class _AttitudeAngles(Radarsat2Namespace):
                 self.roll = float(z.text)
             elif z.tag == self.elementName('pitch'):
                 self.pitch = float(z.text)
-    
+
     def __str__(self):
         retstr = "AttitudeAngles:"+sep+tab
         retlst = ()
@@ -654,7 +737,7 @@ class _AttitudeAngles(Radarsat2Namespace):
         retlst += (self.pitch,)
         retstr += sep+":AttitudeAngles"
         return retstr % retlst
-        
+
 class _ImageGenerationParameters(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -664,8 +747,8 @@ class _ImageGenerationParameters(Radarsat2Namespace):
         self.dopplerRateValues = _DopplerRateValues()
         self.chirp = []
         self.slantRangeToGroundRange = _SlantRangeToGroundRange()
-        self.payloadCharacteristicsFile = []    
-        
+        self.payloadCharacteristicsFile = []
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('generalProcessingInformation'):
@@ -678,7 +761,7 @@ class _ImageGenerationParameters(Radarsat2Namespace):
                 self.dopplerRateValues.set_from_etnode(z)
             elif z.tag == self.elementName('slantRangeToGroundRange'):
                 self.slantRangeToGroundRange.set_from_etnode(z)
-                
+
     def __str__(self):
         retstr = "ImageGenerationParameters:"+sep
         retlst = ()
@@ -692,8 +775,8 @@ class _ImageGenerationParameters(Radarsat2Namespace):
         retlst += (str(self.dopplerRateValues),)
         retstr += ":ImageGenerationParameters"
         return retstr % retlst
-    
-    
+
+
 class _GeneralProcessingInformation(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -701,18 +784,18 @@ class _GeneralProcessingInformation(Radarsat2Namespace):
         self._processingFacility = None
         self.processingTime = None
         self.softwareVersion = None
-        
+
     def set_from_etnode(self,node):
-        for z in node.getchildren():            
+        for z in node.getchildren():
             if z.tag == self.elementName('productType'):
                 self.productType = z.text
             elif z.tag == self.elementName('_processingFacility'):
                 self._processingFacility = z.text
-            elif z.tag == self.elementName('processingTime'):                
+            elif z.tag == self.elementName('processingTime'):
                 self.processingTime = self.convertToDateTime(z.text)
             elif z.tag == self.elementName('softwareVersion'):
                 self.softwareVersion = z.text
-                
+
     def __str__(self):
         retstr = "GeneralProcessingInformation:"+sep+tab
         retlst = ()
@@ -757,7 +840,7 @@ class _SarProcessingInformation(Radarsat2Namespace):
         self.incidenceAngleFarRange = None
         self.slantRangeNearEdge = None
         self._satelliteHeight = None
-                              
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('lutApplied'):
@@ -774,13 +857,15 @@ class _SarProcessingInformation(Radarsat2Namespace):
                 self.incidenceAngleFarRange = float(z.text)
             elif z.tag == self.elementName('slantRangeNearEdge'):
                 self.slantRangeNearEdge = float(z.text)
+            elif z.tag == self.elementName('totalProcessedAzimuthBandwidth'):
+                self.totalProcessedAzimuthBandwidth = float(z.text)
             elif z.tag == self.elementName('_satelliteHeight'):
-                self._satelliteHeight = float(z.text)               
+                self._satelliteHeight = float(z.text)
             elif z.tag == self.elementName('zeroDopplerTimeFirstLine'):
                 self.zeroDopplerTimeFirstLine = self.convertToDateTime(z.text)
             elif z.tag == self.elementName('zeroDopplerTimeLastLine'):
                 self.zeroDopplerTimeLastLine = self.convertToDateTime(z.text)
-    
+
     def __str__(self):
         retstr = "sarProcessingInformation:"+sep+tab
         retlst = ()
@@ -801,15 +886,15 @@ class _Window(Radarsat2Namespace):
         self.type = type
         self.windowName = None
         self.windowCoefficient = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('windowName'):
                 self.windowName = z.text
             elif z.tag == self.elementName('windowCoefficient'):
                 self.windowCoefficient = float(z.text)
-                
-    def __str__(self):        
+
+    def __str__(self):
         retstr = "%sWindow:"+sep+tab
         retlst = (self.type,)
         retstr += "windowName=%s"+sep+tab
@@ -830,7 +915,7 @@ class _DopplerCentroid(Radarsat2Namespace):
         self.dopplerCentroidPolynomialPeriod = None
         self.dopplerCentroidCoefficients = []
         self.dopplerCentroidConfidence = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('timeOfDopplerCentroidEstimate'):
@@ -841,7 +926,7 @@ class _DopplerCentroid(Radarsat2Namespace):
                 self.dopplerCentroidCoefficients = list(map(float,z.text.split()))
             elif z.tag == self.elementName('dopplerCentroidReferenceTime'):
                 self.dopplerCentroidReferenceTime = float(z.text)
-                
+
     def __str__(self):
         retstr = "DopplerCentroid:"+sep+tab
         retlst = ()
@@ -857,14 +942,14 @@ class _DopplerRateValues(Radarsat2Namespace):
         Radarsat2Namespace.__init__(self)
         self.dopplerRateReferenceTime = None
         self.dopplerRateValuesCoefficients = []
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('dopplerRateReferenceTime'):
                 self.dopplerRateReferenceTime = float(z.text)
             elif z.tag == self.elementName('dopplerRateValuesCoefficients'):
                 self.dopplerRateValuesCoefficients = list(map(float,z.text.split()))
-                
+
     def __str__(self):
         retstr = "DopplerRateValues:"+sep+tab
         retlst = ()
@@ -878,7 +963,7 @@ class _DopplerRateValues(Radarsat2Namespace):
 class _Chirp(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
-    
+
 class _SlantRangeToGroundRange(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
@@ -886,7 +971,7 @@ class _SlantRangeToGroundRange(Radarsat2Namespace):
         self.slantRangeTimeToFirstRangeSample = None
         self.groundRangeOrigin = None
         self.groundToSlantRangeCoefficients = []
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('zeroDopplerAzimuthTime'):
@@ -902,7 +987,7 @@ class _ImageAttributes(Radarsat2Namespace):
         self.rasterAttributes = _RasterAttributes()
         self.geographicInformation = _GeographicInformation()
         self.fullResolutionImageData = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('productFormat'):
@@ -927,12 +1012,12 @@ class _RasterAttributes(Radarsat2Namespace):
         self.sampledLineSpacing = None
         self.lineTimeOrdering = None
         self.pixelTimeOrdering = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('dataType'):
                 self.dataType = z.text
-            elif z.tag == self.elementName('bitsPerSample'):               
+            elif z.tag == self.elementName('bitsPerSample'):
                 self.bitsPerSample.append(z.text)  # TODO: Make this a dictionary with keys of 'imaginary' and 'real'
             elif z.tag == self.elementName('numberOfSamplesPerLine'):
                 self.numberOfSamplesPerLine = int(z.text)
@@ -953,23 +1038,23 @@ class _GeographicInformation(Radarsat2Namespace):
         self.geolocationGrid = _GeolocationGrid()
         self.rationalFunctions = _RationalFunctions()
         self.referenceEllipsoidParameters = _ReferenceEllipsoidParameters()
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('geolocationGrid'):
                 self.geolocationGrid.set_from_etnode(z)
-                
+
 class _GeolocationGrid(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
-        self.imageTiePoint = []    
-        
+        self.imageTiePoint = []
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('imageTiePoint'):
                 tp = _ImageTiePoint()
                 tp.set_from_etnode(z)
-                self.imageTiePoint.append(tp)               
+                self.imageTiePoint.append(tp)
 
 
 class _ImageTiePoint(Radarsat2Namespace):
@@ -977,14 +1062,14 @@ class _ImageTiePoint(Radarsat2Namespace):
         Radarsat2Namespace.__init__(self)
         self.imageCoordinates = _ImageCoordinates()
         self.geodeticCoordinates = _GeodeticCoordinates()
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('imageCoordinate'):
                 self.imageCoordinates.set_from_etnode(z)
             elif z.tag == self.elementName('geodeticCoordinate'):
                 self.geodeticCoordinates.set_from_etnode(z)
-                
+
     def __str__(self):
         retstr = "ImageTiePoint:"+sep+tab
         retlst = ()
@@ -994,20 +1079,20 @@ class _ImageTiePoint(Radarsat2Namespace):
         retlst += (str(self.geodeticCoordinates),)
         retstr += ":ImageTiePoint"
         return retstr % retlst
-    
+
 class _ImageCoordinates(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
         self.line = None
         self.pixel = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('line'):
                 self.line = float(z.text)
             elif z.tag == self.elementName('pixel'):
                 self.pixel = float(z.text)
-    
+
     def __str__(self):
         retstr = "ImageCoordinate:"+sep+tab
         retlst = ()
@@ -1024,7 +1109,7 @@ class _GeodeticCoordinates(Radarsat2Namespace):
         self.latitude = None
         self.longitude = None
         self.height = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('latitude'):
@@ -1033,7 +1118,7 @@ class _GeodeticCoordinates(Radarsat2Namespace):
                 self.longitude = float(z.text)
             elif z.tag == self.elementName('height'):
                 self.height = float(z.text)
-    
+
     def __str__(self):
         retstr = "GeodeticCoordinate:"+sep+tab
         retlst = ()
@@ -1053,7 +1138,7 @@ class _ReferenceEllipsoidParameters(Radarsat2Namespace):
         self.semiMajorAxis = None
         self.semiMinorAxis = None
         self.geodeticTerrainHeight = None
-        
+
     def set_from_etnode(self,node):
         for z in node.getchildren():
             if z.tag == self.elementName('ellipsoidName'):
@@ -1064,16 +1149,16 @@ class _ReferenceEllipsoidParameters(Radarsat2Namespace):
                 self.semiMinorAxis = float(z.text)
             elif z.tag == self.elementName('geodeticTerrainHeight'):
                 self.geodeticTerrainHeight = float(z.text)
-    
+
     def __str__(self):
         return ""
-    
+
 class _RationalFunctions(Radarsat2Namespace):
     def __init__(self):
         Radarsat2Namespace.__init__(self)
 
     def set_from_etnode(self,node):
         pass
-    
+
     def __str__(self):
         return ""

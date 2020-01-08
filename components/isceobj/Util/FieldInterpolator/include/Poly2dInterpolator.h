@@ -1,7 +1,6 @@
 #ifndef Poly2dInterpolator_h
 #define Poly2dInterpolator_h
 
-
 #ifndef MESSAGE
 #define MESSAGE cout << "file " << __FILE__ << " line " << __LINE__ << endl;
 #endif
@@ -13,16 +12,31 @@
 #include "FieldInterpolator.h"
 #include "poly2d.h"
 
-class Poly2dInterpolator: public FieldInterpolator
+class Poly2dInterpolator : public InterleaveAccessor
 {
-    public:
-        Poly2dInterpolator():FieldInterpolator(){}
-        virtual ~Poly2dInterpolator(){delete [] Data;}
+public:
+  Poly2dInterpolator() :
+      InterleaveAccessor()
+  {
+  }
+  virtual
+  ~Poly2dInterpolator()
+  {
+  }
+  void init(void * poly);
 
-        double getField(double row, double col);
 
-    protected:
-        cPoly1d poly; 
+  void
+  getData(char * buf, int row, int col, int & numEl);
+  //the next functions are pure abstract and need to be implemented, so we just create and empty body
+  void
+  getDataBand(char *buf, int row, int col, int &numEl, int band){}
+  void
+  setData(char * buf, int row, int col, int numEl){}
+  void
+  setDataBand(char * buf, int row, int col, int numEl, int band) {}
+protected:
+  cPoly2d * poly;
 };
 
-#endif Poly2dInterpolator_h
+#endif //Poly2dInterpolator_h

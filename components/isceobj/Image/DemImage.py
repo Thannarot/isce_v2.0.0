@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,49 +52,58 @@ from iscesys.Component.Component import Component
 #Moreover each parameter can be set with the corresponding accessor method setParameter() (see the class member methods).
 #@see DataAccessor.Image.
 #@see Component.Component.
+REFERENCE = Component.Parameter('reference',
+                            public_name='REFERENCE',
+                            default='EGM96',
+                            type=str,
+                            mandatory=False,
+                            doc='Geodetic datum')
+
+DATA_TYPE = Component.Parameter('dataType',
+                      public_name='DATA_TYPE',
+                      default='short',
+                      type=str,
+                      mandatory=True,
+                      doc='Image data type.')
+IMAGE_TYPE = Component.Parameter('imageType',
+                       public_name='IMAGE_TYPE',
+                       default='dem',
+                       type=str,
+                       mandatory=False,
+                       private=True,
+                       doc='Image type used for displaying.')
+     
 class DemImage(Image):
 
-
+    parameter_list = (
+                  REFERENCE,
+                  DATA_TYPE,
+                  IMAGE_TYPE
+                  ) 
     def createImage(self):
         
-        self.checkInitialization()
+#        self.checkInitialization()
         Image.createImage(self)        
 
+    def updateParameters(self):
+        self.extendParameterList(Image,DemImage)
+        super(DemImage,self).updateParameters()
+
+
     family = "demimage"
-
+        
     def __init__(self,family='',name=''):
-
-        
-        Image.__init__(self)
-
-        self.dictionaryOfVariables.update({'REFERENCE':['reference','str','optional'],'FIRST_LATITUDE':['firstLatitude','float','optional'],'FIRST_LONGITUDE':['firstLongitude','float','optional'],'DELTA_LATITUDE':['deltaLatitude','float','optional'],'DELTA_LONGITUDE':['deltaLongitude','float','optional']})
+        self.updateParameters()
+        super(DemImage, self).__init__(family if family else  self.__class__.family, name=name)
+    
         self.initOptionalAndMandatoryLists()
-        self.imageType = 'dem'
-            
-        
-
-        
-        #optional variables
-        self.bands = 1
-        self.scheme = 'BIP'
-        self.dataType = 'SHORT'
-        self.firstLatitude = 0
-        self.firstLongitude = 0
-        self.deltaLatitude = 0
-        self.deltaLongitude = 0
-        self.reference = 'EGM96'
-        
-        #mandatory variables
-        self.width = None
-        self.filename = ''
-        self.accessMode = ''
 
         self.logger = logging.getLogger('isce.Image.DemImageBase')
         
         
         
         return
-
+   
     def getsnwe(self):
         '''Return the bounding box.'''
 
@@ -113,14 +122,9 @@ class DemImage(Image):
         self.logger = logging.getLogger('isce.Image.DemImageBase')
         return
     
-        # to make it backward compatible with the old way of working, basically we aliased this variables 
-        # to the equivalent ones in the Image base class objects  coord1,coord2
-
-
 #end class
 
 
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+

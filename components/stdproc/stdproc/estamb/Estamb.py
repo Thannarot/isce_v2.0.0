@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,33 +208,39 @@ IQ_FLIP = Component.Parameter('IQFlip',
                               doc='If I/Q channels are flipped in the raw data file'
                              )
 POSITION = Component.Parameter('position',
-                               public_name='POSITION',
-                               default=[],
-                               type=list,
-                               mandatory=True,
-                               doc='Position vector'
-                              )
+    public_name='POSITION',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    doc='Position vector'
+)
 TIME = Component.Parameter('time',
-                           public_name='TIME',
-                           default=[],
-                           type=list,
-                           mandatory=True,
-                           doc='Time vector'
-                          )
-DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter('dopplerCentroidCoefficients',
-                                                    public_name='DOPPLER_CENTROID_COEFFICIENTS',
-                                                    default=[],
-                                                    type=list,
-                                                    mandatory=True,
-                                                    doc='Doppler centroid coefficients'
-                                                   )
+    public_name='TIME',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    doc='Time vector'
+)
+DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter(
+    'dopplerCentroidCoefficients',
+    public_name='DOPPLER_CENTROID_COEFFICIENTS',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    doc='Doppler centroid coefficients'
+)
 ENTROPY = Component.Parameter('entropy',
-                                   public_name='ENTROPY',
-                                   default=[],
-                                   type=list,
-                                   mandatory=None,
-                                   doc='ENTROPY'
-                                  )
+    public_name='ENTROPY',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    private=True,
+    doc='ENTROPY'
+)
 MINIMUM_AMBIGUITY = Component.Parameter('minAmb',
                                     public_name='MINIMUM_AMBIGUITY',
                                     default = -3,
@@ -250,7 +256,8 @@ MAXIMUM_AMBIGUITY = Component.Parameter('maxAmb',
 DOPPLER_AMBIGUITY = Component.Parameter('dopplerAmbiguity',
                                     public_name='DOPPLER_AMBIGUITY',
                                     default=None,
-                                    mandatory=None,
+                                    mandatory=False,
+                                    private=True,
                                     doc='Doppler ambiguity estimated by estamb'
                                     )
 
@@ -803,7 +810,7 @@ class Estamb(Component):
 
     def _facilities(self):
         self.rawImage = self.facility('rawImage',public_name='rawImage',module='isceobj.Image',factory='createRawImage',
-                                    mandatory='True',doc='Raw Image object')
+                                    mandatory=True,doc='Raw Image object')
 
     def createPorts(self):
         self.inputPorts['rawImage'] = self.addRawImage

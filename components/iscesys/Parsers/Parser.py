@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2009 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2009 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,7 +24,7 @@
 
 from __future__ import print_function
 import logging
-
+import os
 const_key = '__const__'
 const_name = 'constant'
 const_marker = '\$'  #\ required to escape special character for re
@@ -130,7 +129,7 @@ class Parser(object):
             if self.isStr(compAndVal[1]):
                 val = compAndVal[1]
             else:
-                exec('val = ' + compAndVal[1])
+                val = eval(compAndVal[1])
 
             listOfComp = compAndVal[0].split('.')
 
@@ -162,8 +161,7 @@ class Parser(object):
     #dictFact is the dict where the informations relative to the factory for that node are set.
     #dictMisc is a miscellaneus dictionary where we put other info about the property such as doc,units etc
 
-    def parseComponent(self,root,dictIn,dictFact,dictMisc = None):
-
+    def parseComponent(self,root,dictIn,dictFact,dictMisc = None,metafile=None):
         # Check for constants
         self.parseConstants(root, dictIn, dictMisc)
         self.apply_consts_dict(dictIn[const_key], dictIn[const_key])
@@ -192,13 +190,13 @@ class Parser(object):
                 dictFact[name].update({'factorymodule': factorymodule})
             if not  args == None:
                 #this must be a tuple
-                exec('argsFact = ' + args.text)
+                argsFact = eval(args.text)
                 dictFact[name].update({'args':argsFact})
             if not  kwargs == None:
                 #this must be a dictionary
-                exec('kwargsFact = ' + kwargs.text)
+                kwargsFact = eval(kwargs.text)
                 dictFact[name].update({'kwargs':kwargsFact})
-            if not  doc == None:
+            if not  doc is None:
                 #the doc should be a list of strings. if not create a list
                 if self.isStr(doc.text):
                     dictFact[name].update({'doc':[doc.text]})
@@ -217,12 +215,13 @@ class Parser(object):
                 tmpDictMisc = {}
 
                 #the catalog can be a string i.e. a filename (that will be parsed) or a dictionary
-                if self.isStr(catalog.text):
+                catalog_text = catalog.text.strip()
+                if self.isStr(catalog_text):
                     #Create a file parser in XP
                     if parser:
                         #If the inputs specified a parser, then use it
                         filetype = node.find('filetype').text
-                        exec('XP = '  + parser.text + '(\"' + filetype + '\")')
+                        XP = eval(parser.text + '(\"' + filetype + '\")')
 
                     else:
                         #If the inputs did not specify a parser, then create one from an input extension type
@@ -231,12 +230,12 @@ class Parser(object):
                         if filetype:
                             ext = filetype.text
                         else:
-                            ext = catalog.text.split('.')[-1]
+                            ext = catalog_text.split('.')[-1]
 
                         from .FileParserFactory import createFileParser
                         XP = createFileParser(ext)
-
-                    (tmpDictIn,tmpDictFact,tmpDictMisc) =  XP.parse(catalog.text)
+                    self._metafile = catalog_text
+                    (tmpDictIn,tmpDictFact,tmpDictMisc) =  XP.parse(catalog_text)
 
                     #the previous parsing will return dict of dicts with all the subnodes of that entry, so update the  node.
                     if not tmpDictIn == {}:
@@ -257,7 +256,7 @@ class Parser(object):
 
                 else:
                     #the catalog is a dictionary of type {'x1':val1,'x2':val2}
-                    exec('tmpDictIn = ' + catalog.text)
+                    tmpDictIn = eval(catalog_text)
                     if isinstance(tmpDictIn,dict):
                         if not tmpDictIn == {}:
                             if not name in dictIn:
@@ -273,6 +272,9 @@ class Parser(object):
             tmpDict[const_key] = dictIn[const_key] #pass the constants down
             tmpDictFact= {}
             tmpDictMisc= {}
+
+            #add the attribute metalocation to the object paramenter
+            tmpDict['metadata_location'] = os.path.abspath(self._metafile)
             self.parseComponent(node,tmpDict,tmpDictFact,tmpDictMisc)
             if not tmpDict == {}:
                 if not name in dictIn:
@@ -372,25 +374,36 @@ class Parser(object):
             #get the other possible property elements
             units = self.getPropertyElement(node, 'units')
             doc = self.getPropertyElement(node, 'doc')
-
+            value = self.checkException(name,value)
             #Try to update the input dictionary
             if self.isStr(value): # it is actually a string
                 dictIn.update({name:value})
             else: # either simple ojbect, including list, or a dictionary
                 try:
-                    exec('dictIn.update({\"' + name + '\":' + value + '})')
+                    dictIn.update({name:eval(value)})
                 except:
                     pass
-            if (not units == None) and (not dictMisc == None):
-                if not name in dictMisc:#create the node
-                    dictMisc.update({name:{'units':units}})
-                else:
-                    dictMisc[name].update({'units':units})
-            if (not doc == None) and (not dictMisc == None):
+            if units and (not dictMisc is None):              
+                if units:                
+                    if not name in dictMisc:#create the node
+                        dictMisc.update({name:{'units':units}})
+                    else:
+                        dictMisc[name].update({'units':units})
+            if doc and (not dictMisc == None):
+               
                 if not name in dictMisc:#create the node
                     dictMisc.update({name:{'doc':doc}})
                 else:
                     dictMisc[name].update({'doc':doc})
+
+    ## Use this function to handle specific keywords that need to be interpreted as string
+    ## but they might be reserved words (like 'float')
+    def checkException(self,name,value):
+        if(name.lower() == 'data_type'):
+            return value.upper()
+        else:
+            return value
+
 
 
     def getNormalizedPropertyName(self, node):
@@ -441,8 +454,8 @@ class Parser(object):
         except IOError as msg:
             msg1 = None
             if v1:
-               msg1 = "Input xml file uses unnamed 'value' style.\n"
-            msg = mgs1 + msg
+                msg1 = "Input xml file uses unnamed 'value' style.\n"
+            msg = msg1 + msg
             raise IOError(msg)
 
         if v1 and v2:
@@ -511,7 +524,7 @@ class Parser(object):
 
     def isStr(self, obj):
         try:
-            exec(obj)
+            eval(obj)
             return False
         except:
             return True
@@ -542,6 +555,7 @@ class Parser(object):
     def __init__(self):
         self._filetypes = ['xml'] # add all the types here
         self.logger = logging.getLogger('isce.iscesys.Parser')
+        self._metafile = None
 
 def main(argv):
     # test xml Parser. run ./Parser.py testXml1.xml

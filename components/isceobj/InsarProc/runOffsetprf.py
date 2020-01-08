@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Gaiangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,7 +32,7 @@ def runOffsetprf(self):
     from isceobj.Catalog import recordInputs
 
     logger.info("Calculate offset between slcs")
-    
+
     masterFrame = self._insar.getMasterFrame()
     slaveFrame = self._insar.getSlaveFrame()
     masterOrbit = self._insar.getMasterOrbit()
@@ -44,7 +44,7 @@ def runOffsetprf(self):
     fs1 = masterFrame.getInstrument().getRangeSamplingRate()
 
     ###There seems to be no other way of determining image length - Piyush
-    patchSize = self._insar.getPatchSize() 
+    patchSize = self._insar.getPatchSize()
     numPatches = self._insar.getNumberPatches()
     valid_az_samples =  self._insar.getNumberValidPulses()
     firstAc =  self._insar.getFirstSampleAcrossPrf()
@@ -67,14 +67,14 @@ def runOffsetprf(self):
     if self.grossRg is not None:
         coarseAcross = self.grossRg
         pass
-        
+
     time1, schPosition1, schVelocity1, offset1 = masterOrbit._unpackOrbit()
     time2, schPosition2, schVelocity2, offset2 = slaveOrbit._unpackOrbit()
     s1 = schPosition1[0][0]
     s1_2 = schPosition1[1][0]
     s2 = schPosition2[0][0]
     s2_2 = schPosition2[1][0]
-    
+
     coarseAz = int(
         (s1 - s2)/(s2_2 - s2) + prf2*(1/prf1 - 1/prf2)*
         (patchSize - valid_az_samples)/2
@@ -83,7 +83,7 @@ def runOffsetprf(self):
     if(coarseAz <= 0):
         coarseDown = int(coarseAz - 0.5)
         pass
-    
+
     print("gross Az: ", self.grossAz)
 
     if self.grossAz is not None:
@@ -101,7 +101,7 @@ def runOffsetprf(self):
     accessMode = 'read'
     mSlc.setAccessMode(accessMode)
     mSlc.createImage()
-    
+
     sSlcImage = self._insar.getSlaveSlcImage()
     sSlc = isceobj.createSlcImage()
     IU.copyAttributes(sSlcImage, sSlc)
@@ -157,14 +157,14 @@ def runOffsetprf(self):
     ###Always set these values
     objOffset.setFirstPRF(prf1)
     objOffset.setSecondPRF(prf2)
-    
+
     # Record the inputs
     recordInputs(self._insar.procDoc,
                  objOffset,
                  "runOffsetprf",
                  logger,
                  "runOffsetprf")
-    
+
     objOffset.estimateoffsets(image1=mSlc,image2=sSlc,band1=0,band2=0)
 
     # Record the outputs

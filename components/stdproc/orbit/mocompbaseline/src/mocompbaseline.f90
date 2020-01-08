@@ -14,6 +14,8 @@
       integer lines1,lines2,i,j,ibin
       integer schlines1,schlines2,irec
       real frac
+      real*8 rdir
+      real*8 terheight, radius0
 
 !c  types needed
 
@@ -74,7 +76,9 @@
 
       write(MESSAGE,*) peg%r_lat,peg%r_lon,peg%r_hdg,elp%r_a,elp%r_e2
       call write_out(ptStdWriter,MESSAGE)
-      call radar_to_xyz(elp,peg,ptm)
+      radius0 =  rdir(elp%r_a,elp%r_e2,peg%r_hdg,peg%r_lat)
+      terheight = rcurv - radius0
+      call radar_to_xyz(elp,peg,ptm,terheight)
       write(MESSAGE,*),'Local Earth radius of curvature: ',ptm%r_radcur
       call write_out(ptStdWriter,MESSAGE)
 

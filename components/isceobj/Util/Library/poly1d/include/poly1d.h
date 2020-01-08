@@ -20,7 +20,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 typedef struct cPoly1d
 {
     int order;      //Python range order
@@ -58,5 +61,7 @@ void cleanPoly1d(cPoly1d *src);
 
 //Print for debugging
 void printPoly1d(cPoly1d* poly);
-
+#ifdef __cplusplus
+}
+#endif
 #endif  

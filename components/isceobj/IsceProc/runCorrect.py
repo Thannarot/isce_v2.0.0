@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -27,7 +27,7 @@ import stdproc
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 import os
 
-logger = logging.getLogger('isce.isce.runCorrect') 
+logger = logging.getLogger('isce.isce.runCorrect')
 
 
 def runCorrect(self):
@@ -41,28 +41,36 @@ def runCorrect(self):
     infos['refOutputPath'] = os.path.join(self.getoutputdir(refScene), refScene)
     stdWriter = self._stdWriter
 
+    refScene = self._isce.refScene
+    refPol = self._isce.refPol
+    refPair = self._isce.selectedPairs[0]#ML 2014-09-26
+    topoIntImage = self._isce.topoIntImages[refPair][refPol]
+
     for sceneid1, sceneid2 in self._isce.selectedPairs:
         pair = (sceneid1, sceneid2)
         objMocompbaseline = self._isce.mocompBaselines[pair]
         for pol in self._isce.selectedPols:
             frame1 = self._isce.frames[sceneid1][pol]
             objFormSLC1 = self._isce.formSLCs[sceneid1][pol]
-            topoIntImage = self._isce.topoIntImages[pair][pol]
+            topoIntImage = self._isce.topoIntImages[pair][pol] #ML 2014-09-26
+            intImage = isceobj.createIntImage()
+            IU.copyAttributes(topoIntImage, intImage)
+            intImage.setAccessMode('read')
             sid = self._isce.formatname(pair, pol)
-            infos['outputPath'] = os.path.join(self.getoutputdir(sceneid1, sceneid2), sid)           
+            infos['outputPath'] = os.path.join(self.getoutputdir(sceneid1, sceneid2), sid)
             catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
-            run(frame1, objFormSLC1, objMocompbaseline, topoIntImage, velocity, height, infos, stdWriter, catalog=catalog, sceneid=sid)
+            run(frame1, objFormSLC1, objMocompbaseline, intImage, velocity, height, infos, stdWriter, catalog=catalog, sceneid=sid)
 
 
 
-def run(frame1, objFormSLC1, objMocompbaseline, topoIntImage, velocity, height, infos, stdWriter, catalog=None, sceneid='NO_ID'):
+def run(frame1, objFormSLC1, objMocompbaseline, intImage, velocity, height, infos, stdWriter, catalog=None, sceneid='NO_ID'):
     logger.info("Running correct: %s" % sceneid)
 
 
-    intImage = isceobj.createIntImage()
-    #just pass the image object to Correct and it will handle the creation
-    # and deletion of the actual image pointer  
-    IU.copyAttributes(topoIntImage, intImage)
+    #intImage = isceobj.createIntImage()
+    ##just pass the image object to Correct and it will handle the creation
+    ## and deletion of the actual image pointer
+    #IU.copyAttributes(topoIntImage, intImage)
 
     posIndx = 1
     mocompPosition1 = objFormSLC1.mocompPosition
@@ -78,13 +86,13 @@ def run(frame1, objFormSLC1, objMocompbaseline, topoIntImage, velocity, height, 
     objCorrect.wireInputPort(name='planet', object=planet)
     objCorrect.wireInputPort(name='interferogram', object=intImage)
     objCorrect.wireInputPort(name='masterslc', object=objFormSLC1) #Piyush
-    objCorrect.setDopplerCentroidConstantTerm(centroid)
-    # Average velocity and height measurements       
+    #objCorrect.setDopplerCentroidConstantTerm(centroid)  #ML 2014-08-05
+    # Average velocity and height measurements
     objCorrect.setBodyFixedVelocity(velocity)
     objCorrect.setSpacecraftHeight(height)
-    # Need the reference orbit from Formslc       
-    objCorrect.setReferenceOrbit(mocompPosition1[posIndx]) 
-    objCorrect.setMocompBaseline(objMocompbaseline.baseline) 
+    # Need the reference orbit from Formslc
+    objCorrect.setReferenceOrbit(mocompPosition1[posIndx])
+    objCorrect.setMocompBaseline(objMocompbaseline.baseline)
     sch12 = objMocompbaseline.getSchs()
     objCorrect.setSch1(sch12[0])
     objCorrect.setSch2(sch12[1])
@@ -107,7 +115,7 @@ def run(frame1, objFormSLC1, objMocompbaseline, topoIntImage, velocity, height, 
                                                    "log",
                                                    "err",
                                                    "out")
-    
+
     objCorrect()#.correct()
 
     if catalog is not None:

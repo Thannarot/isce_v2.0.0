@@ -16,13 +16,13 @@
 
 extern "C"
 {
-	PyObject * nbymdem_C(PyObject *, PyObject *);
+        PyObject * nbymdem_C(PyObject *, PyObject *);
 
 }
 
 static PyMethodDef nbymdem_methods[] =
 {
-	{"nbymdem_Py", nbymdem_C, METH_VARARGS, " "},
-	{NULL, NULL, 0, NULL}
+        {"nbymdem_Py", nbymdem_C, METH_VARARGS, " "},
+        {NULL, NULL, 0, NULL}
 };
-#endif nbymdemmodule_h
+#endif //nbymdemmodule_h

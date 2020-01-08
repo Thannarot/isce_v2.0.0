@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,38 +28,126 @@ from iscesys.Component.Component import Component, Port
 from mroipac.dopiq import dopiq
 from isceobj.Util.mathModule import MathModule
 
+YMIN = Component.Parameter(
+    'startLine',
+    public_name='YMIN',
+    default=1,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+XMIN = Component.Parameter(
+    'lineHeaderLength',
+    public_name='XMIN',
+    default=0,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+I_BIAS = Component.Parameter(
+    'mean',
+    public_name='I_BIAS',
+    default=0,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+WIDTH = Component.Parameter(
+    'lineLength',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+XMAX = Component.Parameter(
+    'lastSample',
+    public_name='XMAX',
+    default=0,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PRF = Component.Parameter(
+    'prf',
+    public_name='PRF',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+FILE_LENGTH = Component.Parameter(
+    'numberOfLines',
+    public_name='FILE_LENGTH',
+    default=0,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+DOPPLER = Component.Parameter(
+    'fractionalDoppler',
+    public_name='DOPPLER',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
 class DopIQ(Component):
 
+
+    parameter_list = (
+                      YMIN,
+                      XMIN,
+                      I_BIAS,
+                      WIDTH,
+                      XMAX,
+                      PRF,
+                      FILE_LENGTH,
+                      DOPPLER
+                     )
+
+
     logging_name = "isce.DopIQ"
-    def __init__(self):
-        super(DopIQ, self).__init__()
+    family = 'dopiq'
+
+    def __init__(self,family='',name=''):
+        super(DopIQ, self).__init__(family if family else  self.__class__.family, name=name)
 #        self.logger = logging.getLogger(
         self.rawImage = ''
         self.rawFilename = ''
-        self.prf = None
-        self.mean = None
-        self.lineLength = None
-        self.lineHeaderLength = None
-        self.lastSample = None
-        self.startLine = 1
-        self.numberOfLines = None
         self.dim1_doppler = None     
-        self.fractionalDoppler = []
         self.pixelIndex = []
         self.linear = {}
-        self.quadratic = {}
+        self.quadratic = {}   #insarApp
+
+        self.coeff_list = []  #roiApp
         
 #        self.createPorts()
-        self.dictionaryOfVariables = {'PRF': ['self.prf','float','mandatory'],                                      
-                                      'I_BIAS': ['self.mean','float','mandatory'],
-                                      'WIDTH': ['self.lineLength','int','mandatory'],
-                                      'XMIN': ['self.lineHeaderLength','int','mandatory'],
-                                      'XMAX': ['self.lastSample','int','mandatory'],
-                                      'YMIN': ['self.startLine','int','mandatory'],
-                                      'FILE_LENGTH': ['self.numberOfLines','int','mandatory']}
                                       
-        self.dictionaryOfOutputVariables= {'DOPPLER': 'self.fractionalDoppler'}
-        self.descriptionOfVariables = {}
         
         return None
 
@@ -164,9 +252,9 @@ class DopIQ(Component):
         dopiq.setPRF_Py(self.prf)
         dopiq.setNumberOfLines_Py(self.numberOfLines)
         dopiq.setMean_Py(self.mean)
-        dopiq.setLineLength_Py(self.lineLength)
+        dopiq.setLineLength_Py(int(self.lineLength))
         dopiq.setLineHeaderLength_Py(self.lineHeaderLength)
-        dopiq.setLastSample_Py(self.lastSample)
+        dopiq.setLastSample_Py(int(self.lastSample))
         dopiq.setStartLine_Py(self.startLine)
         self.dim1_doppler = int((self.lastSample - self.lineHeaderLength)/2)
         
@@ -260,3 +348,6 @@ class DopIQ(Component):
         self.quadratic['a'] = a  
         self.quadratic['b'] = b  
         self.quadratic['c'] = c
+
+
+        self.coeff_list = [a,b,c]

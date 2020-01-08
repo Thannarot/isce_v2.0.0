@@ -218,12 +218,18 @@
          call write_out(ptStdWriter,MESSAGE)
          stop
       end if
-      
+     
+      f0 = 0.0d0
+      f1 = 0.0d0
+      f2 = 0.0d0
+      f3 = 0.0d0
+
       !jng set the doppler coefficients
+      i_na = size(dopplerCoefficients)
       f0 = dopplerCoefficients(1)
-      f1 = dopplerCoefficients(2)
-      f2 = dopplerCoefficients(3)
-      f3 = dopplerCoefficients(4)
+      if (i_na.gt.1)  f1 = dopplerCoefficients(2)
+      if (i_na.gt.2)  f2 = dopplerCoefficients(3)
+      if (i_na.gt.3)  f3 = dopplerCoefficients(4)
 
 !c    open offset file
 

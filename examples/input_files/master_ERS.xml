@@ -23,7 +23,10 @@
     Note 1: Orbits
     ================
 
-    ISCE can handle ODR, PRC and PDS orbits for ERS data. These data should be packaged into a directory with appropriate arcinfo files (same format as ROI_PAC).
+    ISCE can handle ODR, PRC and PDS orbits for ERS data. These data should be packaged into a directory with appropriate arcinfo files (same format as ROI_PAC). If the user wants to use a specific orbit file, one can directly specify the file using the following XML structure
+    <property name="ORBIT_FILE">
+        <value>filepath</value>
+    </property>
 
     Note 2: File naming conventions
     ================================

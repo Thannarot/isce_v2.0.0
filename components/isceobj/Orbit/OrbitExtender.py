@@ -66,13 +66,13 @@ class OrbitExtender(Component):
         if planet is not None:
             self._planet = planet
         else:
-            self._planet = Planet('Earth')
+            self._planet = Planet(pname='Earth')
 
     def getPegAndHeading(self, orbit, midTime, delta=5000):
         '''Compute the heading of the satellite and peg lat, lon'''
 
         
-        refElp = Ellipsoid(self._planet.ellipsoid.a, self._planet.ellipsoid.e2, 'WGS84')
+        refElp = Ellipsoid(a=self._planet.ellipsoid.a, e2=self._planet.ellipsoid.e2, model='WGS84')
 
         #Position just before mid Time
         t1 = midTime - datetime.timedelta(microseconds=delta) 

@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,165 +26,71 @@
 #include <Python.h>
 #include <stdint.h>
 #include "resamp_slcmoduleFortTrans.h"
+#include "poly2d.h"
 
 extern "C"
 {
-    void setStdWriter_f(uint64_t *);
-    PyObject * setStdWriter_C(PyObject *, PyObject *);
-    void resamp_slc_f(uint64_t *,uint64_t *);
+    void resamp_slc_f(uint64_t *,uint64_t *, uint64_t*, uint64_t*);
     PyObject * resamp_slc_C(PyObject *, PyObject *);
-    void setNumberFitCoefficients_f(int *);
-    PyObject * setNumberFitCoefficients_C(PyObject *, PyObject *);
-    void setNumberRangeBin_f(int *);
-    PyObject * setNumberRangeBin_C(PyObject *, PyObject *);
-    void setNumberLines_f(int *);
-    PyObject * setNumberLines_C(PyObject *, PyObject *);
-    void setFirstLineOffset_f(int *);
-    PyObject * setFirstLineOffset_C(PyObject *, PyObject *);
-    void setRadarWavelength_f(float *);
+    void setInputWidth_f(int *);
+    PyObject * setInputWidth_C(PyObject *, PyObject *);
+    void setOutputWidth_f(int *);
+    PyObject * setOutputWidth_C(PyObject *, PyObject *);
+    void setInputLines_f(int *);
+    PyObject *setInputLines_C(PyObject *, PyObject *);
+    void setOutputLines_f(int *);
+    PyObject * setOutputLines_C(PyObject *, PyObject *);
+    void setRadarWavelength_f(double*);
     PyObject * setRadarWavelength_C(PyObject *, PyObject *);
-    void setSlantRangePixelSpacing_f(float *);
+    void setReferenceWavelength_f(double*);
+    PyObject * setReferenceWavelength_C(PyObject*, PyObject*);
+    void setSlantRangePixelSpacing_f(double *);
     PyObject * setSlantRangePixelSpacing_C(PyObject *, PyObject *);
-    void setDopplerCentroidCoefficients_f(double *, int *);
-    void allocate_dopplerCoefficients_f(int *);
-    void deallocate_dopplerCoefficients_f();
-    PyObject * allocate_dopplerCoefficients_C(PyObject *, PyObject *);
-    PyObject * deallocate_dopplerCoefficients_C(PyObject *, PyObject *);
-    PyObject * setDopplerCentroidCoefficients_C(PyObject *, PyObject *);
-    void setLocationAcross1_f(double *, int *);
-    void allocate_r_ranpos_f(int *);
-    void deallocate_r_ranpos_f();
-    PyObject * allocate_r_ranpos_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_ranpos_C(PyObject *, PyObject *);
-    PyObject * setLocationAcross1_C(PyObject *, PyObject *);
-    void setLocationAcrossOffset1_f(double *, int *);
-    void allocate_r_ranoff_f(int *);
-    void deallocate_r_ranoff_f();
-    PyObject * allocate_r_ranoff_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_ranoff_C(PyObject *, PyObject *);
-    PyObject * setLocationAcrossOffset1_C(PyObject *, PyObject *);
-    void setLocationDown1_f(double *, int *);
-    void allocate_r_azpos_f(int *);
-    void deallocate_r_azpos_f();
-    PyObject * allocate_r_azpos_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_azpos_C(PyObject *, PyObject *);
-    PyObject * setLocationDown1_C(PyObject *, PyObject *);
-    void setLocationDownOffset1_f(double *, int *);
-    void allocate_r_azoff_f(int *);
-    void deallocate_r_azoff_f();
-    PyObject * allocate_r_azoff_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_azoff_C(PyObject *, PyObject *);
-    PyObject * setLocationDownOffset1_C(PyObject *, PyObject *);
-    void setSNR1_f(double *, int *);
-    void allocate_r_sig_f(int *);
-    void deallocate_r_sig_f();
-    PyObject * allocate_r_sig_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_sig_C(PyObject *, PyObject *);
-    PyObject * setSNR1_C(PyObject *, PyObject *);
-    void setLocationAcross2_f(double *, int *);
-    void allocate_r_ranpos2_f(int *);
-    void deallocate_r_ranpos2_f();
-    PyObject * allocate_r_ranpos2_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_ranpos2_C(PyObject *, PyObject *);
-    PyObject * setLocationAcross2_C(PyObject *, PyObject *);
-    void setLocationAcrossOffset2_f(double *, int *);
-    void allocate_r_ranoff2_f(int *);
-    void deallocate_r_ranoff2_f();
-    PyObject * allocate_r_ranoff2_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_ranoff2_C(PyObject *, PyObject *);
-    PyObject * setLocationAcrossOffset2_C(PyObject *, PyObject *);
-    void setLocationDown2_f(double *, int *);
-    void allocate_r_azpos2_f(int *);
-    void deallocate_r_azpos2_f();
-    PyObject * allocate_r_azpos2_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_azpos2_C(PyObject *, PyObject *);
-    PyObject * setLocationDown2_C(PyObject *, PyObject *);
-    void setLocationDownOffset2_f(double *, int *);
-    void allocate_r_azoff2_f(int *);
-    void deallocate_r_azoff2_f();
-    PyObject * allocate_r_azoff2_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_azoff2_C(PyObject *, PyObject *);
-    PyObject * setLocationDownOffset2_C(PyObject *, PyObject *);
-    void setSNR2_f(double *, int *);
-    void allocate_r_sig2_f(int *);
-    void deallocate_r_sig2_f();
-    PyObject * allocate_r_sig2_C(PyObject *, PyObject *);
-    PyObject * deallocate_r_sig2_C(PyObject *, PyObject *);
-    PyObject * setSNR2_C(PyObject *, PyObject *);
-    void getAzimuthCarrier_f(double *, int *);
-    void allocate_azimuthCarrier_f(int *);
-    void deallocate_azimuthCarrier_f();
-    PyObject * allocate_azimuthCarrier_C(PyObject *, PyObject *);
-    PyObject * deallocate_azimuthCarrier_C(PyObject *, PyObject *);
-    PyObject * getAzimuthCarrier_C(PyObject *, PyObject *);
-    void getRangeCarrier_f(double *, int *);
-    void allocate_rangeCarrier_f(int *);
-    void deallocate_rangeCarrier_f();
-    PyObject * allocate_rangeCarrier_C(PyObject *, PyObject *);
-    PyObject * deallocate_rangeCarrier_C(PyObject *, PyObject *);
-    PyObject * getRangeCarrier_C(PyObject *, PyObject *);
-
+    void setReferenceSlantRangePixelSpacing_f(double*);
+    PyObject * setReferenceSlantRangePixelSpacing_C(PyObject*, PyObject*);
+    void setStartingRange_f(double*);
+    PyObject * setStartingRange_C(PyObject*, PyObject*);
+    void setReferenceStartingRange_f(double*);
+    PyObject * setReferenceStartingRange_C(PyObject*, PyObject*);
+    void setAzimuthCarrier_f(cPoly2d *);
+    PyObject *setAzimuthCarrier_C(PyObject*, PyObject*);
+    void setRangeCarrier_f(cPoly2d *);
+    PyObject *setRangeCarrier_C(PyObject*, PyObject*);
+    void setAzimuthOffsetsPoly_f(cPoly2d*);
+    PyObject *setAzimuthOffsetsPoly_C(PyObject*, PyObject*);
+    void setRangeOffsetsPoly_f(cPoly2d*);
+    PyObject *setRangeOffsetsPoly_C(PyObject*, PyObject*);
+    void setIsComplex_f(int*);
+    PyObject *setIsComplex_C(PyObject*, PyObject*);
+    void setMethod_f(int*);
+    PyObject *setMethod_C(PyObject*, PyObject*);
+    void setFlatten_f(int*);
+    PyObject *setFlatten_C(PyObject*, PyObject*);
+    void setDopplerPoly_f(cPoly2d*);
+    PyObject *setDopplerPoly_C(PyObject*, PyObject*);
 }
 
 static PyMethodDef resamp_slc_methods[] =
 {
-    {"setStdWriter_Py", setStdWriter_C, METH_VARARGS, " "},
     {"resamp_slc_Py", resamp_slc_C, METH_VARARGS, " "},
-    {"setNumberFitCoefficients_Py", setNumberFitCoefficients_C, METH_VARARGS,
-        " "},
-    {"setNumberRangeBin_Py", setNumberRangeBin_C, METH_VARARGS, " "},
-    {"setNumberLines_Py", setNumberLines_C, METH_VARARGS, " "},
-    {"setFirstLineOffset_Py", setFirstLineOffset_C, METH_VARARGS, " "},
+    {"setInputWidth_Py", setInputWidth_C, METH_VARARGS, " "},
+    {"setOutputWidth_Py", setOutputWidth_C, METH_VARARGS, " "},
+    {"setInputLines_Py", setInputLines_C, METH_VARARGS, " "},
+    {"setOutputLines_Py", setOutputLines_C, METH_VARARGS, " "},
     {"setRadarWavelength_Py", setRadarWavelength_C, METH_VARARGS, " "},
-    {"setSlantRangePixelSpacing_Py", setSlantRangePixelSpacing_C, METH_VARARGS,
-        " "},
-    {"allocate_dopplerCoefficients_Py", allocate_dopplerCoefficients_C,
-        METH_VARARGS, " "},
-    {"deallocate_dopplerCoefficients_Py", deallocate_dopplerCoefficients_C,
-        METH_VARARGS, " "},
-    {"setDopplerCentroidCoefficients_Py", setDopplerCentroidCoefficients_C,
-        METH_VARARGS, " "},
-    {"allocate_r_ranpos_Py", allocate_r_ranpos_C, METH_VARARGS, " "},
-    {"deallocate_r_ranpos_Py", deallocate_r_ranpos_C, METH_VARARGS, " "},
-    {"setLocationAcross1_Py", setLocationAcross1_C, METH_VARARGS, " "},
-    {"allocate_r_ranoff_Py", allocate_r_ranoff_C, METH_VARARGS, " "},
-    {"deallocate_r_ranoff_Py", deallocate_r_ranoff_C, METH_VARARGS, " "},
-    {"setLocationAcrossOffset1_Py", setLocationAcrossOffset1_C, METH_VARARGS,
-        " "},
-    {"allocate_r_azpos_Py", allocate_r_azpos_C, METH_VARARGS, " "},
-    {"deallocate_r_azpos_Py", deallocate_r_azpos_C, METH_VARARGS, " "},
-    {"setLocationDown1_Py", setLocationDown1_C, METH_VARARGS, " "},
-    {"allocate_r_azoff_Py", allocate_r_azoff_C, METH_VARARGS, " "},
-    {"deallocate_r_azoff_Py", deallocate_r_azoff_C, METH_VARARGS, " "},
-    {"setLocationDownOffset1_Py", setLocationDownOffset1_C, METH_VARARGS, " "},
-    {"allocate_r_sig_Py", allocate_r_sig_C, METH_VARARGS, " "},
-    {"deallocate_r_sig_Py", deallocate_r_sig_C, METH_VARARGS, " "},
-    {"setSNR1_Py", setSNR1_C, METH_VARARGS, " "},
-    {"allocate_r_ranpos2_Py", allocate_r_ranpos2_C, METH_VARARGS, " "},
-    {"deallocate_r_ranpos2_Py", deallocate_r_ranpos2_C, METH_VARARGS, " "},
-    {"setLocationAcross2_Py", setLocationAcross2_C, METH_VARARGS, " "},
-    {"allocate_r_ranoff2_Py", allocate_r_ranoff2_C, METH_VARARGS, " "},
-    {"deallocate_r_ranoff2_Py", deallocate_r_ranoff2_C, METH_VARARGS, " "},
-    {"setLocationAcrossOffset2_Py", setLocationAcrossOffset2_C, METH_VARARGS,
-        " "},
-    {"allocate_r_azpos2_Py", allocate_r_azpos2_C, METH_VARARGS, " "},
-    {"deallocate_r_azpos2_Py", deallocate_r_azpos2_C, METH_VARARGS, " "},
-    {"setLocationDown2_Py", setLocationDown2_C, METH_VARARGS, " "},
-    {"allocate_r_azoff2_Py", allocate_r_azoff2_C, METH_VARARGS, " "},
-    {"deallocate_r_azoff2_Py", deallocate_r_azoff2_C, METH_VARARGS, " "},
-    {"setLocationDownOffset2_Py", setLocationDownOffset2_C, METH_VARARGS, " "},
-    {"allocate_r_sig2_Py", allocate_r_sig2_C, METH_VARARGS, " "},
-    {"deallocate_r_sig2_Py", deallocate_r_sig2_C, METH_VARARGS, " "},
-    {"setSNR2_Py", setSNR2_C, METH_VARARGS, " "},
-    {"allocate_azimuthCarrier_Py", allocate_azimuthCarrier_C, METH_VARARGS,
-        " "},
-    {"deallocate_azimuthCarrier_Py", deallocate_azimuthCarrier_C, METH_VARARGS,
-        " "},
-    {"getAzimuthCarrier_Py", getAzimuthCarrier_C, METH_VARARGS, " "},
-    {"allocate_rangeCarrier_Py", allocate_rangeCarrier_C, METH_VARARGS, " "},
-    {"deallocate_rangeCarrier_Py", deallocate_rangeCarrier_C, METH_VARARGS,
-        " "},
-    {"getRangeCarrier_Py", getRangeCarrier_C, METH_VARARGS, " "},
+    {"setReferenceWavelength_Py", setReferenceWavelength_C, METH_VARARGS, " "},
+    {"setSlantRangePixelSpacing_Py", setSlantRangePixelSpacing_C, METH_VARARGS," "},
+    {"setReferenceSlantRangePixelSpacing_Py", setReferenceSlantRangePixelSpacing_C, METH_VARARGS, " "},
+    {"setAzimuthCarrier_Py", setAzimuthCarrier_C, METH_VARARGS, " "},
+    {"setRangeCarrier_Py", setRangeCarrier_C, METH_VARARGS, " "},
+    {"setAzimuthOffsetsPoly_Py", setAzimuthOffsetsPoly_C, METH_VARARGS, " "},
+    {"setRangeOffsetsPoly_Py", setRangeOffsetsPoly_C, METH_VARARGS, " "},
+    {"setDopplerPoly_Py", setDopplerPoly_C, METH_VARARGS, " "},
+    {"setIsComplex_Py", setIsComplex_C, METH_VARARGS, " "},
+    {"setMethod_Py", setMethod_C, METH_VARARGS, " "},
+    {"setFlatten_Py", setFlatten_C, METH_VARARGS, " "},
+    {"setStartingRange_Py", setStartingRange_C, METH_VARARGS, " "},
+    {"setReferenceStartingRange_Py", setReferenceStartingRange_C, METH_VARARGS, " "},
     {NULL, NULL, 0, NULL}
 };
 #endif

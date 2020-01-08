@@ -20,10 +20,11 @@ ISCE is a framework designed for the purpose of processing Interferometric
 Synthetic Aperture Radar (InSAR) data.  The framework aspects of it have been
 designed as a general software development framework.  It may have additional
 utility in a general sense for building other types of software packages.  In
-its InSAR aspect ISCE supports data from many space-borne satellites and we
-continue to increase the number of sensors supported.  At this time the sensors
-that are supported are the following: ALOS, COSMO_SKYMED, ENVISAT, ERS,
-KOMPSAT5, RADARSAT1, RADARSAT2, and  TERRASARX.
+its InSAR aspect ISCE supports data from many space-borne satellites and one
+air-borne platform.  We continue to increase the number of sensors supported.
+At this time the sensors that are supported are the following: ALOS, ALOS2,
+COSMO_SKYMED, ENVISAT, ERS, KOMPSAT5, RADARSAT1, RADARSAT2, RISAT1, Sentinel1,
+TERRASARX, and UAVSAR.
 
 Starting with svn revision number r1349 (2014-03-28) ISCE was converted to work
 with Python3.  From that point forward major development has been limited to
@@ -37,9 +38,11 @@ Contents
 ================================================================================
 
 1.  Software Dependencies
-1.1 Note On 'python3' Exectuable Convention
-1.2 Installing dependencies with provided setup script
-1.3 Hints for installing dependencies by hand.
+1.1 Installing software dependencies with standard package managers
+1.2 Installing Virtual Machine Images with Dependencies Pre-Installed
+1.3 Installing dependencies with provided setup script
+1.4 Hints for installing dependencies by hand.
+1.5 Note On 'python3' Exectuable Convention
 2.  Building ISCE
 2.1 Configuration control: SCONS_CONFIG_DIR and SConfigISCE
 2.2 Install ISCE
@@ -59,47 +62,97 @@ Contents
 1. Software Dependencies
 ================================================================================
 
+Basic:
+------
 gcc >= 4.3.5
 fftw 3.2.2
 Python >= 3.2  (3.3 preferred)
 scons >= 2.0.1
-for RadarSAT2 - gdal python bindings >= 1.9
-for COSMO-SkyMed -  hdf5 >= 1.8.5 and h5py >= 1.3.1
-for RadarSAT1 - spiceypy
+curl - for automatic DEM downloads
+
+For a few sensor types:
+-----------------------
+gdal python bindings >= 2.0 - for RadarSAT2
+hdf5 >= 1.8.5 and h5py >= 1.3.1  - for COSMO-SkyMed
+spiceypy  - for RadarSAT1
+
+For mdx (image visualization tool):
+-----------------------------------
+Motif libraries and include files
+ImageMagick - for mdx production of kml file (advanced feature)
+grace - for mdx production of color table and line plots (advanced feature)
+
+For the "unwrap 2 stage" option:
+--------------------------------
+RelaxIV and Pulp are required.  Information on getting these packages if
+you want to try the unwrap 2 stage option:
+* RelaxIV (a minimum cost flow relaxation algorithm coded in C++ by
+Antonio Frangioni and Claudio Gentile at the University of Pisa,
+based on the Fortran code developed by by Dimitri Bertsekas while
+at MIT) available by request at http://www.di.unipi.it/~frangio.
+So that ISCE will compile it properly, the RelaxIV files should
+be placed in the directory: 'contrib/UnwrapComp/src/RelaxIV'.
+* PULP: Use easy_install or pip to install it or else clone it from,
+https://github.com/coin-or/pulp.  Make sure the path to the installed
+pulp.py is on your PYTHONPATH environment variable (it should be the case
+if you use easy_install or pip).
+
+--------------------------------------------------------------------------------
+1.1 Installing software dependencies with standard package managers
+--------------------------------------------------------------------------------
 
 The easiest way to install most of these is with package managers such as
-'apt-get' on Linux systems or 'macports' on MacOsX.  To use these, however, may
-require that you have superuser capabilities on your computer.  If that is not
-possible, then we provide a setup script described in Section 1.2 that will
-allow you to do a "user" installation of the dependencies, setup your
-environment variables, and install ISCE for you.
+'apt-get' on Linux systems or 'macports' on MacOsX.  To use these, however,
+will require that you have superuser permission on your computer. The
+following URL gives additional information on installing prerequisites for
+ISCE:
 
-================================================================================
-1.1 Note On 'python3' Exectuable Convention
-================================================================================
+https://winsar.unavco.org/portal/wiki/Manual%20installation%20using%20repository%20managers/
 
-We follow the convention of most package managers in using the executable
-'python3' for Python3.x and 'python' for Python2.x.  This makes it easy to turn
-Python code into executable commands that know which version of Python they
-should invoke by naming the appropriate version at the top of the executbale
-file (as in #!/usr/bin/env python3 or #!/usr/bin/env python).  Unfortunately,
-not all package managers (such as macports) follow this convention.  Therefore,
-if you use one of a package manager that does not create the 'python3'
-executable automatically, then you should place a soft link on your path to
-have the command 'python3' on your path.  Then you will be able to execute an
-ISCE application such as 'insarApp.py as "> insarApp.py" rather than as
-"> /path-to-Python3/python insarApp.py".
+
+If it is not possible for you to install the software yourself and you
+can't convince the System Administrator on your computer to install the
+dependencies, then we provide virtual machine images (VMs) with the
+dependencies pre-installed (see Section 1.2).
+
+As a last resort we provide an *experimental* setup script named install.sh
+described in Section 1.3 that will allow you to do a "user" installation of the
+basic dependencies, setup your environment variables, and install ISCE for you.
+
+For the truly adventurous who want to install dependencies by hand we provide
+some hints in Section 1.4.
+
+When you have installed the dependencies you can skip the other sections about
+installing the dependencies and read Section 1.5 about the 'python3' convention
+and then Section 2 on building ISCE and configuring your environment.
 
 --------------------------------------------------------------------------------
-1.2 Installing dependencies with provided setup script
+1.2 Installing Virtual Machine Images with Dependencies Pre-Installed
 --------------------------------------------------------------------------------
 
-This distribution includes a script that is designed to download build and
-install all relevant packages needed for ISCE (except for h5py, which presently
-must be built by hand but is only needed for Cosmo-Skymed, spiceypy, only
-needed for RadarSAT1, and gdal python bindings).  The script is in the setup
-directory, and is called setup.py.  To run it, you should cd to the setup
-directory, then issue the command
+If you don't have superuser privileges on your machine and your system is not
+up to date with the software dependencies required to use ISCE, then you can
+download Virtual Machine Images (VMs) at the following URL:
+
+Full link: http://earthdef.caltech.edu/boards/4/topics/305
+Simple link: http://tinyurl.com/iscevm
+
+Instructions on how to install the Virtual Machines are given there.
+
+--------------------------------------------------------------------------------
+1.3 Installing dependencies with provided setup script
+--------------------------------------------------------------------------------
+
+This distribution includes an *experimental* script that is designed to
+download, build, and install all relevant packages needed for ISCE (except for
+h5py, which presently must be built by hand but is only needed for Cosmo-Skymed,
+spiceypy, only needed for RadarSAT1, and gdal python bindings).  This script is
+meant as a last resort for those adventurous persons who may not have root
+privileges on their machine to install software with standard package managers
+or a virutal machine (VM) image (see Section 1.1 or 1.2).
+
+The script is in the setup directory, and is called install.sh.  To run it, you
+should cd to the setup directory, then issue the command
 
 > install.sh -h
 
@@ -126,7 +179,7 @@ variables in the unix shell to ensure that these packages are used for compiling
 and linking rather than the default system packages.
 
 --------------------------------------------------------------------------------
-1.3 Hints for installing dependencies by hand.
+1.4 Hints for installing dependencies by hand.
 --------------------------------------------------------------------------------
 
 If you would prefer to install all these packages by hand, follow this procedure:
@@ -222,10 +275,31 @@ JPL's CSPICE library (http://naif.jpl.nasa.gov/naif/toolkit_C.html) is needed
 for this. Follow instructions at https://github.com/Apollo117/SpiceyPy to
 install SpiceyPy, after installing CSPICE.
 
-
 Once all these packages are built, you must setup your PATH and LD_LIBRARY_PATH
 variables in the unix shell to ensure that these packages are used for compiling
 and linking rather than the default system packages.
+
+To use the Spice software you will need to download the data files indicated in
+the component/isceobj/Orbit/db/kernels.list file.  You should download those
+files into that directory (or else make soft links in that directory to where
+you download them) so that ISCE can find them in the place it expects.
+
+--------------------------------------------------------------------------------
+1.5 Note On 'python3' Exectuable Convention
+--------------------------------------------------------------------------------
+
+We follow the convention of most package managers in using the executable
+'python3' for Python3.x and 'python' for Python2.x.  This makes it easy to turn
+Python code into executable commands that know which version of Python they
+should invoke by naming the appropriate version at the top of the executable
+file (as in #!/usr/bin/env python3 or #!/usr/bin/env python).  Unfortunately,
+not all package managers (such as macports) follow this convention.  Therefore,
+if you use one of a package manager that does not create the 'python3'
+executable automatically, then you should place a soft link on your path to
+have the command 'python3' on your path.  Then you will be able to execute an
+ISCE application such as 'insarApp.py as "> insarApp.py" rather than as
+"> /path-to-Python3/python insarApp.py".
+
 
 ================================================================================
 2. Building ISCE
@@ -242,22 +316,28 @@ SCONS_CONFIG_DIR.  The SConfigISCE file should contain the following
 information, note that the #-symbol denotes a comment and does not need
 to be present in the SConfigISCE file:
 
+NOTE: Locations vary from system to system, so make sure to use the appropriate location.
+      The one listed here are just for illustrative purpose.
+
 # The directory in which ISCE will be built
 PRJ_SCONS_BUILD = $ISCE_BUILD_ROOT/isce
 # The directory into which ISCE will be installed
 PRJ_SCONS_INSTALL = $ISCE_INSTALL_ROOT/isce
-# The location of libraries, such as libstdc++, libfftw3
-LIBPATH = $HOME/lib64 $HOME/lib
-# The location of Python.h
-CPPPATH = $HOME/include/python2.7
-# The
-#FORTRANPATH =  $HOME/python/src/isce/include
-# The location of your Fortran compiler
-FORTRAN = $HOME/bin/gfortran
-# The location of your C compiler
-CC = $HOME/bin/gcc
-# The location of your C++ compiler
-CXX = $HOME/bin/g++
+# The location of libraries, such as libstdc++, libfftw3 (for most system
+# it's /usr/lib and/or /usr/local/lib/ and/or /opt/local/lib)
+LIBPATH = $YOUR_LIB_LOCATION_HOME/lib64 $YOUR_LIB_LOCATION_HOME/lib
+# The location of Python.h. If you have multiple installations of python
+# make sure that it points to the right one
+CPPPATH = $YOUR_PYTHON_INSTALLATION_LOCATION/include/python3.xm
+# The location of the fftw3.h (most likely something like /usr/include or
+# /usr/local/include /opt/local/include
+FORTRANPATH =  $YOUR_FFTW3_INSTALLATION_LOCATION/include
+# The location of your Fortran compiler. If not specified it will use the system one
+FORTRAN = $YOUR_COMPILER_LOCATION/bin/gfortran
+# The location of your C compiler. If not specified it will use the system one
+CC = $YOUR_COMPILER_LOCATION/bin/gcc
+# The location of your C++ compiler. If not specified it will use the system one
+CXX = $YOUR_COMPILER_LOCATION/bin/g++
 
 #libraries needed for mdx display utility
 MOTIFLIBPATH = /opt/local/lib       # path to libXm.dylib
@@ -462,7 +542,6 @@ on a subsequent run with --dostep or --start.
 - If no dem component is specified in input a EGM96 will be downloaded
   and the it will be converted into WGS84. There will be then two files,
   an EGM96 with no suffix, and the WGS84 with the wgs84 suffix.
-
 
 
 ================================================================================

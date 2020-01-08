@@ -7,7 +7,7 @@ int DataAccessorCaster::getLine(char * buf, int pos)
    ////// REMEMBER THAT getData might change the forth argument ////////////
     int width = LineWidth;
     char  * dataLine  = new char[DataSizeIn*Bands*LineWidth]; 
-    Accessor->getData(dataLine,pos,0,width);
+    Accessor->getData(dataLine,pos,LineOffset,width);
     Caster->convert(dataLine,buf,LineWidth*Bands);
     delete [] dataLine;
     return  Accessor->getEofFlag();
@@ -25,7 +25,7 @@ void DataAccessorCaster::setLine(char * buf, int pos)
 {
     char  * dataLine  = new char[DataSizeOut*Bands*LineWidth]; 
     Caster->convert(buf,dataLine,LineWidth*Bands);
-    Accessor->setData(dataLine,pos,0,LineWidth);
+    Accessor->setData(dataLine,pos,LineOffset,LineWidth);
     delete [] dataLine;
 }
 void DataAccessorCaster::setLineBand(char * buf, int pos, int band)
@@ -71,7 +71,7 @@ int DataAccessorCaster::getLineSequential(char * buf)
 {
     int width = LineWidth;
     char  * dataLine  = new char[DataSizeIn*Bands*LineWidth]; 
-    Accessor->getData(dataLine,LineCounter,0,width);
+    Accessor->getData(dataLine,LineCounter,LineOffset,width);
     Caster->convert(dataLine,buf,LineWidth*Bands);
     ++LineCounter;
     delete [] dataLine;
@@ -124,4 +124,12 @@ void DataAccessorCaster::finalize()
     delete Accessor;
     delete Caster;
 
+}
+double DataAccessorCaster::getPx2d(int row, int col)
+{
+  return 0.;
+}
+double DataAccessorCaster::getPx1d(int pos)
+{
+  return 0.;
 }

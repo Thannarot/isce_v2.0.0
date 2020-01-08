@@ -16,12 +16,12 @@
 
 extern "C"
 {
-	PyObject * cpxlooks_C(PyObject *, PyObject *);
+        PyObject * cpxlooks_C(PyObject *, PyObject *);
 }
 
 static PyMethodDef cpxlooks_methods[] =
 {
-	{"cpxlooks_Py", cpxlooks_C, METH_VARARGS, " "},
-	{NULL, NULL, 0, NULL}
+        {"cpxlooks_Py", cpxlooks_C, METH_VARARGS, " "},
+        {NULL, NULL, 0, NULL}
 };
-#endif cpxlooksmodule_h
+#endif //cpxlooksmodule_h

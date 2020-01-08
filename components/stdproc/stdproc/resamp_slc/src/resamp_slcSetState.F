@@ -1,18 +1,18 @@
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-! Copyright: 2010 to the present, California Institute of Technology.
-! ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-! Any commercial use must be negotiated with the Office of Technology Transfer
-! at the California Institute of Technology.
+! copyright: 2010 to the present, california institute of technology.
+! all rights reserved. united states government sponsorship acknowledged.
+! any commercial use must be negotiated with the office of technology transfer
+! at the california institute of technology.
 ! 
-! This software may be subject to U.S. export control laws. By accepting this
-! software, the user agrees to comply with all applicable U.S. export laws and
-! regulations. User has the responsibility to obtain export licenses,  or other
+! this software may be subject to u.s. export control laws. by accepting this
+! software, the user agrees to comply with all applicable u.s. export laws and
+! regulations. user has the responsibility to obtain export licenses,  or other
 ! export authority as may be required before exporting such information to
 ! foreign countries or providing access to foreign persons.
 ! 
-! Installation and use of this software is restricted by a license agreement
-! between the licensee and the California Institute of Technology. It is the
-! User's responsibility to abide by the terms of the license agreement.
+! installation and use of this software is restricted by a license agreement
+! between the licensee and the california institute of technology. it is the
+! user's responsibility to abide by the terms of the license agreement.
 !
 ! Author: Giangi Sacco
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,163 +20,128 @@
 
 
 
-
-        subroutine setStdWriter(varInt)
-            use resamp_slcState
-            implicit none
-            integer*8 varInt
-            ptStdWriter = varInt
-        end
-
-        subroutine setNumberFitCoefficients(varInt)
+        subroutine setInputWidth(varInt)
             use resamp_slcState
             implicit none
             integer varInt
-            i_ma = varInt
-        end
+            inwidth = varInt
+        end subroutine setInputWidth
 
-        subroutine setNumberRangeBin(varInt)
+        subroutine setInputLines(varInt)
             use resamp_slcState
             implicit none
             integer varInt
-            npl = varInt
-        end
+            inlength = varInt
+        end subroutine setInputLines
 
-        subroutine setNumberLines(varInt)
+        subroutine setOutputLines(varInt)
             use resamp_slcState
             implicit none
             integer varInt
-            nl = varInt
-        end
+            outlength = varInt
+        end subroutine setOutputLines
 
-        subroutine setFirstLineOffset(varInt)
+        subroutine setOutputWidth(varInt)
             use resamp_slcState
             implicit none
             integer varInt
-            istoff = varInt
-        end
+            outwidth = varInt
+        end subroutine setOutputWidth
 
         subroutine setRadarWavelength(varInt)
             use resamp_slcState
             implicit none
-            real*4 varInt
+            real*8 varInt
             WVL = varInt
-        end
+        end subroutine setRadarWavelength
+
+        subroutine setReferenceWavelength(varInt)
+            use resamp_slcState
+            implicit none
+            real*8 varInt
+            REFWVL = varInt
+        end subroutine setReferenceWavelength
 
         subroutine setSlantRangePixelSpacing(varInt)
             use resamp_slcState
             implicit none
-            real*4 varInt
+            real*8 varInt
             SLR = varInt
-        end
+        end subroutine setSlantRangePixelSpacing
 
-        subroutine setDopplerCentroidCoefficients(array1d,dim1)
+        subroutine setReferenceSlantRangePixelSpacing(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                dopplerCoefficients(i) = array1d(i)
-            enddo
-        end
+            real*8 varInt
+            REFSLR = varInt
+        end subroutine setReferenceSlantRangePixelSpacing
 
-        subroutine setLocationAcross1(array1d,dim1)
+        subroutine setStartingRange(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_ranposV(i) = array1d(i)
-            enddo
-        end
+            real*8 varInt
+            R0 = varInt
+        end subroutine setStartingRange
 
-        subroutine setLocationAcrossOffset1(array1d,dim1)
+        subroutine setReferenceStartingRange(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_ranoffV(i) = array1d(i)
-            enddo
-        end
+            real*8 varInt
+            REFR0 = varInt
+        end subroutine setReferenceStartingRange
 
-        subroutine setLocationDown1(array1d,dim1)
+        subroutine setRangeCarrier(varPoly)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_azposV(i) = array1d(i)
-            enddo
-        end
+            type(poly2dType) :: varPoly
+            rgCarrier = varPoly
+        end subroutine setRangeCarrier
 
-        subroutine setLocationDownOffset1(array1d,dim1)
+        subroutine setAzimuthCarrier(varPoly)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_azoffV(i) = array1d(i)
-            enddo
-        end
+            type(poly2dType) :: varPoly
+            azCarrier = varPoly
+        end subroutine setAzimuthCarrier
 
-        subroutine setSNR1(array1d,dim1)
+        subroutine setAzimuthOffsetsPoly(varPoly)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_sigV(i) = array1d(i)
-            enddo
-        end
+            type(poly2dType) :: varPoly
+            azOffsetsPoly = varPoly
+        end subroutine setAzimuthOffsetsPoly
 
-        subroutine setLocationAcross2(array1d,dim1)
+        subroutine setRangeOffsetsPoly(varPoly)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_ranpos2V(i) = array1d(i)
-            enddo
-        end
+            type(poly2dType) :: varPoly
+            rgOffsetsPoly = varPoly
+        end subroutine setRangeOffsetsPoly
 
-        subroutine setLocationAcrossOffset2(array1d,dim1)
+        subroutine setDopplerPoly(varPoly)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_ranoff2V(i) = array1d(i)
-            enddo
-        end
+            type(poly2dType) :: varPoly
+            dopplerPoly = varPoly
+        end subroutine setDopplerPoly
 
-        subroutine setLocationDown2(array1d,dim1)
+        subroutine setIsComplex(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_azpos2V(i) = array1d(i)
-            enddo
-        end
+            integer :: varInt
+            iscomplex = varInt
+        end subroutine setIsComplex
 
-        subroutine setLocationDownOffset2(array1d,dim1)
+        subroutine setMethod(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_azoff2V(i) = array1d(i)
-            enddo
-        end
+            integer :: varInt
+            method = varInt
+        end subroutine setMethod
 
-        subroutine setSNR2(array1d,dim1)
+        subroutine setFlatten(varInt)
             use resamp_slcState
             implicit none
-            integer dim1,i
-            double precision, dimension(dim1):: array1d
-            do i = 1, dim1
-                r_sig2V(i) = array1d(i)
-            enddo
-        end
-
+            integer :: varInt
+            flatten = varInt
+        end subroutine setFlatten

@@ -1,20 +1,20 @@
 #! /usr/bin/env python 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brent Minchew
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,6 +39,27 @@ import logging
 import numpy as np
 import multiprocessing as mp
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
+
+
+def getThreadCount():
+    '''
+    Return number of threads available.
+    '''
+
+    cpus = os.cpu_count()
+
+    try:
+        ompnum = int(os.environ['OMP_NUM_THREADS'])
+    except KeyError:
+        ompnum = None
+
+    if ompnum is None:
+        return cpus
+    else:
+        return ompnum
+
+
+
 
 def intround(n):
     if (n <= 0):
@@ -165,14 +186,21 @@ IMAGE_DATATYPE1 = Component.Parameter('imageDataType1',
         default='',
         type = str,
         mandatory = False,
-        doc = 'Image data type for reference image (complex / real)')
+        doc = 'Image data type for reference image (complex / real/ mag)')
 
 IMAGE_DATATYPE2 = Component.Parameter('imageDataType2',
+        public_name = 'IMAGE_DATATYPE2',
         default='',
         type = str,
         mandatory=False,
-        doc = 'Image data type for search image (complex / real)')
+        doc = 'Image data type for search image (complex / real/ mag)')
 
+IMAGE_SCALING_FACTOR = Component.Parameter('scaling_factor',
+        public_name = 'IMAGE_SCALING_FACTOR',
+        default = 1.0,
+        type = float,
+        mandatory=False,
+        doc = 'Image data scaling factor (unit magnitude conversion from pixels)')
 
 SNR_THRESHOLD = Component.Parameter('thresholdSNR',
         public_name = 'SNR_THRESHOLD',
@@ -225,7 +253,7 @@ MARGIN = Component.Parameter('margin',
 
 NUMBER_THREADS = Component.Parameter('numberThreads',
         public_name = 'NUMBER_THREADS',
-        default=8,
+        default=getThreadCount(),
         type=int,
         mandatory=False,
         doc = 'Number of parallel ampcor threads to launch')
@@ -254,6 +282,7 @@ class DenseAmpcor(Component):
                       ACROSS_SPACING2,
                       IMAGE_DATATYPE1,
                       IMAGE_DATATYPE2,
+                      IMAGE_SCALING_FACTOR,
                       SNR_THRESHOLD,
                       COV_THRESHOLD,
                       BAND1,
@@ -379,6 +408,11 @@ class DenseAmpcor(Component):
         self.firstSampAc, self.firstSampDown = self.locationAcross[0], self.locationDown[0]
         self.lastSampAc, self.lastSampDown = self.locationAcross[-1], self.locationDown[-1]
 
+        #### Scale images (default is 1.0 to keep as pixel)
+        self.locationDownOffset *= self.scaling_factor
+        self.locationAcrossOffset *= self.scaling_factor
+        self.snr *= self.scaling_factor
+
         self.write_slantrange_images()
 
 
@@ -387,6 +421,8 @@ class DenseAmpcor(Component):
         '''
         Individual calls to ampcor.
         '''
+
+        os.environ['VRT_SHARED_SOURCE'] = "0"
 
         objAmpcor = Ampcor()
 
@@ -413,7 +449,8 @@ class DenseAmpcor(Component):
         objAmpcor.setSecondRangeSpacing(self.rangeSpacing2)
         objAmpcor.thresholdSNR = 1.0e-6
         objAmpcor.thresholdCov = self.thresholdCov
-
+        objAmpcor.oversamplingFactor = self.oversamplingFactor 
+        
         mSlc = isceobj.createImage()
         IU.copyAttributes(self.slcImage1, mSlc)
         mSlc.setAccessMode('read')
@@ -507,19 +544,19 @@ class DenseAmpcor(Component):
             if self.slcImage1.getDataType().upper().startswith('C'):
                 self.imageDataType1 = 'complex'
             else:
-                raise ValueError('Undefined value for imageDataType1. Should be complex/real/rmg1/rmg2')
+                raise ValueError('Undefined value for imageDataType1. Should be complex/real/mag')
         else:
-            if self.imageDataType1 not in ('complex','real'):
+            if self.imageDataType1 not in ('complex','real','mag'):
                 raise ValueError('ImageDataType1 should be either complex/real/rmg1/rmg2.')
 
         if self.imageDataType2 == '':
             if self.slcImage2.getDataType().upper().startswith('C'):
                 self.imageDataType2 = 'complex'
             else:
-                raise ValueError('Undefined value for imageDataType2. Should be complex/real/rmg1/rmg2')
+                raise ValueError('Undefined value for imageDataType2. Should be complex/real/mag')
         else:
-            if self.imageDataType2 not in ('complex','real'):
-                raise ValueError('ImageDataType1 should be either complex/real.')
+            if self.imageDataType2 not in ('complex','real','mag'):
+                raise ValueError('ImageDataType1 should be either complex/real/mag.')
         
 
     def checkWindows(self):
@@ -558,6 +595,10 @@ class DenseAmpcor(Component):
 
     def setImageDataType2(self, var):
         self.imageDataType2 = str(var)
+        return
+
+    def setImageScalingFactor(self, var):
+        self.scaling_factor = float(var)
         return
 
     def setLineLength1(self,var):
@@ -695,6 +736,7 @@ class DenseAmpcor(Component):
         self.dictionaryOfVariables = { \
                                       'IMAGETYPE1' : ['imageDataType1', 'str', 'optional'], \
                                       'IMAGETYPE2' : ['imageDataType2', 'str', 'optional'], \
+                                      'IMAGE_SCALING_FACTOR' : ['scaling_factor', 'float', 'optional'], \
                                       'SKIP_SAMPLE_ACROSS' : ['skipSampleAcross', 'int','mandatory'], \
                                       'SKIP_SAMPLE_DOWN' : ['skipSampleDown', 'int','mandatory'], \
                                       'COARSE_NUMBER_LOCATION_ACROSS' : ['coarseNumWinAcross','int','mandatory'], \

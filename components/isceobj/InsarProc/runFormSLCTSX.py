@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,7 +25,7 @@ import isceobj
 
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 
-logger = logging.getLogger('isce.insar.runFormSLCTSX') 
+logger = logging.getLogger('isce.insar.runFormSLCTSX')
 
 def runFormSLC(self, patchSize=None, goodLines=None, numPatches=None):
     #NOTE tested the formslc() as a stand alone by passing the same inputs
@@ -38,7 +38,7 @@ def runFormSLC(self, patchSize=None, goodLines=None, numPatches=None):
     # the below value is zero because of we just did above, but just want to be
     #  explicit in the definition of is_mocomp
     self.is_mocomp = self.insar.get_is_mocomp
-    
+
     v = self.insar.procVelocity
     h = self.insar.averageHeight
     imageSlc1 =  self.insar.masterRawImage
@@ -56,13 +56,15 @@ def runFormSLC(self, patchSize=None, goodLines=None, numPatches=None):
     formSlc1.wireInputPort(name='frame', object=self.insar.masterFrame)
     formSlc1.wireInputPort(name='orbit', object=self.insar.masterOrbit)
     formSlc1.wireInputPort(name='slcInImage', object=imSlc1)
+    formSlc1.wireInputPort(name='planet',
+        object=self.insar.masterFrame.instrument.platform.planet)
     self._stdWriter.setFileTag("formslcTSX", "log")
     self._stdWriter.setFileTag("formslcTSX", "err")
     self._stdWriter.setFileTag("formslcTSX", "out")
     formSlc1.setStdWriter(self._stdWriter)
     formSlc1.setLookSide(self.insar._lookSide)
-   
-    
+
+
 #    self.insar.setMasterSlcImage(formSlc1.formslc())
     self.insar.masterSlcImage = formSlc1()
 
@@ -81,6 +83,9 @@ def runFormSLC(self, patchSize=None, goodLines=None, numPatches=None):
     formSlc2.wireInputPort(name='frame', object=self.insar.slaveFrame)
     formSlc2.wireInputPort(name='orbit', object=self.insar.slaveOrbit)
     formSlc2.wireInputPort(name='slcInImage', object=imSlc2)
+    formSlc2.wireInputPort(name='planet',
+        object=self.insar.slaveFrame.instrument.platform.planet)
+
     self._stdWriter.setFileTag("formslcTSX", "log")
     self._stdWriter.setFileTag("formslcTSX", "err")
     self._stdWriter.setFileTag("formslcTSX", "out")
@@ -94,4 +99,4 @@ def runFormSLC(self, patchSize=None, goodLines=None, numPatches=None):
     imSlc1.finalizeImage()
     imSlc2.finalizeImage()
     self.insar.setFormSLC1(formSlc1)
-    self.insar.setFormSLC2(formSlc2) 
+    self.insar.setFormSLC2(formSlc2)

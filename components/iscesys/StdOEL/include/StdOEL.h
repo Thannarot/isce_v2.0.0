@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include "BaseWriter.h" 
+#include "BaseWriter.h"
 #include <map>
 
 using namespace std;
@@ -36,71 +36,71 @@ using namespace std;
 class StdOEL
 {
     public:
-	/// Consrtuctor
-	StdOEL()
-	{	
-	}
-	/// Destructor
-	~StdOEL()
-	{	
-	}
+        /// Consrtuctor
+        StdOEL()
+        {
+        }
+        /// Destructor
+        ~StdOEL()
+        {
+        }
 
 
     void setFilename(string filename,string where);
     void setFileTag(string tag,string where);
     void setTimeStampFlag(bool flag,string where);
-	/**
-	    * Converts a character array received from FORTRAN to a C string.
-	    @param word character array.
-	    @param len lenght of the character arrray.
-	    @return \c string character array in string format.
+        /**
+            * Converts a character array received from FORTRAN to a C string.
+            @param word character array.
+            @param len lenght of the character arrray.
+            @return \c string character array in string format.
 
-	**/
-	
-	string getString(char * word, long int len);
-	
-	/**
-	    * Sets the output Object. 
-	    @param writer  pointer to a subclassed BaseWriter.
+        **/
+
+        string getString(char * word, long int len);
+
+        /**
+            * Sets the output Object.
+            @param writer  pointer to a subclassed BaseWriter.
         @param type type of output. Could be "out", "err" or "log".
 
-	**/
-	void setStd(BaseWriter * writer, string type);
-	
-	/**
-	    * Writes the string message on  standard output device.  
-	    @param  message  string to be written on the standard output device.
+        **/
+        void setStd(BaseWriter * writer, string type);
 
-	**/
-	void write_out(string message);
-	/**
-	    * Writes the string message on  standard error device.  
-	    @param  message  string to be written on the standard error device.
+        /**
+            * Writes the string message on  standard output device.
+            @param  message  string to be written on the standard output device.
 
-	**/
-	void write_err(string message);
-	/**
-	    * Writes the string message on  standard log device.  
-	    @param  message  string to be written on the standard log device.
+        **/
+        void write_out(string message);
+        /**
+            * Writes the string message on  standard error device.
+            @param  message  string to be written on the standard error device.
 
-	**/
-	void write_log(string message);
-	
-	/**
-	    * Writes the string message on the preselected standard output device.  
-	    @param  message  string to be written on the preselected output device.
+        **/
+        void write_err(string message);
+        /**
+            * Writes the string message on  standard log device.
+            @param  message  string to be written on the standard log device.
+
+        **/
+        void write_log(string message);
+
+        /**
+            * Writes the string message on the preselected standard output device.
+            @param  message  string to be written on the preselected output device.
         @param type type of output. Could be "out", "err" or "log".
 
-	**/
-	void write(string message,string type);
-    
+        **/
+        void write(string message,string type);
+
 
     void finalize();
     void init();
 
     private:
 
-	//variables
-    map<string,BaseWriter *> Writers;    
+        //variables
+    map<string,BaseWriter *> Writers;
 };
-#endif StdOEL_h
+#endif //StdOEL_h

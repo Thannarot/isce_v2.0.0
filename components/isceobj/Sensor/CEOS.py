@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,7 @@ from xml.etree.ElementTree import ElementTree as ET
 
 class CEOSDB(object):
 
-    typeMap = ['Skip', 'An', 'In', 'B1', 'B4', 'Fn', 'B2', 'Debug']
+    typeMap = ['Skip', 'An', 'In', 'B1', 'B4', 'Fn', 'B2', 'Debug', 'BF4', 'B8']
 
     def __init__(self, xml=None, dataFile=None):
         self.xml = xml
@@ -64,8 +64,11 @@ class CEOSDB(object):
             # If the tag name is 'struct', we need to loop over some other
             # records
             elif z.tag == "struct":
-                loopCounterName = z.attrib['loop']
-                loopCount = self.metadata[loopCounterName]
+                try:
+                    loopCounterName = z.attrib['loop']
+                    loopCount = self.metadata[loopCounterName]
+                except KeyError:
+                    loopCount = int(z.attrib['nloop'])
                 key = z.attrib['name']
                 self.metadata[key] = [None]*loopCount
                 for i in range(loopCount):
@@ -95,8 +98,12 @@ class CEOSDB(object):
             # If the tag name is 'struct', we need to loop over some other
             #records
             if z.tag == "struct":
-                loopCounterName = z.attrib['loop']
-                loopCount = self.metadata[loopCounterName]
+                try:
+                    loopCounterName = z.attrib['loop']
+                    loopCount = self.metadata[loopCounterName]
+                except KeyError:
+                    loopCount = int(z.attrib['nloop'])
+
                 key = z.attrib['name']
                 self.metadata[key] = [None]*loopCount
                 for i in range(loopCount):
@@ -144,6 +151,10 @@ class CEOSDB(object):
             formatString = ">I"
             convertFunction = int
             size = 4
+        elif (self.typeMap[format] == "BF4"):
+            formatString = ">f"
+            convertFunction = None
+            size = 4
         elif (self.typeMap[format] == "B2"):
             formatString = ">H"
             convertFunction = int
@@ -152,6 +163,10 @@ class CEOSDB(object):
             formatString = ">B"
             convertFunction = int
             size = 1
+        elif (self.typeMap[format] == "B8"):
+            formatString = ">Q"
+            convertFunction = None
+            size = 8
         else:
             raise TypeError("Unknown format %s" % format)
 

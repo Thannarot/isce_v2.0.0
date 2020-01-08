@@ -157,7 +157,9 @@
               call getLine(intAcc,c_intb(0,l),j+l+1)
 !c            read(AMPUNIT,rec=j+l+1, iostat=ierr) (c_ampb(k,l), k = 0, infp%i_rsamps-1)
 !c           if(ierr .ne. 0) goto 999
-              call getLine(ampAcc,c_ampb(0,l),j+l+1)
+              if (infp%i_useamp .eq. 1) then
+                call getLine(ampAcc,c_ampb(0,l),j+l+1)
+              endif
          end do
 
  999     infp%i_azbufsize = l                           !actual number of lines read
@@ -266,7 +268,17 @@
            
            call abs_phase(r_unw, c_ampb, r_amp, b_all_unwrap,r_bphase,
      $          r_bamp, i_complist, i_patch)
-           
+          
+          
+           !!If amplitude file not provide, use int amplitude
+           if (infp%i_useamp .eq. 0) then
+              do ia=i_sl,i_el
+                r_amp(0:infp%i_rsamps-1,ia) = cabs(c_intb(0:infp%i_rsamps-1,ia))
+              enddo
+           endif
+
+
+
 !           write(*,*)'DEBUG: done unwrapping, writing patch'
            do ia = i_sl, i_el
 !c              write(UNWUNIT,rec=(j+ia)+1)(r_unw(k,ia), k=0, infp

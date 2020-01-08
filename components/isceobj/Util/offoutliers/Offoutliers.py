@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,10 +28,10 @@ from isceobj.Util.decorators import dov, pickled, logged
 
 @pickled
 class Offoutliers(Component):
-    
+
     logging_name = "stdproc.offoutliers"
 
-    dictionaryOfVariables = { 
+    dictionaryOfVariables = {
         'DISTANCE' : ['distance', float, True],
         }
     dictionaryOfOutputVariables = {
@@ -41,11 +41,9 @@ class Offoutliers(Component):
         }
 
 
-    @dov
     @logged
     def __init__(self):
-        super(Offoutliers, self).__init__()
-        self.snrThreshold = 0 
+        self.snrThreshold = 0
         self.indexArray = []
         self.dim1_indexArray = None
         self.indexArraySize = None
@@ -65,6 +63,7 @@ class Offoutliers(Component):
         self.dim1_sig = None
         self.snr = []
         self.dim1_snr = None
+        super(Offoutliers, self).__init__()
         return None
 
     def createPorts(self):
@@ -74,7 +73,7 @@ class Offoutliers(Component):
     def offoutliers(self):
         for port in self._inputPorts:
             port()
-            
+
         self.numPoints = len(self.locationAcross)
         self.dim1_indexArray = self.numPoints
         self.allocateArrays()
@@ -155,14 +154,14 @@ class Offoutliers(Component):
             retList[5][j] = self.sig[indxA[j]]
 
         return retList
-    
+
     def getRefinedOffsetField(self):
         offsets = OffsetField()
-       
-        indxA = self.indexArray        
+
+        indxA = self.indexArray
         for j in range(len(indxA)):
             offset = Offset()
-            across = self.locationAcross[indxA[j]]            
+            across = self.locationAcross[indxA[j]]
             down = self.locationDown[indxA[j]]
             acrossOffset = self.locationAcrossOffset[indxA[j]]
             downOffset = self.locationDownOffset[indxA[j]]
@@ -172,13 +171,13 @@ class Offoutliers(Component):
             offset.setOffset(acrossOffset,downOffset)
             offset.setSignalToNoise(snr)
             offsets.addOffset(offset)
-        
+
         return offsets
-        
+
     def allocateArrays(self):
         if self.dim1_indexArray is None:
             self.dim1_indexArray = len(self.indexArray)
-            
+
         if not self.dim1_indexArray:
             print("Error. Trying to allocate zero size array")
             raise Exception
@@ -259,7 +258,7 @@ class Offoutliers(Component):
                     acrossOffset, downOffset = offset.getOffset()
                     snr = offset.getSignalToNoise()
                     self.locationAcross.append(across)
-                    self.locationDown.append(down)                
+                    self.locationDown.append(down)
                     self.locationAcrossOffset.append(acrossOffset)
                     self.locationDownOffset.append(downOffset)
                     self.snr.append(snr)
@@ -270,4 +269,3 @@ class Offoutliers(Component):
             pass
         pass
     pass
-

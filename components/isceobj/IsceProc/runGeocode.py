@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -24,11 +24,12 @@ import logging
 import stdproc
 from stdproc.rectify.geocode.Geocodable import Geocodable
 import isceobj
-import iscesys
+
 #from contextlib import nested
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 from iscesys.StdOEL.StdOELPy import create_writer
 
+import os
 logger = logging.getLogger('isce.isceProc.runGeocode')
 posIndx = 1
 
@@ -36,7 +37,8 @@ posIndx = 1
 def runGeocode(self, prodlist, unwrapflag, bbox):
     '''Generalized geocoding of all the files listed above (in prodlist).'''
     if isinstance(prodlist, str):
-        tobeGeocoded = [prodlist]
+        from isceobj.Util.StringUtils import StringUtils as SU
+        tobeGeocoded = SU.listify(prodlist)
     else:
         tobeGeocoded = prodlist
 
@@ -49,58 +51,94 @@ def runGeocode(self, prodlist, unwrapflag, bbox):
 
     print('Number of products to geocode: ', len(tobeGeocoded))
 
+    stdWriter = create_writer("log", "", True, filename="geo.log")
+
+    velocity, height = self._isce.vh()
+
     if bbox is not None:
         snwe = list(bbox)
         if len(snwe) != 4:
             raise valueError('Bounding box should be a list/tuple of length 4')
     else:
-        snwe = None
-
-    v, h = self._isce.vh()
+        snwe = self._isce.topo.snwe
 
     infos = {}
-    for attribute in ['demCropFilename', 'numberRangeLooks', 'numberAzimuthLooks', 'is_mocomp', 'demImage', 'peg', 'dopplerCentroid']:
+    for attribute in ['demCropFilename', 'numberRangeLooks', 'numberAzimuthLooks',
+                      'is_mocomp', 'demImage', 'peg', 'dopplerCentroid']:
         infos[attribute] = getattr(self._isce, attribute)
+
 
     for sceneid1, sceneid2 in self._isce.selectedPairs:
         pair = (sceneid1, sceneid2)
-        frame1 = self._isce.frames[sceneid1]
-        formSLC1 = self._isce.formSLCs[sceneid1]
-        if snwe is None:
-            snwe = self._isce.topos[pair].snwe
         for pol in self._isce.selectedPols:
-            sid = self._isce.formatname(pair, pol)
+            frame1 = self._isce.frames[sceneid1][pol]
+            formSLC1 = self._isce.formSLCs[sceneid1][pol]
+            sid = self._isce.formatname(pair, pol)            
             infos['outputPath'] = os.path.join(self.getoutputdir(sceneid1, sceneid2), sid)
             catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
             run(tobeGeocoded, frame1, formSLC1, velocity, height, snwe, infos, catalog=catalog, sceneid=sid)
-
+            self._isce.procDoc.addAllFromCatalog(catalog)
 
 def run(tobeGeocoded, frame1, formSLC1, velocity, height, snwe, infos, catalog=None, sceneid='NO_ID'):
     logger.info("Geocoding Image: %s" % sceneid)
-
-    stdWriter = create_writer("log", "", True, filename=infos['ouputPath'] + ".geo.log")
+    stdWriter = create_writer("log", "", True, filename=infos['outputPath'] + ".geo.log")
 
     planet = frame1.getInstrument().getPlatform().getPlanet()
-    referenceOrbit = formSLC1.getMocompPosition(posIndx)
-    doppler = dopplerCentroid.getDopplerCoefficients(inHz=False)[0]
+    doppler = infos['dopplerCentroid'].getDopplerCoefficients(inHz=False)[0]
+
     #####Geocode one by one
-    ge = Geocodable()
     for prod in tobeGeocoded:
-        objGeo = stdproc.createGeocode(
-                    snwe = snwe,
-                    demCropFilename = infos['outputPath'] + '.' + infos['demCropFilename'],
-                    referenceOrbit = referenceOrbit,
-                    dopplerCentroidConstantTerm = doppler,
-                    bodyFixedVelocity = velocity,
-                    spacecraftHeight = height,
-                    numberRangeLooks = infos['numberRangeLooks'],
-                    numberAzimuthLooks = infos['numberAzimuthLooks'],
-                    isMocomp = infos['is_mocomp'])
+        prodPath = infos['outputPath'] + '.' + prod
+        if not os.path.isfile(prodPath):
+            logger.info("File not found. Skipping %s" % prodPath) #KK some prods are only in refScene folder! (tbd)
+            continue
+        #else:
+        objGeo = stdproc.createGeocode('insarapp_geocode_' + os.path.basename(prod).replace('.',''))
+        objGeo.configure()
+        objGeo.referenceOrbit = formSLC1.getMocompPosition(posIndx)
+
+    ####IF statements to check for user configuration
+        if objGeo.minimumLatitude is None:
+            objGeo.minimumLatitude = snwe[0]
+
+        if objGeo.maximumLatitude is None:
+            objGeo.maximumLatitude = snwe[1]
+
+        if objGeo.minimumLongitude is None:
+            objGeo.minimumLongitude = snwe[2]
+
+        if objGeo.maximumLongitude is None:
+            objGeo.maximumLongitude = snwe[3]
+
+        if objGeo.demCropFilename is None:
+            objGeo.demCropFilename = infos['outputPath'] + '.' + infos['demCropFilename']
+
+        if objGeo.dopplerCentroidConstantTerm is None:
+            objGeo.dopplerCentroidConstantTerm = doppler
+
+        if objGeo.bodyFixedVelocity is None:
+            objGeo.bodyFixedVelocity = velocity
+
+        if objGeo.spacecraftHeight is None:
+            objGeo.spacecraftHeight = height
+
+        if objGeo.numberRangeLooks is None:
+            objGeo.numberRangeLooks = infos['numberRangeLooks']
+
+        if objGeo.numberAzimuthLooks is None:
+            objGeo.numberAzimuthLooks = infos['numberAzimuthLooks']
+
+        if objGeo.isMocomp is None:
+            objGeo.isMocomp = infos['is_mocomp']
 
         objGeo.stdWriter = stdWriter
 
         #create the instance of the image and return the method is supposed to use
-        inImage, objGeo.method = ge.create(infos['outputPath'] + '.' + prod)
+        ge = Geocodable()
+        inImage, objGeo.method = ge.create(prodPath)
+        if objGeo.method is None:
+            objGeo.method = method
+
         if inImage:
             demImage = isceobj.createDemImage()
             IU.copyAttributes(infos['demImage'], demImage)
@@ -110,8 +148,8 @@ def run(tobeGeocoded, frame1, formSLC1, velocity, height, snwe, infos, catalog=N
 
             if catalog is not None:
                 isceobj.Catalog.recordInputsAndOutputs(catalog, objGeo,
-                                                       "runGeocode.%s" % sceneid,
+                                                       "runGeocode.%s.%s" % (sceneid, prodPath),
                                                        logger,
-                                                       "runGeocode.%s" % sceneid)
+                                                       "runGeocode.%s.%s" % (sceneid, prodPath))
 
     stdWriter.finalize()

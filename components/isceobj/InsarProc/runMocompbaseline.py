@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,16 +25,16 @@ import isceobj
 
 logger = logging.getLogger('isce.insar.runMocompbaseline')
 
-# index of the position in the  mocompPosition array (the 0 element is the 
+# index of the position in the  mocompPosition array (the 0 element is the
 # time)
-posIndx = 1 
+posIndx = 1
 
 def runMocompbaseline(self):
     logger.info("Calculating Baseline")
     ellipsoid = self._insar.getMasterFrame().getInstrument().getPlatform().getPlanet().get_elp()
     # schPositions computed in orbit2sch
     # objFormSlc's  created during formSlc
-    
+
     h = self.insar.averageHeight
     objFormSlc1  =  self.insar.formSLC1
     objFormSlc2  =  self.insar.formSLC2
@@ -42,14 +42,14 @@ def runMocompbaseline(self):
     mocompIndex1 = objFormSlc1.getMocompIndex()
     mocompPosition2 = objFormSlc2.getMocompPosition()
     mocompIndex2 = objFormSlc2.getMocompIndex()
-    
+
     objMocompbaseline = stdproc.createMocompbaseline()
-   
+
     objMocompbaseline.setMocompPosition1(mocompPosition1[posIndx])
     objMocompbaseline.setMocompPositionIndex1(mocompIndex1)
     objMocompbaseline.setMocompPosition2(mocompPosition2[posIndx])
     objMocompbaseline.setMocompPositionIndex2(mocompIndex2)
-    
+
     objMocompbaseline.wireInputPort(name='masterOrbit',
                                     object=self.insar.masterOrbit)
     objMocompbaseline.wireInputPort(name='slaveOrbit',
@@ -69,9 +69,9 @@ def runMocompbaseline(self):
 
     # Record the inputs and outputs
     from isceobj.Catalog import recordInputsAndOutputs
-    recordInputsAndOutputs(self._insar.procDoc, objMocompbaseline, 
-                           "runMocompbaseline", 
+    recordInputsAndOutputs(self._insar.procDoc, objMocompbaseline,
+                           "runMocompbaseline",
                            logger, "runMocompbaseline")
-    
-    self.insar.mocompBaseline = objMocompbaseline 
+
+    self.insar.mocompBaseline = objMocompbaseline
     return None

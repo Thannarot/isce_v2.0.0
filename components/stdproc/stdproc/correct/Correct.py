@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,50 +26,326 @@ from iscesys.Component.Component import Component,Port
 from iscesys.Compatibility import Compatibility
 import isceobj.Image as IF #load image factories
 from stdproc.stdproc.correct import correct
+from isceobj.Util.Polynomial import Polynomial
+from isceobj.Util.Poly2D import Poly2D
+
+IS_MOCOMP = Component.Parameter(
+    'isMocomp',
+    public_name='IS_MOCOMP',
+    default=None,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+MOCOMP_BASELINE = Component.Parameter(
+    'mocompBaseline',
+    public_name='MOCOMP_BASELINE',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PEG_HEADING = Component.Parameter(
+    'pegHeading',
+    public_name='PEG_HEADING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+ELLIPSOID_MAJOR_SEMIAXIS = Component.Parameter(
+    'ellipsoidMajorSemiAxis',
+    public_name='ELLIPSOID_MAJOR_SEMIAXIS',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+S1SCH = Component.Parameter(
+    's1sch',
+    public_name='S1SCH',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+RADAR_WAVELENGTH = Component.Parameter(
+    'radarWavelength',
+    public_name='RADAR_WAVELENGTH',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PLANET_LOCAL_RADIUS = Component.Parameter(
+    'planetLocalRadius',
+    public_name='PLANET_LOCAL_RADIUS',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+LENGTH = Component.Parameter(
+    'length',
+    public_name='LENGTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+RANGE_FIRST_SAMPLE = Component.Parameter(
+    'rangeFirstSample',
+    public_name='RANGE_FIRST_SAMPLE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+SC = Component.Parameter(
+    'sc',
+    public_name='SC',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+NUMBER_RANGE_LOOKS = Component.Parameter(
+    'numberRangeLooks',
+    public_name='NUMBER_RANGE_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+NUMBER_AZIMUTH_LOOKS = Component.Parameter(
+    'numberAzimuthLooks',
+    public_name='NUMBER_AZIMUTH_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+BODY_FIXED_VELOCITY = Component.Parameter(
+    'bodyFixedVelocity',
+    public_name='BODY_FIXED_VELOCITY',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+SPACECRAFT_HEIGHT = Component.Parameter(
+    'spacecraftHeight',
+    public_name='SPACECRAFT_HEIGHT',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+SLANT_RANGE_PIXEL_SPACING = Component.Parameter(
+    'slantRangePixelSpacing',
+    public_name='SLANT_RANGE_PIXEL_SPACING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PRF = Component.Parameter(
+    'prf',
+    public_name='PRF',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+MIDPOINT = Component.Parameter(
+    'midpoint',
+    public_name='MIDPOINT',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+REFERENCE_ORBIT = Component.Parameter(
+    'referenceOrbit',
+    public_name='REFERENCE_ORBIT',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+ELLIPSOID_ECCENTRICITY_SQUARED = Component.Parameter(
+    'ellipsoidEccentricitySquared',
+    public_name='ELLIPSOID_ECCENTRICITY_SQUARED',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+PEG_LONGITUDE = Component.Parameter(
+    'pegLongitude',
+    public_name='PEG_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+WIDTH = Component.Parameter(
+    'width',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+S2SCH = Component.Parameter(
+    's2sch',
+    public_name='S2SCH',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PEG_LATITUDE = Component.Parameter(
+    'pegLatitude',
+    public_name='PEG_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+DOPPLER_CENTROID = Component.Parameter(
+    'dopplerCentroidCoeffs',
+    public_name='DOPPLER_CENTROID',
+    default=0,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
 
 class Correct(Component):
 
-    logging_name = "isce.stdproc.topo"
 
-    def __init__(self):
-        super(Correct, self).__init__()
-        self.referenceOrbit = []
+    parameter_list = (
+                      IS_MOCOMP,
+                      MOCOMP_BASELINE,
+                      PEG_HEADING,
+                      ELLIPSOID_MAJOR_SEMIAXIS,
+                      S1SCH,
+                      RADAR_WAVELENGTH,
+                      PLANET_LOCAL_RADIUS,
+                      LENGTH,
+                      RANGE_FIRST_SAMPLE,
+                      SC,
+                      NUMBER_RANGE_LOOKS,
+                      NUMBER_AZIMUTH_LOOKS,
+                      BODY_FIXED_VELOCITY,
+                      SPACECRAFT_HEIGHT,
+                      SLANT_RANGE_PIXEL_SPACING,
+                      PRF,
+                      MIDPOINT,
+                      REFERENCE_ORBIT,
+                      ELLIPSOID_ECCENTRICITY_SQUARED,
+                      PEG_LONGITUDE,
+                      WIDTH,
+                      S2SCH,
+                      PEG_LATITUDE,
+                      DOPPLER_CENTROID
+                     )
+
+
+    logging_name = "isce.stdproc.correct"
+
+    family = 'correct'
+
+    def __init__(self,family='',name=''):
+        super(Correct, self).__init__(family if family else  self.__class__.family, name=name)
         self.dim1_referenceOrbit = None
-        self.mocompBaseline = []
         self.dim1_mocompBaseline = None
         self.dim2_mocompBaseline = None
-        self.isMocomp = None
-        self.ellipsoidMajorSemiAxis = None
-        self.ellipsoidEccentricitySquared = None
-        self.length = None
-        self.width = None
-        self.slantRangePixelSpacing = None
-        self.rangeFirstSample = None
-        self.spacecraftHeight = None
-        self.planetLocalRadius = None
-        self.bodyFixedVelocity = None
-        self.numberRangeLooks = None
-        self.numberAzimuthLooks = None
-        self.pegLatitude = None
-        self.pegLongitude = None
-        self.pegHeading = None
-        self.prf = None
-        self.radarWavelength = None
-        self.midpoint = []
         self.dim1_midpoint = None
         self.dim2_midpoint = None
-        self.s1sch = []
         self.dim1_s1sch = None
         self.dim2_s1sch = None
-        self.s2sch = []
         self.dim1_s2sch = None
         self.dim2_s2sch = None
-        self.sc = []
         self.dim1_sc = None
         self.dim2_sc = None
-        self.lookSide = -1    #Set to right side by default
+        self.lookSide = None    #Set to right side by default
         self.dopplerCentroidCoeffs = None
-        
+        self.polyDoppler = None
+        self.dumpRangeFiles = None
+
         self.heightSchFilename = ''
         self.heightSchCreatedHere = False
         self.heightSchImage = None
@@ -86,37 +362,16 @@ class Correct(Component):
         self.topophaseFlatCreatedHere = False
         self.topophaseFlatImage = None
         self.topophaseFlatAccessor = None
+        self.slaveRangeFilename = ''
+        self.slaveRangeCreatedHere = False
+        self.slaveRangeImage = None
+        self.slaveRangeAccessor = None
+        self.masterRangeFilename = ''
+        self.masterRangeCreatedHere = False
+        self.masterRangeAccessor = None
+        self.masterRangeImage = None
+        self.polyDopplerAccessor = None
         
-        self.dictionaryOfVariables = { 
-            'REFERENCE_ORBIT' : ['referenceOrbit', 'float','mandatory'], 
-            'MOCOMP_BASELINE' : ['mocompBaseline', '','mandatory'], 
-            'IS_MOCOMP' : ['isMocomp', 'int','optional'], 
-            'ELLIPSOID_MAJOR_SEMIAXIS' : ['ellipsoidMajorSemiAxis', 'float','optional'], 
-            'ELLIPSOID_ECCENTRICITY_SQUARED' : ['ellipsoidEccentricitySquared', 'float','optional'], 
-            'LENGTH' : ['length', 'int','mandatory'], 
-            'WIDTH' : ['width', 'int','mandatory'], 
-            'SLANT_RANGE_PIXEL_SPACING' : ['slantRangePixelSpacing', 'float','mandatory'], 
-            'RANGE_FIRST_SAMPLE' : ['rangeFirstSample', 'float','mandatory'], 
-            'SPACECRAFT_HEIGHT' : ['spacecraftHeight', 'float','mandatory'], 
-            'PLANET_LOCAL_RADIUS' : ['planetLocalRadius', 'float','mandatory'], 
-            'BODY_FIXED_VELOCITY' : ['bodyFixedVelocity', 'float','mandatory'], 
-            'NUMBER_RANGE_LOOKS' : ['numberRangeLooks', 'int','mandatory'], 
-            'NUMBER_AZIMUTH_LOOKS' : ['numberAzimuthLooks', 'int','mandatory'], 
-            'PEG_LATITUDE' : ['pegLatitude', 'float','mandatory'], 
-            'PEG_LONGITUDE' : ['pegLongitude', 'float','mandatory'], 
-            'PEG_HEADING' : ['pegHeading', 'float','mandatory'], 
-            'DOPPLER_CENTROID' : ['dopplerCentroidCoeffs', 'float','mandatory'], 
-            'PRF' : ['prf', 'float','mandatory'], 
-            'RADAR_WAVELENGTH' : ['radarWavelength', 'float','mandatory'], 
-            'MIDPOINT' : ['midpoint', '','mandatory'], 
-            'S1SCH' : ['s1sch', '','mandatory'], 
-            'S2SCH' : ['s2sch', '','mandatory'], 
-            'SC' : ['sc', '','mandatory'] 
-            }
-        self.dictionaryOfOutputVariables = {}
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
         self.initOptionalAndMandatoryLists()
         return None
     
@@ -156,29 +411,59 @@ class Correct(Component):
         
         if not topoMphImage is None:
             self.topophaseMphImage = topoMphImage
+
         if topoFlatImage is not None:
             self.topophaseFlatImage = topoFlatImage
+
+
         self.setDefaults() 
         #creates images if not set and call the createImage() (also for the intImage)
         self.createImages()
 
         self.heightSchAccessor = self.heightSchImage.getImagePointer()
-        self.intAccessor = self.intImage.getImagePointer()
+        if self.intImage is not None:
+            self.intAccessor = self.intImage.getImagePointer()
+        else:
+            self.intAccessor = 0
+
         self.topophaseMphAccessor = self.topophaseMphImage.getImagePointer()
-        self.topophaseFlatAccessor = self.topophaseFlatImage.getImagePointer()
+
+        if self.intImage is not None:
+            self.topophaseFlatAccessor = self.topophaseFlatImage.getImagePointer()
+        else:
+            self.topophaseFlatAccessor = 0
+
+        if self.dumpRangeFiles:
+            self.slaveRangeAccessor = self.slaveRangeImage.getImagePointer()
+            self.masterRangeAccessor = self.masterRangeImage.getImagePointer()
+        else:
+            self.slaveRangeAccessor = 0
+            self.masterRangeAccessor = 0
+
+
+        self.polyDopplerAccessor = self.polyDoppler.getPointer()
         self.allocateArrays()
         self.setState()
+
         correct.correct_Py(self.intAccessor,
                            self.heightSchAccessor,
                            self.topophaseMphAccessor,
-                           self.topophaseFlatAccessor)
+                           self.topophaseFlatAccessor,
+                           self.masterRangeAccessor,
+                           self.slaveRangeAccessor)
         self.topophaseMphImage.trueDataType = self.topophaseMphImage.getDataType()
         self.topophaseFlatImage.trueDataType = self.topophaseFlatImage.getDataType()
-        self.topophaseMphImage.renderHdr()
-        self.topophaseFlatImage.renderHdr()
+
+
+
         self.deallocateArrays()
         #call the finalizeImage() on all the images
         self.destroyImages()
+        self.topophaseMphImage.renderHdr()
+        self.topophaseFlatImage.renderHdr()
+        if self.dumpRangeFiles:
+            self.masterRangeImage.renderHdr()
+            self.slaveRangeImage.renderHdr()
 
         return
 
@@ -190,6 +475,9 @@ class Correct(Component):
         if self.ellipsoidEccentricitySquared is None:
             self.ellipsoidEccentricitySquared = CN.EarthEccentricitySquared
 
+        if self.lookSide is None:
+            self.lookSide = -1
+
         if self.isMocomp is None:
             self.isMocomp = (8192-2048)/2 
         
@@ -199,6 +487,7 @@ class Correct(Component):
                 'The topophase flat file has been given the default name %s' %
                 (self.topophaseFlatFilename)
                 )
+
         if self.topophaseMphFilename == '':
             self.topophaseMphFilename = 'topophase.mph'
             self.logger.warning(
@@ -206,11 +495,45 @@ class Correct(Component):
             (self.topophaseMphFilename)
             )
 
+        if self.dumpRangeFiles is None:
+            self.dumpRangeFiles = False
+
+        if self.dumpRangeFiles:
+            if self.slaveRangeFilename == '':
+                self.slaveRangeFilename = 'slaverange.rdr'
+                self.logger.warning(
+                    'Slave range file has been given the default name %s' %
+                    (self.slaveRangeFilename))
+    
+            if self.masterRangeFilename == '':
+                self.masterRangeFilename = 'masterrange.rdr'
+                self.logger.warning(
+                    'Master range file has been given the default name %s' %
+                    (self.masterRangeFilename))
+
+        if self.polyDoppler is None:
+            polyDop = Poly2D(name=self.name + '_correctPoly')
+            polyDop.setNormRange(1.0/(1.0*self.numberRangeLooks))
+            polyDop.setNormAzimuth(1.0/(1.0*self.numberAzimuthLooks))
+            polyDop.setMeanRange(0.0)
+            polyDop.setMeanAzimuth(0.0)
+            polyDop.setWidth(self.width)
+            polyDop.setLength(self.length)
+            polyDop.initPoly(rangeOrder=len(self.dopplerCentroidCoeffs)-1, azimuthOrder=0, coeffs=[self.dopplerCentroidCoeffs])
+           
+            self.polyDoppler = polyDop
+
     def destroyImages(self):
         self.intImage.finalizeImage()
         self.heightSchImage.finalizeImage()
         self.topophaseMphImage.finalizeImage()
         self.topophaseFlatImage.finalizeImage()
+
+        if self.dumpRangeFiles:
+            self.masterRangeImage.finalizeImage()
+            self.slaveRangeImage.finalizeImage()
+
+        self.polyDoppler.finalize()
 
     def createImages(self):
         
@@ -229,20 +552,20 @@ class Correct(Component):
             'Must either pass the heightSchImage in the call or set self.heightSchFilename.'
             )
             raise Exception
-        
-        if (
-            self.topophaseFlatImage is None and
-            not self.topophaseFlatFilename == ''
-            ):
-            self.topophaseFlatImage = IF.createIntImage()
-            accessMode = 'write'
-            width = self.width
-            self.topophaseFlatImage.initImage(self.topophaseFlatFilename,
+       
+        if self.intImage is not None:
+            if (self.topophaseFlatImage is None and
+                not self.topophaseFlatFilename == ''
+                ):
+                self.topophaseFlatImage = IF.createIntImage()
+                accessMode = 'write'
+                width = self.width
+                self.topophaseFlatImage.initImage(self.topophaseFlatFilename,
                                               accessMode,
                                               width)
-        elif self.topophaseFlatImage is None:
-            self.logger.error(
-                'Must either pass the topophaseFlatImage in the call or set self.topophaseMphFilename.'
+            elif self.topophaseFlatImage is None:
+                self.logger.error(
+                    'Must either pass the topophaseFlatImage in the call or set self.topophaseMphFilename.'
                 )
         
         if (
@@ -259,11 +582,45 @@ class Correct(Component):
             self.logger.error(
                 'Must either pass the topophaseMphImage in the call or set self.topophaseMphFilename.'
                 )
+
+        if self.dumpRangeFiles:
+            if (self.slaveRangeImage is None and not self.slaveRangeFilename == ''):
+                self.slaveRangeImage = IF.createImage()
+                self.slaveRangeImage.setFilename(self.slaveRangeFilename)
+                self.slaveRangeImage.setAccessMode('write')
+                self.slaveRangeImage.dataType = 'FLOAT'
+                self.slaveRangeImage.setWidth(self.width)
+                self.slaveRangeImage.bands = 1
+                self.slaveRangeImage.scheme = 'BIL'
+
+            if (self.masterRangeImage is None and not self.masterRangeFilename == ''):
+                self.masterRangeImage = IF.createImage()
+                self.masterRangeImage.setFilename(self.masterRangeFilename)
+                self.masterRangeImage.setAccessMode('write')
+                self.masterRangeImage.dataType = 'FLOAT'
+                self.masterRangeImage.setWidth(self.width)
+                self.masterRangeImage.bands = 1
+                self.masterRangeImage.scheme = 'BIL'
+        
+
+        if self.polyDoppler is None:
+            self.logger.error('Must pass doppler polynomial in the call to correct')
+
+
+            
             #one way or another when it gets here the images better be defined
-        self.intImage.createImage()#this is passed but call createImage and finalizeImage from here
+        if self.intImage is not None:
+            self.intImage.createImage()#this is passed but call createImage and finalizeImage from here
+            self.topophaseFlatImage.createImage()
+
         self.heightSchImage.createImage()
-        self.topophaseFlatImage.createImage()
         self.topophaseMphImage.createImage()
+
+        if self.dumpRangeFiles:
+            self.masterRangeImage.createImage()
+            self.slaveRangeImage.createImage()
+
+        self.polyDoppler.createPoly2D()
 
     def setState(self):
         correct.setReferenceOrbit_Py(self.referenceOrbit,
@@ -290,7 +647,8 @@ class Correct(Component):
         correct.setPegLatitude_Py(float(self.pegLatitude))
         correct.setPegLongitude_Py(float(self.pegLongitude))
         correct.setPegHeading_Py(float(self.pegHeading))
-        correct.setDopCoeff_Py(self.dopplerCentroidCoeffs)
+#        correct.setDopCoeff_Py(self.dopplerCentroidCoeffs)
+        correct.setDopCoeff_Py(self.polyDopplerAccessor)
         correct.setPRF_Py(float(self.prf))
         correct.setRadarWavelength_Py(float(self.radarWavelength))
         correct.setMidpoint_Py(self.midpoint,
@@ -426,6 +784,9 @@ class Correct(Component):
 
     def setImageTopophaseFlat(self, img):
         self.topophaseFlatImage = img
+
+    def setPolyDoppler(self, var):
+        self.polyDoppler = var
     
     def allocateArrays(self):
         if self.dim1_referenceOrbit is None:
@@ -497,7 +858,6 @@ class Correct(Component):
 
         correct.allocate_smsch_Py(self.dim1_sc, self.dim2_sc)
 
-        correct.allocate_dopcoeff_Py(len(self.dopplerCentroidCoeffs))
         return
 
     def deallocateArrays(self):
@@ -507,7 +867,6 @@ class Correct(Component):
         correct.deallocate_s1sch_Py()
         correct.deallocate_s2sch_Py()
         correct.deallocate_smsch_Py()
-        correct.deallocate_dopcoeff_Py()
         return
 
     def addPeg(self):
@@ -546,7 +905,9 @@ class Correct(Component):
                 self.logger.error(strerr)
                 raise AttributeError
 
-    def addMasterSlc(self):    #Piyush
+    #####This part needs to change when formslc is refactored
+    #####to use doppler polynomials
+    def addMasterSlc(self): 
         formslc = self._inputPorts.getPort(name='masterslc').getObject()
         if (formslc):
             try:

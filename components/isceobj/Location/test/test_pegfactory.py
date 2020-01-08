@@ -7,9 +7,9 @@ from isceobj.Location.Peg import PegFactory
 class PegFactoryTest(unittest.TestCase):
 
     def setUp(self):
-        self.ellipsoid = Ellipsoid(PlanetsData.ellipsoid['Earth']['WGS-84'][0],
-                                   PlanetsData.ellipsoid['Earth']['WGS-84'][1])
-        print str(self.ellipsoid)
+        self.ellipsoid = Ellipsoid(a=PlanetsData.ellipsoid['Earth']['WGS-84'][0],
+                                   e2=PlanetsData.ellipsoid['Earth']['WGS-84'][1])
+        print (str(self.ellipsoid))
 
     def tearDown(self):
         pass

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,113 +23,82 @@
 
 
 
-from __future__ import print_function
 import sys
 import os
 import math
+import isce
+import isceobj
 from iscesys.Component.Component import Component
-from iscesys.Compatibility import Compatibility
-Compatibility.checkPythonVersion()
-#from mroipac.looks import powlooks
+from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
+from mroipac.looks import looks
 
-class Powlooks(Component):
+class Looks(Component):
 
     def looks(self):
-        self.setState()
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #!!!!!!!!!!!!!!!!!!! ADD NECESSARY CODE !!!!!!!!!!!!!!!
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        looks.looks_Py()
-        self.getState()
+       
+        inImage = self.inputImage.clone()
+        inImage.setAccessMode('READ') 
+        inImage.setCaster('read', inImage.dataType)
+        inImage.createImage()
+        outWidth = inImage.getWidth() // self.acrossLooks
+        outLength = inImage.getLength() // self.downLooks
+        
+        outImage = self.inputImage.clone()
+        #if the image is not a geo the part below will fail
+        try:
+            outImage.coord1.coordDelta = self.inputImage.coord1.coordDelta * self.acrossLooks
+            outImage.coord2.coordDelta = self.inputImage.coord2.coordDelta * self.downLooks
+            outImage.coord1.coordStart = self.inputImage.coord1.coordStart + \
+                        0.5*(self.acrossLooks - 1)*self.inputImage.coord1.coordDelta
+            outImage.coord2.coordStart = self.inputImage.coord2.coordStart + \
+                        0.5*(self.downLooks - 1)*self.inputImage.coord2.coordDelta
 
-        return
+        except:
+            pass
+        
+        outImage.setWidth(outWidth)
+        #need to do this since if length != 0 when calling createImage it
+        #performs a sanity check on the filesize on disk and the size obtained from the meta
+        #and exits if not consistent
+        outImage.setLength(0)
+        outImage.setFilename(self.outputFilename)
+        outImage.setAccessMode('WRITE')
 
+        outImage.setCaster('write', inImage.dataType)
+        outImage.createImage()
+        outImage.createFile(outLength)
 
+        inPtr = inImage.getImagePointer()
+        outPtr = outImage.getImagePointer()
 
+        looks.looks_Py(inPtr, outPtr, self.downLooks, self.acrossLooks, inImage.dataType.upper())
 
+        inImage.finalizeImage()
+        outImage.finalizeImage()
+        outImage.renderHdr()
 
-    def setState(self):
-        looks.setRangeLook_Py(int(self.rangeLook))
-        looks.setAzimuthLook_Py(int(self.azimuthLook))
-        looks.setWidth_Py(int(self.width))
-        looks.setLength_Py(int(self.length))
-        looks.setLookType_Py(self.lookType)
-        looks.setInputImage_Py(self.inputImage)
-        looks.setOutputImage_Py(self.outputImage)
-
-        return
-
-
-
-
-
-    def setRangeLook(self,var):
-        self.rangeLook = int(var)
-        return
-
-    def setAzimuthLook(self,var):
-        self.azimuthLook = int(var)
-        return
-
-    def setWidth(self,var):
-        self.width = int(var)
-        return
-
-    def setLength(self,var):
-        self.length = int(var)
-        return
-
-    def setLookType(self,var):
-        self.lookType = str(var)
-        return
+        return outImage
 
     def setInputImage(self,var):
-        self.inputImage = str(var)
+        self.inputImage = var
         return
 
-    def setOutputImage(self,var):
-        self.outputImage = str(var)
+    def setAcrossLooks(self, var):
+        self.acrossLooks = int(var)
         return
 
+    def setDownLooks(self, var):
+        self.downLooks = int(var)
 
-
-
-
+    def setOutputFilename(self, var):
+        self.outputFilename = str(var)
 
     def __init__(self):
         Component.__init__(self)
-        self.lookInstance = None
-        self.rangeLook = None
-        self.azimuthLook = None
-        self.width = None
-        self.length = None
-        self.lookType = ''
-        self.inputImage = ''
-        self.outputImage = ''
-        self.dictionaryOfVariables = {'RANGE_LOOK' : ['self.rangeLook', 'int','mandatory'], \
-                                      'AZIMUTH_LOOK' : ['self.azimuthLook', 'int','mandatory'], \
-                                      'WIDTH' : ['self.width', 'int','mandatory'], \
-                                      'LENGTH' : ['self.length', 'int','optional'], \
-                                      'LOOK_TYPE' : ['self.lookType', 'str','mandatory'], \
-                                      'INPUT_IMAGE' : ['self.inputImage', 'str','mandatory'], \
-                                      'OUTPUT_IMAGE' : ['self.outputImage', 'str','mandatory']}
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
-        return
-
-
-
-
+        self.acrossLooks = None
+        self.downLooks= None
+        self.inputImage = None
+        self.outputFilename = None
 
 #end class
 

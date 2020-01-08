@@ -30,7 +30,7 @@ extern "C"
     PyObject* setFlip_C(PyObject *, PyObject *);
 }
 
-static PyMethodDef addsubmodel_methods[] = 
+static PyMethodDef addsubmodel_methods[] =
 {
     {"createaddsubmodel", createaddsubmodel_C, METH_VARARGS, " "},
     {"destroyaddsubmodel", destroyaddsubmodel_C, METH_VARARGS, " "},
@@ -42,4 +42,4 @@ static PyMethodDef addsubmodel_methods[] =
     {"setScaleFactor", setScaleFactor_C, METH_VARARGS, " "},
     {NULL, NULL, 0 , NULL}
 };
-#endif addsubmodelmodule_h
+#endif //addsubmodelmodule_h

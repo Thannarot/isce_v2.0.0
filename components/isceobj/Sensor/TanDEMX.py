@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Authors: Walter Szeliga, Eric Gurrola, Maxim Neumann
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,6 +36,24 @@ from iscesys.Component.Component import Component
 sep = "\n"
 tab = "    "
 
+XML = Component.Parameter(
+    'xml',
+    public_name='xml',
+    default=None,
+    type=str,
+    mandatory=True,
+    doc='Name of the xml file.'
+)
+
+OUTPUT = Component.Parameter(
+    'output',
+    public_name='output',
+    default=None,
+    type=str,
+    mandatory=False,
+    doc='Name of the output file.'
+)
+
 class TanDEMX(Component):
     """
     A class representing a Level1Product meta data.
@@ -44,10 +62,13 @@ class TanDEMX(Component):
     represent the element tree of the xml file.
     """
 
+    family='tandemx'
     logging_name = 'isce.Sensor.TanDEMX'
 
-    def __init__(self):
-        super(TanDEMX, self).__init__()
+    parameter_list = (XML, OUTPUT)
+
+    def __init__(self, name=''):
+        super().__init__(family=self.__class__.family, name=name)
         self.xml = None
         self.output = None
         self.generalHeader = _GeneralHeader()
@@ -65,8 +86,6 @@ class TanDEMX(Component):
         self.dopplerArray = []
 
         self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'XML': ['self.xml','str','mandatory'],
-                                      'OUTPUT': ['self.output','str','optional']}
 
         self.lookDirectionEnum = {'RIGHT': -1,
                                   'LEFT': 1}
@@ -132,7 +151,7 @@ class TanDEMX(Component):
 
         platform.setMission(mission)
         platform.setPointingDirection(pointingDirection)
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
 
     def _populateInstrument(self):
         instrument = self.frame.getInstrument()
@@ -229,7 +248,7 @@ class TanDEMX(Component):
             #doppler.ambiguity = ambiguity
             time = DTU.parseIsoDateTime(estimate.timeUTC)
             #jng added the dopplerCoefficients needed by TsxDopp.py
-            self.dopplerArray.append({'time': time, 'doppler': fd,'dopplerCoefficients':estimate.combinedDoppler.coefficient})
+            self.dopplerArray.append({'time': time, 'doppler': fd,'dopplerCoefficients':estimate.combinedDoppler.coefficient,'rangeTime': estimate.combinedDoppler.referencePoint})
 
     def extractImage_old_TSX(self): # kept for reference - delete!
         import os
@@ -315,6 +334,79 @@ class TanDEMX(Component):
         retlst += (str(self.processing),)
         retstr += sep+":Level1Product"
         return retstr % retlst
+
+
+    def extractDoppler(self):
+        '''
+        Return the doppler centroid as a function of range.
+        TSX provides doppler estimates at various azimuth times.
+        2x2 polynomial in azimuth and range suffices for a good representation.
+        ISCE can currently only handle a function of range. 
+        Doppler function at mid image in azimuth is a good value to use.
+        '''
+        import numpy as np
+
+        tdiffs = []
+
+        for dd in self.processing.doppler.dopplerCentroid.dopplerEstimate:
+            tentry = datetime.datetime.strptime(dd.timeUTC,"%Y-%m-%dT%H:%M:%S.%fZ")
+
+            tdiffs.append(np.abs( (tentry - self.frame.sensingMid).total_seconds()))
+
+        ind = np.argmin(tdiffs)
+
+        ####Corresponds to entry closest to sensingMid
+        coeffs = self.processing.doppler.dopplerCentroid.dopplerEstimate[ind].combinedDoppler.coefficient
+        tref = self.processing.doppler.dopplerCentroid.dopplerEstimate[ind].combinedDoppler.referencePoint
+
+        
+        quadratic = {}
+        midtime = (self.frame.getStartingRange() + self.frame.getFarRange())/Const.c - tref
+
+        fd_mid = 0.0
+        x = 1.0
+        for ind,val in enumerate(coeffs):
+            fd_mid += val*x
+            x *= midtime
+
+        ####insarApp
+        quadratic['a'] = fd_mid / self.frame.getInstrument().getPulseRepetitionFrequency()
+        quadratic['b'] = 0.0
+        quadratic['c'] = 0.0
+
+
+        ####For RoiApp
+        ####More accurate
+        from isceobj.Util import Poly1D
+        
+        dr = self.frame.getInstrument().getRangePixelSize()
+        rref = 0.5 * Const.c * tref 
+        r0 = self.frame.getStartingRange()
+        norm = 0.5*Const.c/dr
+
+        tmin = 2 * self.frame.getStartingRange()/ Const.c
+
+        tmax = 2 * self.frame.getFarRange() / Const.c
+        
+
+        poly = Poly1D.Poly1D()
+        poly.initPoly(order=len(coeffs)-1)
+        poly.setMean( tref)
+        poly.setCoeffs(coeffs)
+
+
+        tpix = np.linspace(tmin, tmax,num=len(coeffs)+1)
+        pix = np.linspace(0, self.frame.getNumberOfSamples(), num=len(coeffs)+1)
+        evals = poly(tpix)
+        fit = np.polyfit(pix,evals, len(coeffs)-1)
+        self.frame._dopplerVsPixel = list(fit[::-1])
+        print('Doppler Fit: ', fit[::-1])
+
+        return quadratic
+
+
+
+
 
 ###########################################################
 # General Header                                          #

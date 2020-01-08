@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Belz
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -38,17 +38,17 @@ class Prefix(object):
     INPUT:
            symbol   The prefix string symbol, e.g: "M" for mega
            exponent The exponent for the factor... 6   for 10**6
-    
+
     OUTPUT:
             prefix   A class decorator that creates a new instance of
                      the decorated class (that must be a sub-class of Unit)
                      See Unit.__doc__ for why that works.
-                     
+
     @prefix
     class Dimension(Unit)
           si_unit = <what ever measure dimension>
 
-          
+
     Note: Of course, you can stack them up.
     """
 
@@ -59,7 +59,7 @@ class Prefix(object):
     @abc.abstractproperty
     def base(self):
         pass
-    
+
     @abc.abstractmethod
     def cast(self):
         return self.factor
@@ -89,7 +89,7 @@ class Prefix(object):
         # instansiate class with deocrated instance
         cls(str(self) + cls.si_unit, self.cast()(self))
         return cls
-    
+
 ## <a href="http://en.wikipedia.org/wiki/Metric_prefix">Metric</a> Prefix.
 class MetricPrefix(Prefix):
     """Prefix based on 10"""
@@ -114,19 +114,19 @@ class BinaryPrefix(Prefix):
     base = 1024
 
     ## cast to ling
-    def __long__(self):
-        return long(self.factor)
+    def __int__(self):
+        return int(self.factor)
 
     def cast(self):
-        return long
+        return int
 
 
 ## <a href="http://en.wikipedia.org/wiki/Yotta-">\f$10^{24}\f$</a>
-yotta = MetricPrefix('Z', 24)  
+yotta = MetricPrefix('Z', 24)
 ## <a href="http://en.wikipedia.org/wiki/Zetta-">\f$10^{21}\f$</a>
-zetta = MetricPrefix('Z', 21)    
+zetta = MetricPrefix('Z', 21)
 ## <a href="http://en.wikipedia.org/wiki/Exa-">\f$10^{18}\f$</a>
-exa = MetricPrefix('E', 18)    
+exa = MetricPrefix('E', 18)
 ## <a href="http://en.wikipedia.org/wiki/Peta-">\f$10^{15}\f$</a>
 peta = MetricPrefix('P', 15)
 ## <a href="http://en.wikipedia.org/wiki/Tera-">\f$10^{12}\f$</a>
@@ -159,11 +159,11 @@ pico = MetricPrefix('p', -12)
 ## <a href="http://en.wikipedia.org/wiki/Femto-">\f$10^{-15}\f$</a>
 femto = MetricPrefix('f', -15)
 ## <a href="http://en.wikipedia.org/wiki/Atto-">\f$10^{-18}\f$</a>
-atto= MetricPrefix('a', -18)    
+atto= MetricPrefix('a', -18)
 ## <a href="http://en.wikipedia.org/wiki/Zepto-">\f$10^{-21}\f$</a>
-zepto = MetricPrefix('z', -21)    
+zepto = MetricPrefix('z', -21)
 ## <a href="http://en.wikipedia.org/wiki/Yocto-">\f$10^{-24}\f$</a>
-yocto = MetricPrefix('y', -24)    
+yocto = MetricPrefix('y', -24)
 
 
 ## Trival (integer measurement)
@@ -207,7 +207,7 @@ class Unit(str):
     That instance is, of course, also a <str> and is memoized in
 
     Unit.Glossary
-    
+
     dictionary as:
 
     {Sym : Sym}
@@ -215,7 +215,7 @@ class Unit(str):
     At fist, that looks odd. The point is to do a hash-table search (not a list
     search) in the Glossary with "Sym" as a key-- here "Sym" is the ordinary
     string supplied by the RDF file's (unit) field.
-    
+
     the resulting Value converts units to <Unit>'s si_unit with <unit>.factor
     as a scaling.
 
@@ -225,7 +225,7 @@ class Unit(str):
     """
 
     __metaclass__ = abc.ABCMeta
-    
+
     ## When ever a unit is instantiated, it goes into here.
     Glossary = {}
 
@@ -255,10 +255,10 @@ class Unit(str):
 
         ## All new instances get memoized
         self._memoize()
-            
+
         return self
-    
-    ## Memoize into Unit.Glossary 
+
+    ## Memoize into Unit.Glossary
     def _memoize(self, warn=True):
         """save self into Glossary, w/ overwite warning option"""
         # check key or not?
@@ -267,15 +267,15 @@ class Unit(str):
                 'Warning: Overwriting Unit.Glossary["%s"]' % self
                 )
         self.Glossary.update({self:self})
-        
+
     ## The conversion function called: \n
     ## \f$ y = m(x + b) \f$ \n
     ## \param x is the value in non-base/SI units, and must support float()
-    ## \retval y  is the value in self.__class__.si_unit 
+    ## \retval y  is the value in self.__class__.si_unit
     def __call__(self, x):
         # todo: case x? who has case?
         return self._multiplier * float(x) + self._adder
-    
+
     ## \param index Key to delete
     ## \par Side Effects:
     ## deletes key from rdf.units.GLOSSARY for ever.
@@ -499,6 +499,3 @@ class Ratio(Unit):
 __all__ = ('Length', 'Mass', 'Area', 'Time', 'Velocity', 'Power',
            'dBPower', 'Frequency', 'Angle', 'Bit', 'BitPerSecond', 'Ratio',
            'BytesPerSecond' , 'Temperature', 'Byte', 'Pixel', 'Pressure')
-
-
-

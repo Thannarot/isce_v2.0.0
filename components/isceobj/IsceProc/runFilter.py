@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -22,6 +22,7 @@
 # Comment: Adapted from InsarProc/runFilter.py
 import logging
 import isceobj
+import os
 
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 from mroipac.filter.Filter import Filter
@@ -48,14 +49,15 @@ def runFilter(self, filterStrength):
             sid = self._isce.formatname(pair, pol)
             infos['outputPath'] = os.path.join(self.getoutputdir(sceneid1, sceneid2), sid)
             catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
-            run(resampAmpImage, infos, catalog=catalog, sceneid=sid)
+            run(resampAmpImage, widthInt, infos, catalog=catalog, sceneid=sid)
+            self._isce.procDoc.addAllFromCatalog(catalog)
 
     # Set the filtered image to be the one geocoded
-    self._isce.topophaseFlatFilename = self._isce.filtIntFilename
+    self._isce.topophaseFlatFilename = self._isce.filt_topophaseFlatFilename
 
 
 
-def run(resampAmpImage, infos):
+def run(resampAmpImage, widthInt, infos, catalog=None, sceneid='NO_ID'):
     logger.info("Applying power-spectral filter: %s" % sceneid)
 
     # Initialize the flattened interferogram
@@ -83,7 +85,7 @@ def run(resampAmpImage, infos):
     intImage.finalizeImage()
     filtImage.finalizeImage()
 
-    
+
     #Create phase sigma correlation file here
     filtImage = isceobj.createIntImage()
     filtImage.setFilename(filtIntFilename)
@@ -108,14 +110,15 @@ def run(resampAmpImage, infos):
     ampImage.createImage()
 
 
-    icuObj = Icu()
+    icuObj = Icu(name='insarapp_filter_icu')
+    icuObj.configure()
     icuObj.filteringFlag = False
     icuObj.unwrappingFlag = False
     icuObj.initCorrThreshold = 0.1
 
     icuObj.icu(intImage=filtImage, ampImage=ampImage, phsigImage=phsigImage)
-    phsigImage.renderHdr()
 
     filtImage.finalizeImage()
     phsigImage.finalizeImage()
+    phsigImage.renderHdr()
     ampImage.finalizeImage()

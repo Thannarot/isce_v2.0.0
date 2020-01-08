@@ -8,7 +8,7 @@
 #include <fstream>
 using namespace std;
 
-static char * const __doc__ = "Python extension for ampcor.F";
+static const char * const __doc__ = "Python extension for ampcor.F";
 
 PyModuleDef moduledef = {
     // header
@@ -64,6 +64,18 @@ PyObject* setLineLength1_C(PyObject* self, PyObject* args)
   return Py_BuildValue("i",0);
 }
 
+PyObject* setImageLength1_C(PyObject* self, PyObject* args)
+{
+  int samples;
+  if( !PyArg_ParseTuple(args,"i",&samples) )
+  {
+    return NULL;
+  }
+  setImageLength1_f(&samples);
+  return Py_BuildValue("i",0);
+}
+
+
 PyObject* setImageDatatype2_C(PyObject* self, PyObject* args)
 {
   char* type;
@@ -84,6 +96,17 @@ PyObject* setLineLength2_C(PyObject* self, PyObject* args)
     return NULL;
   }
   setLineLength2_f(&samples);
+  return Py_BuildValue("i",0);
+}
+
+PyObject* setImageLength2_C(PyObject* self, PyObject* args)
+{
+  int samples;
+  if( !PyArg_ParseTuple(args,"i",&samples) )
+  {
+    return NULL;
+  }
+  setImageLength2_f(&samples);
   return Py_BuildValue("i",0);
 }
 
@@ -246,7 +269,7 @@ PyObject* setAcrossGrossOffset_C(PyObject *self, PyObject* args)
     int var;
     if (!PyArg_ParseTuple(args,"i",&var))
     {
-	return NULL;
+        return NULL;
     }
     setAcrossGrossOffset_f(&var);
     return Py_BuildValue("i", 0);
@@ -257,7 +280,7 @@ PyObject* setDownGrossOffset_C(PyObject *self, PyObject* args)
     int var;
     if (!PyArg_ParseTuple(args,"i",&var))
     {
-	return NULL;
+        return NULL;
     }
     setDownGrossOffset_f(&var);
     return Py_BuildValue("i", 0);
@@ -268,7 +291,7 @@ PyObject* setThresholdSNR_C(PyObject *self, PyObject* args)
     double var;
     if (!PyArg_ParseTuple(args,"d",&var))
     {
-	return NULL;
+        return NULL;
     }
     setThresholdSNR_f(&var);
     return Py_BuildValue("i", 0);
@@ -279,7 +302,7 @@ PyObject* setThresholdCov_C(PyObject *self, PyObject* args)
     double var;
     if (!PyArg_ParseTuple(args,"d",&var))
     {
-	return NULL;
+        return NULL;
     }
     setThresholdCov_f(&var);
     return Py_BuildValue("i", 0);
@@ -291,10 +314,10 @@ PyObject* setDebugFlag_C(PyObject *self, PyObject* args)
     int var;
     if (!PyArg_ParseTuple(args,"O",&obj))
     {
-	return NULL;
+        return NULL;
     }
     if (obj == Py_True) var= 1;
-    else		var = 0;
+    else                var = 0;
 
     setDebugFlag_f(&var);
     return Py_BuildValue("i", 0);
@@ -306,10 +329,10 @@ PyObject* setDisplayFlag_C(PyObject *self, PyObject* args)
     int var;
     if (!PyArg_ParseTuple(args,"O",&obj))
     {
-	return NULL;
+        return NULL;
     }
     if (obj==Py_True) var = 1;
-    else	      var = 0;
+    else              var = 0;
 
     setDisplayFlag_f(&var);
     return Py_BuildValue("i", 0);
@@ -701,4 +724,3 @@ PyObject * getCov3_C(PyObject* self, PyObject* args)
         delete [] vectorV;
         return Py_BuildValue("N",list);
 }
-

@@ -1,1 +1,1 @@
-from greetings import *
+from .greetings import *

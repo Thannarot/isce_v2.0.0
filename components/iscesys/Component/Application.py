@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2009 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2009 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Authors: Eric Gurrola, Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -122,9 +122,6 @@ class Application(Component, StepHelper):
     cont_string = ''
 
     def run(self, *cmdLine):
-        #since we execute the run method and not the main
-        #return the exist status of the main just in case somebody needs it
-        exitStatus = 0
 
         ## Check not any occurance of a steps related command keyword
         if any([operator.contains(
@@ -133,7 +130,7 @@ class Application(Component, StepHelper):
               ):
             print("Processing steps")
             self._steps()
-            self._processSteps()
+            exitStatus = self._processSteps()
         else:
             exitStatus = self.main()
 
@@ -202,28 +199,37 @@ class Application(Component, StepHelper):
 #            sys.exit(0)
         argv = sys.argv[1:]
         return argv
+
+    ## "Virtual" Usage method
     def Usage(self):
-        """Method that the developer may replace in order to message to the user
-            to instruct how to run teh application
         """
-    def help_steps():
+        Please provide a helpful Usage method.
+        """
+        print("Please provide a Usage method for component, ",
+            self.__class__.__name__)
+        return
+    def help_steps(self):
         """
         Method to print a helpful message when using steps
         """
 
-    def step(self, name, attr=None, local=None, func=None, args=(), delayed_args=(), kwargs={},
+    def step(self, name, attr=None, local=None, func=None, args=(), delayed_args=(), kwargs={}, dostep=True,
              doc="Please provide a helpful message in the step declaration"):
 
-        if isinstance(name, str):
-            self.step_list.append(name)
-        else:
-            raise TypeError("First argument to step must be a string giving a unique name to the step")
+        if not isinstance(name, str):
+            raise ValueError(("The step 'name', given as first argument of a 'step' "+
+                              "declaration, is not given as a string"))
 
         if args and delayed_args:
             raise ValueError("Can only evaluate args or delayed args")
 
-
-        self.step_num = len(self.step_list) - 1
+        #add valid step names to the help list
+        if isinstance(name, str):
+            self.step_list_help.append(name)
+        #add valid step names for which dostep==True to the list of steps
+        if isinstance(name, str) and dostep:
+            self.step_list.append(name)
+        self.step_num = len(self.step_list)
         self._dictionaryOfSteps[name] = {'step_index' : self.step_num,
                                          'local' : local,
                                          'attr' : attr,
@@ -240,13 +246,22 @@ class Application(Component, StepHelper):
         import os
         if not os.path.isdir(self.pickleDumpDir):
             os.mkdir(self.pickleDumpDir)
+        if self.renderer == 'xml':
+            toDump = getattr(self, self._pickleObj)
+            toDump.dump(os.path.join(self.pickleDumpDir, name + '.xml'))
+            #dump the procDoc separately
+            with open(os.path.join(self.pickleDumpDir, name), 'wb') as PCKL:
+                print("Dumping the application's pickle object %s to file  %s" %
+                      (self._pickleObj, os.path.join(self.pickleLoadDir, name)))
+                pickle.dump(getattr(toDump, 'procDoc'), PCKL,
+                            protocol=pickle.HIGHEST_PROTOCOL)
+        else:
+            with open(os.path.join(self.pickleDumpDir, name), 'wb') as PCKL:
+                print("Dumping the application's pickle object %s to file  %s" %
+                      (self._pickleObj, os.path.join(self.pickleLoadDir, name)))
+                pickle.dump(getattr(self, self._pickleObj), PCKL, protocol=pickle.HIGHEST_PROTOCOL)
 
-        with open(os.path.join(self.pickleDumpDir, name), 'wb') as PCKL:
-            print("Dumping the application's pickle object %s to file  %s" %
-                  (self._pickleObj, os.path.join(self.pickleLoadDir, name)))
-            pickle.dump(getattr(self, self._pickleObj), PCKL, protocol=pickle.HIGHEST_PROTOCOL)
 
-        self.renderProcDoc()
         return None
 
 
@@ -254,13 +269,23 @@ class Application(Component, StepHelper):
     def loadPickleObj(self, name):
         import  pickle
         import os
+
         try:
-            with open(os.path.join(self.pickleLoadDir, name), 'rb') as PCKL:
-                setattr(self, self._pickleObj, pickle.load(PCKL))
-                print(
-                    "Loaded the application's pickle object, %s from file %s" %
-                    (self._pickleObj, os.path.join(self.pickleLoadDir, name))
-                    )
+            if self.renderer == 'xml':
+                toLoad = self._insarProcFact()
+                toLoad.load(os.path.join(self.pickleLoadDir, name + '.xml'))
+                setattr(self, self._pickleObj,toLoad)
+                with open(os.path.join(self.pickleLoadDir, name), 'rb') as PCKL:
+                    setattr(getattr(self, self._pickleObj), 'procDoc',
+                            pickle.load(PCKL))
+
+            else:
+                with open(os.path.join(self.pickleLoadDir, name), 'rb') as PCKL:
+                    setattr(self, self._pickleObj, pickle.load(PCKL))
+                    print(
+                        "Loaded the application's pickle object, %s from file %s" %
+                        (self._pickleObj, os.path.join(self.pickleLoadDir, name))
+                        )
         except IOError:
             print("Cannot open %s", os.path.join(self.pickleLoadDir, name))
         return None
@@ -289,18 +314,17 @@ class Application(Component, StepHelper):
             else:
                 print("unhandled option, arg ", o, a)
 
-        print("self.step_list = ", self.step_list)
         if startName in self.step_list:
             start = self.step_list.index(startName)
         else:
             print("ERROR: start=%s is not one of the named steps" % startName)
-            sys.exit(0)
+            return 1
 
         if endName in self.step_list:
             end = self.step_list.index(endName)
         else:
             print("ERROR: end=%s is not one of the named steps" % endName)
-            sys.exit(0)
+            return 1
 
         if start > end:
             print(
@@ -308,7 +332,7 @@ class Application(Component, StepHelper):
                 %
                 (startName, start, endName, end)
                 )
-            sys.exit(0)
+            return 1
 
         if start > 0:
             name = self.step_list[start-1]
@@ -356,7 +380,7 @@ class Application(Component, StepHelper):
                 print("The is the final step")
 
             pass # steps loops ends here
-        return None
+        return 0
 
 
     def __init__(self, family='', name='',cmdline=None):
@@ -364,6 +388,9 @@ class Application(Component, StepHelper):
         self._dictionaryOfSteps = {}
         self._argopts = []
         self.step_list = []
+        self.step_list_help = []
         self._processCommandLine(cmdline)
         super(Application, self).__init__(family=family, name=name)
+
+
         return

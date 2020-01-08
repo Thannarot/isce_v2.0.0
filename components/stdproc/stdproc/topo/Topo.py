@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,9 +26,459 @@ from isceobj import Constants as CN
 from iscesys.Compatibility import Compatibility
 import isceobj.Image as IF #load image factories
 from stdproc.stdproc.topo import topo
+from isceobj.Util import Polynomial, Poly2D
+from iscesys import DateTimeUtil as DTU
+from isceobj.Util import combinedlibmodule
+import datetime
+
+demInterpolationMethod = 'BIQUINTIC'
+
+PRF = Component.Parameter(
+    'prf',
+    public_name='PRF',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Radar pulse repetition frequency'
+)
+
+
+DOPPLER_CENTROID_CONSTANT_TERM = Component.Parameter(
+    'dopplerCentroidConstantTerm',
+    public_name='DOPPLER_CENTROID_CONSTANT_TERM',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Constant term of the expansion of the doppler centroid'
+)
+
+
+PEG_HEADING = Component.Parameter(
+    'pegHeading',
+    public_name='PEG_HEADING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Peg heading'
+)
+
+
+DELTA_LONGITUDE = Component.Parameter(
+    'deltaLongitude',
+    public_name='DELTA_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='DEM longitude resolution'
+)
+
+
+FIRST_LONGITUDE = Component.Parameter(
+    'firstLongitude',
+    public_name='FIRST_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='DEM starting longitude value'
+)
+
+
+
+DEM_LENGTH = Component.Parameter(
+    'demLength',
+    public_name='DEM_LENGTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of lines in the DEM image'
+)
+
+
+PEG_LATITUDE = Component.Parameter(
+    'pegLatitude',
+    public_name='PEG_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Peg latitude'
+)
+
+
+FIRST_LATITUDE = Component.Parameter(
+    'firstLatitude',
+    public_name='FIRST_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='DEM starting latitude value'
+)
+
+
+ELLIPSOID_MAJOR_SEMIAXIS = Component.Parameter(
+    'ellipsoidMajorSemiAxis',
+    public_name='ELLIPSOID_MAJOR_SEMIAXIS',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc='Ellipsoid major semiaxis'
+)
+
+
+IS_MOCOMP = Component.Parameter(
+    'isMocomp',
+    public_name='IS_MOCOMP',
+    default=None,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+BODY_FIXED_VELOCITY = Component.Parameter(
+    'bodyFixedVelocity',
+    public_name='BODY_FIXED_VELOCITY',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Platform body fix velocity'
+)
+
+
+NUMBER_RANGE_LOOKS = Component.Parameter(
+    'numberRangeLooks',
+    public_name='NUMBER_RANGE_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of range looks'
+)
+
+
+NUMBER_ITERATIONS = Component.Parameter(
+    'numberIterations',
+    public_name='NUMBER_ITERATIONS',
+    default=25,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc='Number of iterations'
+)
+
+
+ELLIPSOID_ECCENTRICITY_SQUARED = Component.Parameter(
+    'ellipsoidEccentricitySquared',
+    public_name='ELLIPSOID_ECCENTRICITY_SQUARED',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc='Squared value of the ellipsoid eccentricity'
+)
+
+
+REFERENCE_ORBIT = Component.Parameter(
+    'referenceOrbit',
+    public_name='REFERENCE_ORBIT',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Reference orbit'
+)
+
+
+SLANT_RANGE_PIXEL_SPACING = Component.Parameter(
+    'slantRangePixelSpacing',
+    public_name='SLANT_RANGE_PIXEL_SPACING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Slant range pixel spacing'
+)
+
+
+SPACECRAFT_HEIGHT = Component.Parameter(
+    'spacecraftHeight',
+    public_name='SPACECRAFT_HEIGHT',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Spacecraft height'
+)
+
+
+RADAR_WAVELENGTH = Component.Parameter(
+    'radarWavelength',
+    public_name='RADAR_WAVELENGTH',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Radar wavelength'
+)
+
+
+PEG_LONGITUDE = Component.Parameter(
+    'pegLongitude',
+    public_name='PEG_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Peg longitude'
+)
+
+
+DEM_WIDTH = Component.Parameter(
+    'demWidth',
+    public_name='DEM_WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='DEM width'
+)
+
+
+NUMBER_AZIMUTH_LOOKS = Component.Parameter(
+    'numberAzimuthLooks',
+    public_name='NUMBER_AZIMUTH_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of azimuth looks'
+)
+
+
+RANGE_FIRST_SAMPLE = Component.Parameter(
+    'rangeFirstSample',
+    public_name='RANGE_FIRST_SAMPLE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Range of the first sample'
+)
+
+
+LENGTH = Component.Parameter(
+    'length',
+    public_name='LENGTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of lines in the Interferogram'
+)
+
+
+PLANET_LOCAL_RADIUS = Component.Parameter(
+    'planetLocalRadius',
+    public_name='PLANET_LOCAL_RADIUS',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='inoutput',
+    doc='Planet local radius'
+)
+
+
+WIDTH = Component.Parameter(
+    'width',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Interferogram width'
+)
+
+
+DELTA_LATITUDE = Component.Parameter(
+    'deltaLatitude',
+    public_name='DELTA_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='DEM latitude resolution'
+)
+
+
+S_COORDINATE_LAST_LINE = Component.Parameter(
+    'sCoordinateLastLine',
+    public_name='S_COORDINATE_LAST_LINE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='S coordinate last line'
+)
+
+
+S_COORDINATE_FIRST_LINE = Component.Parameter(
+    'sCoordinateFirstLine',
+    public_name='S_COORDINATE_FIRST_LINE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='S coordinate last line'
+)
+
+
+MAXIMUM_LONGITUDE = Component.Parameter(
+    'maximumLongitude',
+    public_name='MAXIMUM_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Maximum longitude of the resulting image'
+)
+
+
+MINIMUM_LONGITUDE = Component.Parameter(
+    'minimumLongitude',
+    public_name='MINIMUM_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Minimum longitude of the resulting image'
+)
+
+
+AZIMUTH_SPACING = Component.Parameter(
+    'azimuthSpacing',
+    public_name='AZIMUTH_SPACING',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+MINIMUM_LATITUDE = Component.Parameter(
+    'minimumLatitude',
+    public_name='MINIMUM_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Maximum longitude of the resulting image'
+)
+
+
+MAXIMUM_LATITUDE = Component.Parameter(
+    'maximumLatitude',
+    public_name='MAXIMUM_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Maximum latitude of the resulting image'
+)
+
+
+SQUINT_SHIFT = Component.Parameter(
+    'squintshift',
+    public_name='SQUINT_SHIFT',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc='Squint shift'
+)
+
+ORBIT = Component.Facility(
+        'orbit',
+        public_name = 'MOCOMP_ORBIT',
+        module = 'isceobj.Orbit',
+        args=(),
+        factory='createOrbit',
+        mandatory=True,
+        doc='Mocomp orbit to be used for geometry.')
+
+SENSING_START = Component.Parameter(
+        'sensingStart',
+        public_name='SENSING_START',
+        default=None,
+        type=datetime.datetime,
+        mandatory=True,
+        doc='Sensing start time for 1st line of input image')
+
 
 class Topo(Component):
 
+
+    parameter_list = (
+                      PRF,
+                      DOPPLER_CENTROID_CONSTANT_TERM,
+                      PEG_HEADING,
+                      DELTA_LONGITUDE,
+                      FIRST_LONGITUDE,
+                      DEM_LENGTH,
+                      PEG_LATITUDE,
+                      FIRST_LATITUDE,
+                      ELLIPSOID_MAJOR_SEMIAXIS,
+                      IS_MOCOMP,
+                      BODY_FIXED_VELOCITY,
+                      NUMBER_RANGE_LOOKS,
+                      NUMBER_ITERATIONS,
+                      ELLIPSOID_ECCENTRICITY_SQUARED,
+                      REFERENCE_ORBIT,
+                      SLANT_RANGE_PIXEL_SPACING,
+                      SPACECRAFT_HEIGHT,
+                      RADAR_WAVELENGTH,
+                      PEG_LONGITUDE,
+                      DEM_WIDTH,
+                      NUMBER_AZIMUTH_LOOKS,
+                      RANGE_FIRST_SAMPLE,
+                      LENGTH,
+                      PLANET_LOCAL_RADIUS,
+                      WIDTH,
+                      DELTA_LATITUDE,
+                      S_COORDINATE_LAST_LINE,
+                      S_COORDINATE_FIRST_LINE,
+                      MAXIMUM_LONGITUDE,
+                      MINIMUM_LONGITUDE,
+                      AZIMUTH_SPACING,
+                      MINIMUM_LATITUDE,
+                      MAXIMUM_LATITUDE,
+                      SQUINT_SHIFT,
+                      SENSING_START,
+                     )
+
+    facility_list = (
+                      ORBIT,
+                    )
+
+
+    interpolationMethods = { 'SINC' : 0,
+                             'BILINEAR' : 1,
+                             'BICUBIC' : 2,
+                             'NEAREST' : 3,
+                             'AKIMA' : 4,
+                             'BIQUINTIC' : 5}
     ## South, North, West, East boundaries
     ## see geocode and topo to much resued code.
     @property
@@ -50,20 +500,20 @@ class Topo(Component):
 
         if demImage is not None:
             self.demImage = demImage
-            
+
         #another way of passing width and length if not using the ports
         if intImage is not None:
             self.intImage = intImage
-            #if width or length not defined get 'em  from intImage ince they 
+            #if width or length not defined get 'em  from intImage ince they
             # are needed to create the output images
             if self.width is None:
                 self.width = self.intImage.getWidth()
             if self.length is None:
                 self.length = self.intImage.getLength()
 
-        self.setDefaults() 
+        self.setDefaults()
         self.createImages()
-        #not all the quantities could be set before. now that we have the 
+        #not all the quantities could be set before. now that we have the
         # images set the remaining defaults if necessary (such as width, length)
         self.updateDefaults()
 
@@ -75,14 +525,29 @@ class Topo(Component):
         self.heightSchAccessor = self.heightSchImage.getImagePointer()
         self.losAccessor = self.losImage.getImagePointer()
 
+        if self.incImage:
+            self.incAccessor = self.incImage.getImagePointer()
+        else:
+            self.incAccessor = 0
+
+        ####Doppler accessor
+        self.polyDoppler.createPoly2D()
+        self.polyDopplerAccessor = self.polyDoppler.getPointer()
+
         self.allocateArrays()
         self.setState()
-        topo.topo_Py(self.demAccessor)
+
+        corb = self.orbit.exportToC()
+        topo.setOrbit_Py(corb)
+        topo.topo_Py(self.demAccessor, self.polyDopplerAccessor)
+        combinedlibmodule.freeCOrbit(corb)
         self.getState()
         self.deallocateArrays()
         self.destroyImages()
 
         return None
+
+
 
     def setDefaults(self):
         if self.ellipsoidMajorSemiAxis is None:
@@ -92,11 +557,11 @@ class Topo(Component):
             self.ellipsoidEccentricitySquared = CN.EarthEccentricitySquared
 
         if self.isMocomp is None:
-            self.isMocomp = (8192-2048)/2 
-        
+            self.isMocomp = (8192-2048)/2
+
         if self.numberIterations is None:
             self.numberIterations = 25
-        
+
         if self.heightRFilename == '':
             self.heightRFilename = 'z.rdr'
             self.logger.warning('The real height file has been given the default name %s' % (self.heightRFilename))
@@ -106,52 +571,79 @@ class Topo(Component):
         if self.latFilename == '':
             self.latFilename = 'lat.rdr'
             self.logger.warning('The latitude file has been given the default name %s' % (self.latFilename))
+
         if self.lonFilename == '':
             self.lonFilename = 'lon.rdr'
             self.logger.warning('The longitude file has been given the default name %s' % (self.lonFilename))
+
         if self.losFilename == '':
             self.losFilename = 'los.rdr'
             self.logger.warning('The los file has been given the default name %s' % (self.losFilename))
 
+        if self.polyDoppler is None:
+            self.polyDoppler = Poly2D.Poly2D(name=self.name + '_topoPoly')
+            self.polyDoppler.setWidth(self.width)
+            self.polyDoppler.setLength(self.length)
+            self.polyDoppler.setNormRange(1.0/(1.0*self.numberRangeLooks))
+            self.polyDoppler.setNormAzimuth(1.0/(1.0*self.numberAzimuthLooks))
+            self.polyDoppler.setMeanRange(0.)
+            self.polyDoppler.setMeanAzimuth(0.)
+            self.polyDoppler.initPoly(
+                rangeOrder=len(self.dopplerCentroidCoeffs)-1,
+                azimuthOrder=0,
+                coeffs=[self.dopplerCentroidCoeffs])
+
+        if self.demInterpolationMethod is None:
+            self.demInterpolationMethod = 'BILINEAR'
+
+        else:
+            if self.demInterpolationMethod.upper() not in list(self.interpolationMethods.keys()):
+                raise Exception ('Interpolation method must be one of ' + str(list(self.interpolationMethods.keys())))
+
     def updateDefaults(self):
         if self.demLength is None:
             self.demLength = self.demImage.getLength()
-        
+
         if self.demWidth is None:
             self.demWidth = self.demImage.getWidth()
 
     def destroyImages(self):
         self.latImage.addDescription('Pixel-by-pixel latitude in degrees.')
-        self.latImage.renderHdr()
         self.latImage.finalizeImage()
-        
+        self.latImage.renderHdr()
+
         self.lonImage.addDescription('Pixel-by-pixel longitude in degrees.')
-        self.lonImage.renderHdr()
         self.lonImage.finalizeImage()
-        
-        
+        self.lonImage.renderHdr()
+
+
         self.heightRImage.addDescription('Pixel-by-pixel height in meters.')
-        self.heightRImage.renderHdr()
         self.heightRImage.finalizeImage()
+        self.heightRImage.renderHdr()
         self.heightSchImage.addDescription('Pixel-by-pixel height above local sphere in meters.')
-        self.heightSchImage.renderHdr()
         self.heightSchImage.finalizeImage()
-        
-        descr = '''Two channel Line-Of-Sight geometry image (all angles in degrees). Represents vector drawn from target to platform. 
+        self.heightSchImage.renderHdr()
+
+        descr = '''Two channel Line-Of-Sight geometry image (all angles in degrees). Represents vector drawn from target to platform.
                 Channel 1: Incidence angle measured from vertical at target (always +ve).
                 Channel 2: Azimuth angle measured from North in Anti-clockwise direction.'''
         self.losImage.setImageType('bil')
         self.losImage.addDescription(descr)
-        self.losImage.renderHdr()
         self.losImage.finalizeImage()
-    
+        self.losImage.renderHdr()
+
         #finalizing of the images handled here
         self.demImage.finalizeImage()
         #self.intImage.finalizeImage()
+        if self.incImage:
+            self.incImage.finalizeImage()
+            self.incImage.renderHdr()
+
+        self.polyDoppler.finalize()
 
 
     def createImages(self):
-       
+
         #assume that even if an image is passed, the createImage and finalizeImage are called here
         if self.demImage is None and not self.demFilename == '':
             self.demImage = IF.createDemImage()
@@ -162,21 +654,21 @@ class Topo(Component):
 
             self.logger.error('Must either pass the demImage in the call or set self.demFilename.')
             raise Exception
-        
+
         if(self.latImage == None and not self.latFilename == ''):
             self.latImage = IF.createImage()
             accessMode = 'write'
-            dataType = 'FLOAT'
+            dataType = 'DOUBLE'
             width = self.width
             self.latImage.initImage(self.latFilename,accessMode,width,dataType)
         elif(self.latImage == None):
             self.logger.error('Must either pass the latImage in the call or set self.latFilename.')
             raise Exception
-        
+
         if(self.lonImage == None and not self.lonFilename == ''):
             self.lonImage = IF.createImage()
             accessMode = 'write'
-            dataType = 'FLOAT'
+            dataType = 'DOUBLE'
             width = self.width
             self.lonImage.initImage(self.lonFilename,accessMode,width,dataType)
         elif(self.lonImage == None):
@@ -192,7 +684,7 @@ class Topo(Component):
         elif(self.heightRImage == None):
             self.logger.error('Must either pass the heightRImage in the call or set self.heightRFilename.')
             raise Exception
-        
+
         if(self.heightSchImage == None and not self.heightSchFilename == ''):
             self.heightSchImage = IF.createImage()
             accessMode = 'write'
@@ -211,10 +703,19 @@ class Topo(Component):
             scheme = 'BIL'
             width = self.width
             self.losImage.initImage(self.losFilename,accessMode,width,dataType,bands=bands,scheme=scheme)
-        
+
+        if (self.incImage == None and not self.incFilename == ''):
+            self.incImage = IF.createImage()
+            accessMode = 'write'
+            dataType = 'FLOAT'
+            bands = 1
+            scheme = 'BIL'
+            width = self.width
+            self.incImage.initImage(self.incFilename,accessMode,width,dataType,bands=bands,scheme=scheme)
+
         #self.intImage.createImage()
         #the dem image could have different datatype so create a caster here
-        #the short is the data type used in the fortran. 
+        #the short is the data type used in the fortran.
         self.demImage.setCaster('read','FLOAT')
         self.demImage.createImage()
         self.latImage.createImage()
@@ -222,7 +723,10 @@ class Topo(Component):
         self.heightRImage.createImage()
         self.heightSchImage.createImage()
         self.losImage.createImage()
-    
+
+        if self.incImage:
+            self.incImage.createImage()
+
     def setState(self):
         topo.setNumberIterations_Py(int(self.numberIterations))
         topo.setDemWidth_Py(int(self.demWidth))
@@ -247,16 +751,21 @@ class Topo(Component):
         topo.setPegLatitude_Py(float(self.pegLatitude))
         topo.setPegLongitude_Py(float(self.pegLongitude))
         topo.setPegHeading_Py(float(self.pegHeading))
-        topo.setDopplerCentroidConstantTerm_Py(float(self.dopplerCentroidConstantTerm))
         topo.setPRF_Py(float(self.prf))
         topo.setRadarWavelength_Py(float(self.radarWavelength))
         topo.setLatitudePointer_Py(int(self.latAccessor))
         topo.setLongitudePointer_Py(int(self.lonAccessor))
         topo.setHeightRPointer_Py(int(self.heightRAccessor))
         topo.setHeightSchPointer_Py(int(self.heightSchAccessor))
+        topo.setIncPointer_Py(int(self.incAccessor))
         topo.setLosPointer_Py(int(self.losAccessor))
         topo.setLookSide_Py(int(self.lookSide))
 
+        tstart = DTU.seconds_since_midnight(self.sensingStart) + (self.numberAzimuthLooks-1)/(2.0 * self.prf)
+        topo.setSensingStart_Py(tstart)
+
+        intpKey = self.interpolationMethods[self.demInterpolationMethod.upper()]
+        topo.setMethod_Py(int(intpKey))
         return None
 
 
@@ -356,6 +865,10 @@ class Topo(Component):
         self.dopplerCentroidConstantTerm = float(var)
         return None
 
+    def setPolyDoppler(self,var):
+        self.polyDoppler = var.copy()
+        return None
+
     def setPRF(self,var):
         self.prf = float(var)
         return None
@@ -367,7 +880,7 @@ class Topo(Component):
     def setLosFilename(self,var):
         self.losFilename = var
         return None
-    
+
     def setLatFilename(self,var):
         self.latFilename = var
         return None
@@ -382,6 +895,10 @@ class Topo(Component):
 
     def setHeightSchFilename(self,var):
         self.heightSchFilename = var
+        return None
+
+    def setIncidenceFilename(self,var):
+        self.incFilename = var
         return None
 
     def setLookSide(self,var):
@@ -459,7 +976,7 @@ class Topo(Component):
 
     def addPeg(self):
         peg = self._inputPorts.getPort(name='peg').getObject()
-        if (peg):            
+        if (peg):
             try:
                 self.planetLocalRadius = peg.getRadiusOfCurvature()
                 self.pegLatitude = math.radians(peg.getLatitude())
@@ -468,10 +985,10 @@ class Topo(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-    
+
     def addPlanet(self):
         planet = self._inputPorts.getPort(name='planet').getObject()
-        if (planet):            
+        if (planet):
             try:
                 ellipsoid = planet.get_elp()
                 self.ellipsoidMajorSemiAxis = ellipsoid.get_a()
@@ -479,10 +996,10 @@ class Topo(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-        
+
     def addFrame(self):
         frame = self._inputPorts.getPort(name='frame').getObject()
-        if (frame):            
+        if (frame):
             try:
                 #self.rangeFirstSample = frame.getStartingRange() - Piyush
                 instrument = frame.getInstrument()
@@ -502,7 +1019,11 @@ class Topo(Component):
             except AttributeError as strerr:
                 self.logger.error(strerr)
                 raise AttributeError
-            
+
+            self.dopplerCentroidCoeffs = formslc.dopplerCentroidCoefficients
+            self.orbit = formslc.outOrbit
+            self.sensingStart = formslc.slcSensingStart
+
     def addDEM(self):
         dem = self._inputPorts.getPort(name='dem').getObject()
         if (dem):
@@ -531,112 +1052,43 @@ class Topo(Component):
 
     logging_name = "isce.stdproc.topo"
 
-    def __init__(self):
-        super(Topo, self).__init__()
-        self.numberIterations = None
-        self.demWidth = None
-        self.demLength = None
-        self.referenceOrbit = []
+    family = 'topo'
+
+    def __init__(self,family='',name=''):
+        super(Topo, self).__init__(family if family else  self.__class__.family, name=name)
+        self.demInterpolationMethod = demInterpolationMethod
         self.dim1_referenceOrbit = None
-        self.firstLatitude = None
-        self.firstLongitude = None
-        self.deltaLatitude = None
-        self.deltaLongitude = None
-        self.isMocomp = None
-        self.ellipsoidMajorSemiAxis = None
-        self.ellipsoidEccentricitySquared = None
-        self.length = None
-        self.width = None
-        self.slantRangePixelSpacing = None
-        self.rangeFirstSample = None
-        self.spacecraftHeight = None
-        self.planetLocalRadius = None
-        self.bodyFixedVelocity = None
-        self.numberRangeLooks = None
-        self.numberAzimuthLooks = None
-        self.pegLatitude = None
-        self.pegLongitude = None
-        self.pegHeading = None
-        self.dopplerCentroidConstantTerm = None
-        self.prf = None
-        self.radarWavelength = None
         self.demFilename = ''
         self.latFilename = ''
         self.lonFilename = ''
         self.heightRFilename = ''
         self.heightSchFilename = ''
         self.losFilename = ''
+        self.incFilename = ''
         self.demImage = None
         self.latImage = None
         self.lonImage = None
         self.heightRImage = None
         self.heightSchImage = None
         self.losImage = None
+        self.incImage = None
         self.demAccessor = None
-        self.latAccessor = None
-        self.lonAccessor = None
-        self.heightRAccessor = None
-        self.heightSchAccessor = None
+        self.incAccessor = None
         self.losAccessor = None
-        self.azimuthSpacing = None
-        self.sCoordinateFirstLine = None
-        self.sCoordinateLastLine = None
-        self.minimumLatitude = None
-        self.minimumLongitude = None
-        self.maximumLatitude = None
-        self.maximumLongitude = None
-        self.squintshift = []
         self.dim1_squintshift = None
         self.lookSide = -1     #Default set to right side
-        self.dictionaryOfVariables = { 
-            'NUMBER_ITERATIONS' : ['numberIterations', 'int','optional'], 
-            'DEM_WIDTH' : ['demWidth', 'int','mandatory'], 
-            'DEM_LENGTH' : ['demLength', 'int','mandatory'], 
-            'REFERENCE_ORBIT' : ['referenceOrbit', 'float','mandatory'], 
-            'FIRST_LATITUDE' : ['firstLatitude', 'float','mandatory'], 
-            'FIRST_LONGITUDE' : ['firstLongitude', 'float','mandatory'], 
-            'DELTA_LATITUDE' : ['deltaLatitude', 'float','mandatory'], 
-            'DELTA_LONGITUDE' : ['deltaLongitude', 'float','mandatory'], 
-            'IS_MOCOMP' : ['isMocomp', 'int','optional'], 
-            'ELLIPSOID_MAJOR_SEMIAXIS' : ['ellipsoidMajorSemiAxis', 'float','optional'], 
-            'ELLIPSOID_ECCENTRICITY_SQUARED' : ['ellipsoidEccentricitySquared', 'float','optional'], 
-            'LENGTH' : ['length', 'int','mandatory'], 
-            'WIDTH' : ['width', 'int','mandatory'], 
-            'SLANT_RANGE_PIXEL_SPACING' : ['slantRangePixelSpacing', 'float','mandatory'], 
-            'RANGE_FIRST_SAMPLE' : ['rangeFirstSample', 'float','mandatory'], 
-            'SPACECRAFT_HEIGHT' : ['spacecraftHeight', 'float','mandatory'], 
-            'PLANET_LOCAL_RADIUS' : ['planetLocalRadius', 'float','mandatory'], 
-            'BODY_FIXED_VELOCITY' : ['bodyFixedVelocity', 'float','mandatory'], 
-            'NUMBER_RANGE_LOOKS' : ['numberRangeLooks', 'int','mandatory'], 
-            'NUMBER_AZIMUTH_LOOKS' : ['numberAzimuthLooks', 'int','mandatory'], 
-            'PEG_LATITUDE' : ['pegLatitude', 'float','mandatory'], 
-            'PEG_LONGITUDE' : ['pegLongitude', 'float','mandatory'], 
-            'PEG_HEADING' : ['pegHeading', 'float','mandatory'], 
-            'DOPPLER_CENTROID_CONSTANT_TERM' : ['dopplerCentroidConstantTerm', 'float','mandatory'], 
-            'PRF' : ['prf', 'float','mandatory'], 
-            'RADAR_WAVELENGTH' : ['radarWavelength', 'float','mandatory'], 
-            'LAT_ACCESSOR' : ['latAccessor', 'int','optional'], 
-            'LON_ACCESSOR' : ['lonAccessor', 'int','optional'], 
-            'HEIGHT_R_ACCESSOR' : ['heightRAccessor', 'int','optional'], 
-            'HEIGHT_SCH_ACCESSOR' : ['heightSchAccessor', 'int','optional'] 
-            }
-        self.dictionaryOfOutputVariables = { 
-            'AZIMUTH_SPACING' : 'azimuthSpacing', 
-            'PLANET_LOCAL_RADIUS' : 'planetLocalRadius', 
-            'S_COORDINATE_FIRST_LINE' : 'sCoordinateFirstLine', 
-            'S_COORDINATE_LAST_LINE' : 'sCoordinateLastLine', 
-            'MINIMUM_LATITUDE' : 'minimumLatitude', 
-            'MINIMUM_LONGITUDE' : 'minimumLongitude', 
-            'MAXIMUM_LATITUDE' : 'maximumLatitude', 
-            'MAXIMUM_LONGITUDE' : 'maximumLongitude', 
-            'SQUINT_SHIFT' : 'squintshift' 
-            }
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
+        self.polyDoppler = None
+        self.polyDopplerAccessor = None
+
+
+
+        ####For dumping and loading
+        self._times = []
+        self._fmt = '%Y-%m-%dT%H:%M:%S.%f'
+
         self.initOptionalAndMandatoryLists()
         return None
-    
+
     def createPorts(self):
         self.inputPorts['peg'] = self.addPeg
         self.inputPorts['frame'] = self.addFrame
@@ -648,8 +1100,27 @@ class Topo(Component):
         return None
 
 
+    def adaptToRender(self):
+        import copy
+        # make a copy of the stateVectors to restore it after dumping
+        self._times = [copy.copy(self.sensingStart)]
+        self.sensingStart = self.sensingStart.strftime(self._fmt)
+
+    def restoreAfterRendering(self):
+        self.sensingStart = self._times[0]
+
+    def initProperties(self,catalog):
+        keys = ['SENSING_START']
+
+        for k in keys:
+            kl = k.lower()
+            if kl in catalog:
+                v = catalog[kl]
+                attrname = getattr(globals()[k],'attrname')
+                val = datetime.datetime.strptime(v,self._fmt)
+                setattr(self,attrname,val)
+                catalog.pop(kl)
+        super().initProperties(catalog)
+
 
     pass
-
-
-

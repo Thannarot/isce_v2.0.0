@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2012 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2012 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,7 +30,7 @@
 #include <vector>
 using namespace std;
 
-static char * const __doc__ = "Python extension for topo.F";
+static const char * const __doc__ = "Python extension for topo.F";
 
 PyModuleDef moduledef = {
     //header
@@ -98,12 +98,12 @@ PyObject * deallocate_squintshift_C(PyObject* self, PyObject* args)
 
 PyObject * topo_C(PyObject* self, PyObject* args)
 {
-    uint64_t var0;
-    if(!PyArg_ParseTuple(args, "K",&var0))
+    uint64_t var0, var1;
+    if(!PyArg_ParseTuple(args, "KK",&var0,&var1))
     {
         return NULL;
     }
-    topo_f(&var0);
+    topo_f(&var0, &var1);
     return Py_BuildValue("i", 0);
 }
 PyObject * setNumberIterations_C(PyObject* self, PyObject* args)
@@ -293,6 +293,16 @@ PyObject * setLookSide_C(PyObject* self, PyObject *args)
     setLookSide_f(&var);
     return Py_BuildValue("i",0);
 }
+PyObject * setMethod_C(PyObject* self, PyObject* args)
+{
+    int var;
+    if(!PyArg_ParseTuple(args,"i",&var))
+    {
+        return NULL;
+    }
+    setMethod_f(&var);
+    return Py_BuildValue("i",0);
+}
 PyObject * setSpacecraftHeight_C(PyObject* self, PyObject* args)
 {
     double var;
@@ -373,16 +383,6 @@ PyObject * setPegHeading_C(PyObject* self, PyObject* args)
     setPegHeading_f(&var);
     return Py_BuildValue("i", 0);
 }
-PyObject * setDopplerCentroidConstantTerm_C(PyObject* self, PyObject* args)
-{
-    double var;
-    if(!PyArg_ParseTuple(args, "d", &var))
-    {
-        return NULL;
-    }
-    setDopplerCentroidConstantTerm_f(&var);
-    return Py_BuildValue("i", 0);
-}
 PyObject * setPRF_C(PyObject* self, PyObject* args)
 {
     double var;
@@ -452,6 +452,16 @@ PyObject * setLosPointer_C(PyObject* self, PyObject *args)
     return NULL;
     }
     setLosPointer_f(&var);
+    return Py_BuildValue("i",0);
+}
+PyObject * setIncPointer_C(PyObject* self, PyObject *args)
+{
+    uint64_t var;
+    if(!PyArg_ParseTuple(args,"K", &var))
+    {
+    return NULL;
+    }
+    setIncPointer_f(&var);
     return Py_BuildValue("i",0);
 }
 PyObject * getAzimuthSpacing_C(PyObject* self, PyObject* args)
@@ -532,5 +542,33 @@ PyObject * getSquintShift_C(PyObject* self, PyObject* args)
     delete [] vectorV;
     return Py_BuildValue("N",list);
 }
+
+PyObject* setSensingStart_C(PyObject *self, PyObject *args)
+{
+    double tstart;
+    if(!PyArg_ParseTuple(args,"d", &tstart))
+    {
+        return NULL;
+    }
+
+    setSensingStart_f(&tstart);
+    return Py_BuildValue("i", 0);
+}
+
+PyObject *setOrbit_C(PyObject *self, PyObject *args)
+{
+    uint64_t cptr;
+    cOrbit* corb;
+
+    if(!PyArg_ParseTuple(args,"K", &cptr))
+    {
+        return NULL;
+    }
+    corb = (cOrbit*) cptr;
+
+    setOrbit_f(corb);
+    return Py_BuildValue("i", 0);
+}
+
 
 // end of file

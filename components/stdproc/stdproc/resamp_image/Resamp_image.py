@@ -4,7 +4,220 @@ from iscesys.Compatibility import Compatibility
 from isceobj.Image import createOffsetImage
 from stdproc.stdproc.resamp_image import resamp_image
 
+DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter(
+    'dopplerCentroidCoefficients',
+    public_name='DOPPLER_CENTROID_COEFFICIENTS',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Doppler centroid coefficients'
+)
+
+FIRST_LINE_OFFSET = Component.Parameter(
+    'firstLineOffset',
+    public_name='FIRST_LINE_OFFSET',
+    default=1,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc='Line first offset'
+)
+
+LOCATION_ACROSS1 = Component.Parameter(
+    'locationAcross1',
+    public_name='LOCATION_ACROSS1',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Range locations first image.'
+)
+
+LOCATION_ACROSS2 = Component.Parameter(
+    'locationAcross2',
+    public_name='LOCATION_ACROSS2',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Range locations second image'
+)
+
+
+LOCATION_ACROSS_OFFSET1 = Component.Parameter(
+    'locationAcrossOffset1',
+    public_name='LOCATION_ACROSS_OFFSET1',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Range offset locations first image.'
+)
+
+LOCATION_ACROSS_OFFSET2 = Component.Parameter(
+    'locationAcrossOffset2',
+    public_name='LOCATION_ACROSS_OFFSET2',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Range offset locations second image.'
+)
+
+LOCATION_DOWN1 = Component.Parameter(
+    'locationDown1',
+    public_name='LOCATION_DOWN1',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Azimuth locations first image.'
+)
+
+LOCATION_DOWN2 = Component.Parameter(
+    'locationDown2',
+    public_name='LOCATION_DOWN2',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Azimuth locations second Image'
+)
+
+
+LOCATION_DOWN_OFFSET1 = Component.Parameter(
+    'locationDownOffset1',
+    public_name='LOCATION_DOWN_OFFSET1',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Azimuth'
+)
+
+LOCATION_DOWN_OFFSET2 = Component.Parameter(
+    'locationDownOffset2',
+    public_name='LOCATION_DOWN_OFFSET2',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Azimuth offset locations second image.'
+)
+
+NUMBER_FIT_COEFFICIENTS = Component.Parameter(
+    'numberFitCoefficients',
+    public_name='NUMBER_FIT_COEFFICIENTS',
+    default=6,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc='Number of coefficients used for fit'
+)
+
+
+NUMBER_LINES = Component.Parameter(
+    'numberLines',
+    public_name='NUMBER_LINES',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of lines in the image'
+)
+
+
+NUMBER_LOOKS = Component.Parameter(
+    'numberLooks',
+    public_name='NUMBER_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of looks'
+)
+
+
+NUMBER_RANGE_BIN = Component.Parameter(
+    'numberRangeBin',
+    public_name='NUMBER_RANGE_BIN',
+    default=None,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc='Image width'
+)
+
+
+RADAR_WAVELENGTH = Component.Parameter(
+    'radarWavelength',
+    public_name='RADAR_WAVELENGTH',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Radar wavelength'
+)
+
+
+SLANT_RANGE_PIXEL_SPACING = Component.Parameter(
+    'slantRangePixelSpacing',
+    public_name='SLANT_RANGE_PIXEL_SPACING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Sample range pixel spacing'
+)
+
+
+SNR1 = Component.Parameter(
+    'snr1',
+    public_name='SNR1',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='First signal to noise ratio'
+)
+
+
+SNR2 = Component.Parameter(
+    'snr2',
+    public_name='SNR2',
+    default=[],
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Second signal to noise ratio'
+)
+
+
 class Resamp_image(Component):
+
+
+    parameter_list = (
+                      LOCATION_ACROSS_OFFSET1,
+                      LOCATION_ACROSS_OFFSET2,
+                      DOPPLER_CENTROID_COEFFICIENTS,
+                      FIRST_LINE_OFFSET,
+                      SLANT_RANGE_PIXEL_SPACING,
+                      LOCATION_DOWN1,
+                      NUMBER_LINES,
+                      LOCATION_ACROSS1,
+                      LOCATION_DOWN_OFFSET2,
+                      LOCATION_DOWN2,
+                      NUMBER_LOOKS,
+                      NUMBER_RANGE_BIN,
+                      SNR1,
+                      LOCATION_ACROSS2,
+                      NUMBER_FIT_COEFFICIENTS,
+                      RADAR_WAVELENGTH,
+                      LOCATION_DOWN_OFFSET1,
+                      SNR2
+                     )
+
 
     def resamp_image(self,imageRangeOffset=None,imageAzimuthOffset=None):
         for port in self.inputPorts:
@@ -45,33 +258,18 @@ class Resamp_image(Component):
         resamp_image.resamp_image_Py(self.imageRangeOffsetAccessor,self.imageAzimuthOffsetAccessor)
         self.deallocateArrays()
         
-        self.imageRangeOffset.renderHdr()
-        self.imageAzimuthOffset.renderHdr()
         if(rangeImageCreatedHere):
             self.imageRangeOffset.finalizeImage()
 
         if(azimuthImageCreatedHere):
             self.imageAzimuthOffset.finalizeImage()
         
+        self.imageRangeOffset.renderHdr()
+        self.imageAzimuthOffset.renderHdr()
         
         return
     
-    ''' base image already has such a method
-    def renderHdr(self,offx):
-        import os
-        from datetime import datetime
-        import isceobj.XmlUtil.xmlUtils as xml
-
-        od = xml.OrderedDict()
-        od['filename'] = offx.filename
-        od['datetime'] = "%s" % datetime.utcnow()
-        od['dataType'] = offx.scheme
-        od['width'] = offx.getWidth()
-        od['length'] = int(os.stat(offx.filename).st_size/8./offx.getWidth())
-        dict = {'imageFile':od}
-        xml.dict_to_xml(dict,offx.filename+'.xml')
-        return    
-    '''
+   
     def setDefaults(self):
         
         if (self.numberFitCoefficients == None):
@@ -377,11 +575,10 @@ class Resamp_image(Component):
 
     logging_name = 'isce.stdproc.resamp_image'
 
-    def __init__(self):
-        super(Resamp_image, self).__init__()
-        self.numberFitCoefficients = None
-        self.numberLines = None
-        self.firstLineOffset = None
+    family = 'resamp_image'
+
+    def __init__(self,family='',name=''):
+        super(Resamp_image, self).__init__(family if family else  self.__class__.family, name=name)
         
         self.imageRangeOffset = None
         self.imageAzimuthOffset = None
@@ -389,67 +586,20 @@ class Resamp_image(Component):
         self.imageAzimuthOffsetAccessor = None
         self.imageRangeOffsetName = ''
         self.imageAzimuthOffsetName = ''
-        self.numberRangeBin = None
-        self.numberLooks = None
-        self.radarWavelength = None
-        self.slantRangePixelSpacing = None
-        self.dopplerCentroidCoefficients = []
         self.dim1_dopplerCentroidCoefficients = None
-        self.locationAcross1 = []
         self.dim1_locationAcross1 = None
-        self.locationAcrossOffset1 = []
         self.dim1_locationAcrossOffset1 = None
-        self.locationDown1 = []
         self.dim1_locationDown1 = None
-        self.locationDownOffset1 = []
         self.dim1_locationDownOffset1 = None
-        self.snr1 = []
         self.dim1_snr1 = None
-        self.locationAcross2 = []
         self.dim1_locationAcross2 = None
-        self.locationAcrossOffset2 = []
         self.dim1_locationAcrossOffset2 = None
-        self.locationDown2 = []
         self.dim1_locationDown2 = None
-        self.locationDownOffset2 = []
         self.dim1_locationDownOffset2 = None
-        self.snr2 = []
         self.dim1_snr2 = None
 #        self.logger = logging.getLogger('isce.stdproc.resamp_image')
 #        self.createPorts()
         
-        self.dictionaryOfVariables = { 
-            'NUMBER_FIT_COEFFICIENTS' : ['self.numberFitCoefficients', 'int','optional'], 
-            'NUMBER_RANGE_BIN' : ['self.numberRangeBin', 'int','optional'], 
-            'NUMBER_LINES' : ['self.numberLines', 'int','mandatory'], 
-            'NUMBER_LOOKS' : ['self.numberLooks', 'int','mandatory'], 
-            'FIRST_LINE_OFFSET' : ['self.firstLineOffset', 'int','optional'], 
-            'RADAR_WAVELENGTH' : ['self.radarWavelength', 'float','mandatory'], 
-            'SLANT_RANGE_PIXEL_SPACING' : ['self.slantRangePixelSpacing', 'float','mandatory'], 
-            'DOPPLER_CENTROID_COEFFICIENTS' : ['self.dopplerCentroidCoefficients', 'float','mandatory'], 
-            'LOCATION_ACROSS1' : ['self.locationAcross1', 'float','mandatory'], 
-            'LOCATION_ACROSS_OFFSET1' : ['self.locationAcrossOffset1', 'float','mandatory'], 
-            'LOCATION_DOWN1' : ['self.locationDown1', 'float','mandatory'], 
-            'LOCATION_DOWN_OFFSET1' : ['self.locationDownOffset1', 'float','mandatory'], 
-            'SNR1' : ['self.snr1', 'float','mandatory'], 
-            'LOCATION_ACROSS2' : ['self.locationAcross2', 'float','mandatory'], 
-            'LOCATION_ACROSS_OFFSET2' : ['self.locationAcrossOffset2', 'float','mandatory'], 
-            'LOCATION_DOWN2' : ['self.locationDown2', 'float','mandatory'], 
-            'LOCATION_DOWN_OFFSET2' : ['self.locationDownOffset2', 'float','mandatory'], 
-            'SNR2' : ['self.snr2', 'float','mandatory'] 
-            }
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
         return None
 
     def createPorts(self):

@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2012 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2012 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,7 +29,7 @@
 
 extern "C"
 {
-    void correct_f(uint64_t *,uint64_t *,uint64_t *,uint64_t *);
+    void correct_f(uint64_t *,uint64_t *,uint64_t *,uint64_t *,uint64_t *,uint64_t *);
     PyObject * correct_C(PyObject *, PyObject *);
     void setReferenceOrbit_f(double *, int *);
     void allocate_s_mocompArray_f(int *);
@@ -100,12 +100,8 @@ extern "C"
     void deallocate_smsch_f();
     PyObject * allocate_smsch_C(PyObject *, PyObject *);
     PyObject * deallocate_smsch_C(PyObject *, PyObject *);
-    PyObject * allocate_dopcoeff_C(PyObject *, PyObject *);
-    PyObject * deallocate_dopcoeff_C(PyObject *, PyObject *);
-    void allocate_dopcoeff_f(int *);
-    void deallocate_dopcoeff_f();
     PyObject * setDopCoeff_C(PyObject * ,PyObject *);
-    void setDopCoeff_f(double *, int *);
+    void setDopCoeff_f(uint64_t *);
     PyObject * setSc_C(PyObject *, PyObject *);
     void setLookSide_f(int *);
     PyObject * setLookSide_C(PyObject*, PyObject*);
@@ -154,8 +150,6 @@ static PyMethodDef correct_methods[] =
     {"allocate_smsch_Py", allocate_smsch_C, METH_VARARGS, " "},
     {"deallocate_smsch_Py", deallocate_smsch_C, METH_VARARGS, " "},
     {"setSc_Py", setSc_C, METH_VARARGS, " "},
-    {"allocate_dopcoeff_Py", allocate_dopcoeff_C, METH_VARARGS, " "},
-    {"deallocate_dopcoeff_Py", deallocate_dopcoeff_C, METH_VARARGS, " "},
     {"setDopCoeff_Py", setDopCoeff_C, METH_VARARGS, " "},
     {"setLookSide_Py", setLookSide_C, METH_VARARGS, " "},
     {NULL, NULL, 0, NULL}

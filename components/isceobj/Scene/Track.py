@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 #
-#Copyright 2010, by the California Institute of Technology. 
-#ALL RIGHTS RESERVED. 
-#United States Government Sponsorship acknowledged. 
-#Any commercial use must be negotiated with the Office of 
+#Copyright 2010, by the California Institute of Technology.
+#ALL RIGHTS RESERVED.
+#United States Government Sponsorship acknowledged.
+#Any commercial use must be negotiated with the Office of
 #Technology Transfer at the California Institute of Technology.
 #
-#This software may be subject to U.S. export control laws. By 
-#accepting this software, the user agrees to comply with all applicable 
-#U.S. export laws and regulations. User has the responsibility to obtain 
-#export licenses, or other export authority as may be required before 
-#exporting such information to foreign countries or providing access 
+#This software may be subject to U.S. export control laws. By
+#accepting this software, the user agrees to comply with all applicable
+#U.S. export laws and regulations. User has the responsibility to obtain
+#export licenses, or other export authority as may be required before
+#exporting such information to foreign countries or providing access
 #to foreign persons.
 #
 import isce
@@ -38,13 +38,13 @@ class Track(object):
     def __init__(self):
         # These are attributes representing the starting time and stopping
         # time of the track
-        # As well as the early and late times (range times) of the track 
+        # As well as the early and late times (range times) of the track
         self._startTime = datetime.datetime(year=datetime.MAXYEAR,month=1,day=1)
         self._stopTime = datetime.datetime(year=datetime.MINYEAR,month=1,day=1)
         # Hopefully this number is large
         # enough, Python doesn't appear to have a MAX_FLT variable
         self._nearRange = float_info.max
-        self._farRange = 0.0 
+        self._farRange = 0.0
         self._frames = []
         self._frame = Frame()
         self._lastFile = ''
@@ -64,7 +64,7 @@ class Track(object):
         if attitudeOk:
             self.createAttitude()
         return self._frame
-    
+
     def createAuxFile(self, fileList, output):
         import struct
         from operator import itemgetter
@@ -124,9 +124,9 @@ class Track(object):
         self._updateTrackTimes(frame)
         self._frames.append(frame)
         return None
-       
+
     def createOrbit(self):
-        orbitAll = Orbit() 
+        orbitAll = Orbit()
         for i in range(len(self._frames)):
             orbit = self._frames[i].getOrbit()
             #remember that everything is by reference, so the changes applied to orbitAll will be made to the Orbit
@@ -135,9 +135,9 @@ class Track(object):
                 orbitAll.addStateVector(sv)
             # sort the orbit state vecotrs according to time
             orbitAll._stateVectors.sort(key=lambda sv: sv.time)
-        self.removeDuplicateVectors(orbitAll._stateVectors)    
+        self.removeDuplicateVectors(orbitAll._stateVectors)
         self._frame.setOrbit(orbitAll)
-    
+
     def removeDuplicateVectors(self,stateVectors):
         i1 = 0
         #remove duplicate state vectors
@@ -149,10 +149,10 @@ class Track(object):
             #since is sorted by time if is not equal we can pass to the next
             else:
                 i1 += 1
-                
-                
+
+
     def createAttitude(self):
-        attitudeAll = Attitude() 
+        attitudeAll = Attitude()
         for i in range(len(self._frames)):
             attitude = self._frames[i].getAttitude()
             #remember that everything is by reference, so the changes applied to attitudeAll will be made to the Attitude object in self.frame
@@ -160,9 +160,9 @@ class Track(object):
                 attitudeAll.addStateVector(sv)
             # sort the attitude state vecotrs according to time
             attitudeAll._stateVectors.sort(key=lambda sv: sv.time)
-        self.removeDuplicateVectors(attitudeAll._stateVectors)    
+        self.removeDuplicateVectors(attitudeAll._stateVectors)
         self._frame.setAttitude(attitudeAll)
-    
+
     def createInstrument(self):
         # the platform is already part of the instrument
         ins = self._frames[0].getInstrument()
@@ -178,14 +178,14 @@ class Track(object):
     #returns a more accurate line1
     def findOverlapLine(self, file1, file2, line1,width,frameNum1,frameNum2):
         import numpy as np
-        import array 
+        import array
         fin2 = open(file2,'rb')
         arr2 = array.array('b')
         #read full line at the beginning of second file
         arr2.fromfile(fin2,width)
         buf2 = np.array(arr2,dtype = np.int8)
         numTries = 30
-        # start around line1 and try numTries around line1 
+        # start around line1 and try numTries around line1
         # see searchlist to see which lines it searches
         searchNumLines = 2
         #make a sliding window that search for the searchSize samples inside buf2
@@ -220,6 +220,7 @@ class Track(object):
             self.logger.warning("Cannot find perfect overlap between frame %d and frame %d. Using acquisition time to find overlap position."%(frameNum1,frameNum2))
         fin1.close()
         fin2.close()
+        print('Match found: ', indx)
         return indx
 
     def reAdjustStartLine(self, sortedList, width):
@@ -246,9 +247,9 @@ class Track(object):
 
         return startLine,outputs
 
-            
 
-    # Create the actual Track data by concatenating data from 
+
+    # Create the actual Track data by concatenating data from
     # all of the Frames objects together
     def createTrack(self,output):
         import os
@@ -258,7 +259,7 @@ class Track(object):
         lib = cdll.LoadLibrary(os.path.dirname(__file__)+'/concatenate.so')
         # Perhaps we should check to see if Xmin is 0, if it is not, strip off the header
         self.logger.info("Adjusting Sampling Window Start Times for all Frames")
-        # Iterate over each frame object, and calculate the number of samples with which to pad it on the left and right        
+        # Iterate over each frame object, and calculate the number of samples with which to pad it on the left and right
         outputs = []
         totalWidth = 0
         auxList = []
@@ -268,18 +269,23 @@ class Track(object):
             thisFarRange = frame.getFarRange()
             left_pad = int(round(
                 (thisNearRange - self._nearRange)*
-                frame.getInstrument().getRangeSamplingRate()/(CN.SPEED_OF_LIGHT/2.0)))
-            right_pad = int(round((self._farRange - thisFarRange)*frame.getInstrument().getRangeSamplingRate()/(CN.SPEED_OF_LIGHT/2.0)))            
+                frame.getInstrument().getRangeSamplingRate()/(CN.SPEED_OF_LIGHT/2.0)))*2
+            right_pad = int(round((self._farRange - thisFarRange)*frame.getInstrument().getRangeSamplingRate()/(CN.SPEED_OF_LIGHT/2.0)))*2
             width = frame.getImage().getXmax()
+            if width - int(width) != 0:
+                raise ValueError("frame Xmax is not an integer")
+            else:
+                width = int(width)
+
             input = frame.getImage().getFilename()
 #            tempOutput = os.path.basename(os.tmpnam()) # Some temporary filename
             with tempfile.NamedTemporaryFile(dir='.') as f:
                 tempOutput = f.name
 
             pad_value = int(frame.getInstrument().getInPhaseValue())
-            
-            if totalWidth < left_pad + width + right_pad: 
-                totalWidth = left_pad + width + right_pad             
+
+            if totalWidth < left_pad + width + right_pad:
+                totalWidth = left_pad + width + right_pad
             # Resample this frame with swst_resample
             input_c = c_char_p(bytes(input,'utf-8'))
             output_c = c_char_p(bytes(tempOutput,'utf-8'))
@@ -290,59 +296,59 @@ class Track(object):
             lib.swst_resample(input_c,output_c,byref(width_c),byref(left_pad_c),byref(right_pad_c),byref(pad_value_c))
             outputs.append(tempOutput)
             auxList.append(frame.auxFile)
-        
-        #this step construct the aux file withe the pulsetime info for the all set of frames 
+
+        #this step construct the aux file withe the pulsetime info for the all set of frames
         self.createAuxFile(auxList,output + '.aux')
         # This assumes that all of the frames to be concatenated are sampled at the same PRI
-        prf = self._frames[0].getInstrument().getPulseRepetitionFrequency()        
-        # Calculate the starting output line of each scene        
+        prf = self._frames[0].getInstrument().getPulseRepetitionFrequency()
+        # Calculate the starting output line of each scene
         i = 0
         lineSort = []
         # the listSort has 2 elements: a line start number which is the position of that specific frame
         # computed from acquisition time and the  corresponding file name
-        for frame in self._frames:                                                                                        
+        for frame in self._frames:
             startLine = int(round(DTU.timeDeltaToSeconds(frame.getSensingStart()-self._startTime)*prf))
-            lineSort.append([startLine,outputs[i]]) 
+            lineSort.append([startLine,outputs[i]])
             i += 1
-        
+
         sortedList = sorted(lineSort, key=itemgetter(0)) # sort by line number i.e. acquisition time
         startLines, outputs = self.reAdjustStartLine(sortedList,totalWidth)
-        
-        
+
+
         self.logger.info("Concatenating Frames along Track")
         # this is a hack since the length of the file could be actually different from the one computed using start and stop time. it only matters the last frame added
         import os
-                
+
         fileSize = os.path.getsize(outputs[-1])
 
         numLines = fileSize//totalWidth + startLines[-1]
         totalLines_c = c_int(numLines)
-        # Next, call frame_concatenate        
+        # Next, call frame_concatenate
         width_c = c_int(totalWidth) # Width of each frame (with the padding added in swst_resample)
         numberOfFrames_c = c_int(len(self._frames))
         inputs_c = (c_char_p * len(outputs))() # These are the inputs to frame_concatenate, but the outputs from swst_resample
         for kk in range(len(outputs)):
             inputs_c[kk] = bytes(outputs[kk],'utf-8')
-        output_c = c_char_p(bytes(output,'utf-8')) 
+        output_c = c_char_p(bytes(output,'utf-8'))
         startLines_c = (c_int * len(startLines))()
         startLines_c[:] = startLines
         lib.frame_concatenate(output_c,byref(width_c),byref(totalLines_c),byref(numberOfFrames_c),inputs_c,startLines_c)
-        
+
         # Clean up the temporary output files from swst_resample
         for file in outputs:
             os.unlink(file)
-        
+
         orbitNum = self._frames[0].getOrbitNumber()
-        first_line_utc = self._startTime            
+        first_line_utc = self._startTime
         last_line_utc = self._stopTime
-        centerTime = DTU.timeDeltaToSeconds(last_line_utc-first_line_utc)/2.0            
+        centerTime = DTU.timeDeltaToSeconds(last_line_utc-first_line_utc)/2.0
         center_line_utc = first_line_utc + datetime.timedelta(microseconds=int(centerTime*1e6))
         procFac = self._frames[0].getProcessingFacility()
         procSys = self._frames[0].getProcessingSystem()
         procSoft = self._frames[0].getProcessingSoftwareVersion()
         pol = self._frames[0].getPolarization()
         xmin = self._frames[0].getImage().getXmin()
-        
+
 
         self._frame.setOrbitNumber(orbitNum)
         self._frame.setSensingStart(first_line_utc)
@@ -361,22 +367,22 @@ class Track(object):
         rawImage.setByteOrder('l')
         rawImage.setFilename(output)
         rawImage.setAccessMode('r')
-        rawImage.setWidth(totalWidth)                            
+        rawImage.setWidth(totalWidth)
         rawImage.setXmax(totalWidth)
-        rawImage.setXmin(xmin)        
+        rawImage.setXmin(xmin)
         self._frame.setImage(rawImage)
-        
+
 
     # Extract the early, late, start and stop times from a Frame object
     # And use this information to update
     def _updateTrackTimes(self,frame):
-        
+
         if (frame.getSensingStart() < self._startTime):
             self._startTime = frame.getSensingStart()
         if (frame.getSensingStop() > self._stopTime):
             self._stopTime = frame.getSensingStop()
         if (frame.getStartingRange() < self._nearRange):
-            self._nearRange = frame.getStartingRange()        
+            self._nearRange = frame.getStartingRange()
         if (frame.getFarRange() > self._farRange):
             self._farRange = frame.getFarRange()
             pass

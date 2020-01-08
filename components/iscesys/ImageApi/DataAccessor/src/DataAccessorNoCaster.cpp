@@ -9,6 +9,7 @@ int DataAccessorNoCaster::getLine(char * buf, int pos)
     Accessor->getData(buf,pos,0,width);
     return  Accessor->getEofFlag();
 }
+
 int DataAccessorNoCaster::getLineBand(char * buf, int pos, int band)
 {
     int width = LineWidth;
@@ -80,4 +81,22 @@ void DataAccessorNoCaster::finalize()
     Accessor->finalize();
     delete Accessor;
 
+}
+double DataAccessorNoCaster::getPx2d(int row, int col)
+{
+    double ret = 0;
+    int numEl = 1;
+    //NOTE: the forth arg is a reference so we cannot put just the number 1
+    Accessor->getData((char *)&ret,row,col,numEl);
+
+    return ret;
+}
+double DataAccessorNoCaster::getPx1d(int pos)
+{
+    double ret = 0;
+    int numEl = 1;
+    //NOTE: the forth arg is a reference so we cannot put just the number 1
+    Accessor->getData((char *)&ret,0,pos,numEl);
+
+    return ret;
 }

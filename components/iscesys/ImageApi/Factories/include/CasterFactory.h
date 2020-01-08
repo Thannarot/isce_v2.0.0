@@ -28,6 +28,7 @@
 #include "FloatToLongCpxCaster.h"
 #include "FloatToShortCaster.h"
 #include "FloatToShortCpxCaster.h"
+#include "FloatToByteCaster.h"
 #include "IntToDoubleCaster.h"
 #include "IntToDoubleCpxCaster.h"
 #include "IntToFloatCaster.h"
@@ -52,7 +53,8 @@
 #include "ShortToIntCpxCaster.h"
 #include "ShortToLongCaster.h"
 #include "ShortToLongCpxCaster.h"
-
+#include "ByteToFloatCaster.h"
+#include "IQByteToFloatCpxCaster.h"
 using namespace std;
 
 class CasterFactory

@@ -69,9 +69,8 @@ class DictUtils:
     # If the key exists and replace = True, then the value is overwritten 
     # otherwise it is appended. 
     # If it does not exist a new node is created. 
-    # If spare (a list of key or single key) is defined the values of these 
-    # keys will be appended and if replace is True it will append the value
-    # to the keys in spare. Use it only for str values, i.e. for doc string
+    # When replace is True if spare (a list of key or single key) is defined the values of these 
+    # keys will be appended if they are not already present. Use it only for str values, i.e. for doc string
     def updateDictionary(dict1,dict2,replace = None,spare = None):
         if replace is None:
             replace = False
@@ -80,6 +79,7 @@ class DictUtils:
                 spare = [spare]
         else:
             spare = []
+       
         # dict1 is the one to update
         for k2,v2 in dict2.items():
             if DictUtils.keyIsIn(k2,dict1):
@@ -88,10 +88,10 @@ class DictUtils:
                 else:
                     if replace:#replace the entry
                         append = False
-                        if spare.count(k2): #check if the key needs to be spared
+                        if k2 in spare: #check if the key needs to be spared
                             append = True
                             if isinstance(dict1[k2],list):
-                                if dict1[k2].count(v2): # if so then append the content
+                                if v2  in dict1[k2]: # if so then append the content
                                     append = False
                                     break
                             else:
@@ -105,12 +105,15 @@ class DictUtils:
                                 v2 = [v2]
                             if not isinstance(dict1[k2],list):
                                 dict1[k2] = [dict1[k2]]
-                            dict1[k2].extend(v2)
+                            #do not append if already there
+                            for v22 in v2:
+                                if v22 not in dict1[k2]:
+                                    dict1[k2].append(v22)
                         else:    
                             dict1.update({k2:v2})
                     else:#update only if is not the same item or the item is not already present (if dict1[k2] is a list)
                         if isinstance(dict1[k2],list):
-                            if dict1[k2].count(v2): # if so then append the content
+                            if v2 not in dict1[k2]: # if so then append the content
                                 dict1[k2].append(v2) 
                         else:
                             if dict1[k2] != v2:

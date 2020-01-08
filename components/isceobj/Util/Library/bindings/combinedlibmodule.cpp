@@ -5,7 +5,7 @@
 #include <string>
 using namespace std;
 
-static char * const __doc__ = "module for combined lib";
+static const char * const __doc__ = "module for combined lib";
 
 PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
@@ -68,7 +68,7 @@ PyObject* exportOrbitToC(PyObject* self, PyObject* args)
 
         for(j=0;j<7;j++)
         {
-            PyObject *val = PyList_GetItem(list, j);
+            PyObject *val = PyList_GetItem(listEl, j);
             if(val == NULL)
             {
                 cout << "Error retrieving state vector entry " << j << " at " << __FILE__ << endl;
@@ -179,7 +179,7 @@ PyObject* exportPoly2DToC(PyObject *self, PyObject *args)
     PyObject* list;
     int nx, ny;
     double val;
-    
+
     if(!PyArg_ParseTuple(args, "OOOO", &ord, &avg, &norm, &list))
     {
         return NULL;
@@ -190,7 +190,7 @@ PyObject* exportPoly2DToC(PyObject *self, PyObject *args)
         cout << "Expected 1st argument to be a list of 2 integers at " << __FILE__ << endl;
         exit(1);
     }
-    
+
     for(int i=0; i<2; i++)
     {
         PyObject* listEl = PyList_GetItem(ord, i);
@@ -487,28 +487,49 @@ PyObject* importOrbitFromC(PyObject *self, PyObject* args)
     {
         return NULL;
     }
-    orb = (cOrbit*) orb;
+    orb = (cOrbit*) cptr;
 
     PyObject* list2d = PyList_New(orb->nVectors);
     for(int i=0; i< (orb->nVectors); i++)
     {
         getStateVector(orb, i, &tim, pos, vel);
+
+//        cout << "Index: " << i << " out of " << orb->nVectors << "\n";
+//        cout << "Time: " << tim << "\n";
+//        cout << "Position: "<< pos[0] << " " << pos[1] << " " << pos[2] << "\n";
+//        cout << "Velocity: "<< vel[0] << " " << vel[1] << " " << vel[2] << "\n";
+
         PyObject* list= PyList_New(7);
+        if(PyErr_Occurred() != NULL)
+        {
+            PyErr_Print();
+            cout << "Could not create a list out of a single state vector"<<endl;
+            exit(1);
+        }
 
         PyObject* obj = PyFloat_FromDouble(tim);
         if(PyErr_Occurred() != NULL)
         {
+            PyErr_Print();
             cout << "Error in converting time to list element at " << __FILE__ << endl;
             exit(1);
         }
 
-        PyList_SetItem(list, i, obj);
-        
+        PyList_SetItem(list, 0, obj);
+        if(PyErr_Occurred() != NULL)
+        {
+            PyErr_Print();
+            cout << "Error in converting time to list element at " << __FILE__ << endl;
+            exit(1);
+        }
+
+
         for(int j=0; j<3; j++)
         {
             PyObject *num = PyFloat_FromDouble(pos[j]);
             if(PyErr_Occurred() != NULL)
             {
+                PyErr_Print();
                 cout << "Error in converting positions to list elements at " << __FILE__ << endl;
                 exit(1);
             }
@@ -520,6 +541,7 @@ PyObject* importOrbitFromC(PyObject *self, PyObject* args)
             PyObject *num = PyFloat_FromDouble(vel[j]);
             if(PyErr_Occurred() != NULL)
             {
+                PyErr_Print();
                 cout << "Error in converting velocities to list elements at " << __FILE__ << endl;
                 exit(1);
             }

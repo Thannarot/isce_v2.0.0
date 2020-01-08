@@ -96,6 +96,7 @@ double evalPoly1d(cPoly1d* poly, double xin)
     scalex = 1.0;
     for(i = 0; i <= poly->order; i++,scalex*=xval)
     {
+
         value += scalex*getCoeff1d(poly,i);
     }
 

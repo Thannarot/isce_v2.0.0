@@ -18,12 +18,6 @@ void InterleavedAccessor::finalize()
     }
 }
 
-//assume that the init has been already called
-void InterleavedAccessor::alloc(int numLines)
-{
-    Data = new char[LineWidth*SizeV*Bands*numLines];
-    NumberOfLines = numLines;
-}
 
 void InterleavedAccessor::init(string filename, string accessMode, int sizeV,int bands,int width)
 {
@@ -34,8 +28,8 @@ void InterleavedAccessor::init(string filename, string accessMode, int sizeV,int
 
     Filename = filename;
     openFile(Filename,AccessMode, FileObject);
-    if(AccessMode != "write")// if file is readable so can use tellg
-    {
+    //if(AccessMode != "write")// if file is readable so can use tellg
+    //{
         streampos save = FileObject.tellg();
         FileObject.seekg(0,ios::end);
         streampos size = FileObject.tellg();
@@ -52,16 +46,16 @@ void InterleavedAccessor::init(string filename, string accessMode, int sizeV,int
             FileObject.clear();
         }
         FileObject.seekg(save); // put back original position
-    }
+    //}
 
 }
+
 void InterleavedAccessor::rewindAccessor()
 {
     
     FileObject.clear();
     if(FileObject && AccessMode != "write")// if file is readable 
     {
-        
         FileObject.seekg(0,ios::end);
     } 
     EofFlag = 0;
@@ -69,7 +63,7 @@ void InterleavedAccessor::rewindAccessor()
 int InterleavedAccessor::getFileLength()
 {
     int length = 0;
-    if(AccessMode == "write")
+    if(AccessMode == "write" || AccessMode == "writeread")
     {
         streampos save = FileObject.tellp();
         FileObject.seekp(0,ios::end);
@@ -108,35 +102,7 @@ void InterleavedAccessor::createFile(int numberOfLines)
     }
     NumberOfLines = numberOfLines;
 }
-void InterleavedAccessor::setAccessMode(string accessMode)
-{
-    if(accessMode == "read" || accessMode == "READ")
-    {
-        AccessMode = "read";
-    }
-    else if(accessMode == "write" || accessMode == "WRITE")
-    {
-        AccessMode = "write";
-    }
-    else if(accessMode == "append" || accessMode == "APPEND")
-    {
-        AccessMode = "append";
-    }
-    else if(accessMode == "writeread" || accessMode == "WRITEREAD")
-    {
-        AccessMode = "writeread";
-    }
-    else if(accessMode == "readwrite" || accessMode == "READWRITE")
-    {
-        AccessMode = "readwrite";
-    }
-    else
-    {
-        cout << "Error. Unrecognized open mode " << accessMode  << endl;
-        ERR_MESSAGE;
-    }
 
-}
 void  InterleavedAccessor::openFile(string filename, string accessMode, fstream & fd)
 {
     if(accessMode == "read" || accessMode == "READ")
@@ -171,7 +137,7 @@ void  InterleavedAccessor::openFile(string filename, string accessMode, fstream 
         cout << "Error. Unrecognized open mode " << accessMode << " for file " << filename << endl;
         ERR_MESSAGE;
     }
-    if(!fd)
+    if(!fd.good())
     {
         cout << "Cannot open file " << filename << endl;
         ERR_MESSAGE;

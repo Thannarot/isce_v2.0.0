@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -33,9 +33,9 @@ from isceobj.Util.decorators import port, logged, pickled
 
 ORBIT_POSITION = Component.Parameter(
     'orbitPosition',
-    public_name='orbit xyz position vectors',
+    public_name='orbit position',
     default=[],
-    type=list,
+    type=float,
     units='m',
     mandatory=True,
     doc="Orbit xyz position vectors"
@@ -43,9 +43,9 @@ ORBIT_POSITION = Component.Parameter(
 
 ORBIT_VELOCITY = Component.Parameter(
     'orbitVelocity',
-    public_name='orbit xyz velocity vectors',
+    public_name='orbit velocity ',
     default=[],
-    type=list,
+    type=float,
     units='m/s',
     mandatory=True,
     doc="Orbit xyz velocity vectors"
@@ -53,7 +53,7 @@ ORBIT_VELOCITY = Component.Parameter(
 
 PLANET_GM = Component.Parameter(
     'planetGM',
-    public_name='planet GM (m**3/s**2)',
+    public_name='planet GM',
     type=float,
     default= CN.EarthGM,
     units='m**3/s**2',
@@ -63,7 +63,7 @@ PLANET_GM = Component.Parameter(
 
 ELLIPSOID_MAJOR_SEMIAXIS = Component.Parameter(
     'ellipsoidMajorSemiAxis',
-    public_name='ellipsoid semi major axis (m)',
+    public_name='ellipsoid semi major axis',
     type=float,
     default=CN.EarthMajorSemiAxis,
     units='m',
@@ -96,7 +96,7 @@ COMPUTE_PEG_INFO_FLAG = Component.Parameter(
 
 PEG_LATITUDE = Component.Parameter(
     'pegLatitude',
-    public_name='peg latitude (rad)',
+    public_name='peg latitude',
     default=0.,
     units='rad',
     type=float,
@@ -106,7 +106,7 @@ PEG_LATITUDE = Component.Parameter(
 
 PEG_LONGITUDE = Component.Parameter(
     'pegLongitude',
-    public_name='peg longitude (rad)',
+    public_name='peg longitude',
     default=0.,
     units='rad',
     type=float,
@@ -116,7 +116,7 @@ PEG_LONGITUDE = Component.Parameter(
 
 PEG_HEADING = Component.Parameter(
     'pegHeading',
-    public_name='peg heading (rad)',
+    public_name='peg heading',
     default=0.,
     units='rad',
     type=float,
@@ -126,16 +126,61 @@ PEG_HEADING = Component.Parameter(
 
 AVERAGE_HEIGHT = Component.Parameter(
     'averageHeight',
-    public_name='average height (m)',
+    public_name='average height',
     default=0,
     units='m',
     type=float,
     mandatory=False,
     doc="Average orbital hieght; used only if compute peg flag = -1"
     )
+SCH_GRAVITATIONAL_ACCELERATION = Component.Parameter(
+    'acceleration',
+    public_name='SCH_GRAVITATIONAL_ACCELERATION',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+SCH_POSITION = Component.Parameter(
+    'position',
+    public_name='SCH_POSITION',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+SCH_VELOCITY = Component.Parameter(
+    'velocity',
+    public_name='SCH_VELOCITY',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
 
 class Orbit2sch(Component):
-    
+    parameter_list = (
+                    ORBIT_POSITION,
+                    ORBIT_VELOCITY,
+                    PLANET_GM,
+                    ELLIPSOID_MAJOR_SEMIAXIS,
+                    ELLIPSOID_ECCENTRICITY_SQUARED,
+                    COMPUTE_PEG_INFO_FLAG,
+                    PEG_LATITUDE,
+                    PEG_LONGITUDE,
+                    AVERAGE_HEIGHT,
+                    PEG_HEADING,
+                    SCH_GRAVITATIONAL_ACCELERATION,
+                    SCH_POSITION,
+                    SCH_VELOCITY
+                    )
     ## An imperative flag? REFACTOR.
     computePegInfoFlag = -1 #false by default 
 
@@ -159,43 +204,19 @@ class Orbit2sch(Component):
 
         self._time = None
         self._orbit = None
-        self.orbitPosition = []
         self.dim1_orbitPosition = None
         self.dim2_orbitPosition = None
-        self.orbitVelocity = []
         self.dim1_orbitVelocity = None
         self.dim2_orbitVelocity = None
-        self.pegLatitude = None
-        self.pegLongitude = None
-        self.pegHeading = None
-        
-        self.position = []
+                
         self.dim1_position = None
         self.dim2_position = None
-        self.velocity = []
         self.dim1_velocity = None
         self.dim2_velocity = None
-        self.acceleration = []
         self.dim1_acceleration = None
         self.dim2_acceleration = None
         self.logger = logging.getLogger('isce.orbit2sch')
-        self.dictionaryOfOutputVariables = {'SCH_POSITION' : 'self.position', 
-	
-                                            'SCH_VELOCITY':'self.velocity',
-	 
-                                            'SCH_GRAVITATIONAL_ACCELERATION':'self.acceleration'}
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
+        
         return
 
     def createPorts(self):
@@ -344,7 +365,7 @@ class Orbit2sch(Component):
             self.dim2_orbitVelocity = len(self.orbitVelocity[0])
 
         if (not self.dim1_orbitVelocity) or (not self.dim2_orbitVelocity):
-            raise Value("Error. Trying to allocate zero size array")
+            raise ValueError("Error. Trying to allocate zero size array")
 
         orbit2sch.allocate_vxyz_Py(self.dim1_orbitVelocity, 
                                    self.dim2_orbitVelocity)
@@ -411,7 +432,7 @@ class Orbit2sch(Component):
     def time(self):
         return self._time
     @time.setter
-    def time(self):
+    def time(self,time):
         self.time = time
         return None
 

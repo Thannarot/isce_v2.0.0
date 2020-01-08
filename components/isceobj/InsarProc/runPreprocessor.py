@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,39 +23,41 @@ import logging
 import isceobj
 import mroipac
 from mroipac.baseline.Baseline import Baseline
+from isceobj.Util.decorators import use_api
 logger = logging.getLogger('isce.insar.runPreprocessor')
-
+@use_api
 def runPreprocessor(self):
-     
     master = make_raw(self.master, self.masterdop)
+    self.insar.rawMasterIQImage = master.iqImage
     slave = make_raw(self.slave, self.slavedop)
+    self.insar.rawSlaveIQImage = slave.iqImage
     self._insar.numberRangeBins = master.frame.numberRangeBins
     #add raw images to main object
     masterRaw = initRawImage(master)
     self._insar.setMasterRawImage(masterRaw)
     slaveRaw = initRawImage(slave)
     self._insar.setSlaveRawImage(slaveRaw)
-    
+
     #add frames to main  object
     self._insar.setMasterFrame(master.frame)
     self._insar.setSlaveFrame(slave.frame)
-    
+
     #add doppler to main object
     self._insar.setMasterDoppler(master.getDopplerValues())
     self._insar.setSlaveDoppler(slave.getDopplerValues())
-    
+
     #add squints to main object
     self._insar.setMasterSquint(master.getSquint())
     self._insar.setSlaveSquint(slave.getSquint())
 
     #add look direction
     self._insar.setLookSide(master.frame.getInstrument().getPlatform().pointingDirection)
-    
+
     catalog = isceobj.Catalog.createCatalog(self._insar.procDoc.name)
 
     frame = self._insar.getMasterFrame()
     instrument = frame.getInstrument()
-    platform = instrument.getPlatform()    
+    platform = instrument.getPlatform()
 
     planet = platform.getPlanet()
     catalog.addInputsFrom(planet, 'planet')
@@ -76,11 +78,11 @@ def runPreprocessor(self):
     catalog.addInputsFrom(frame, 'master.frame')
     catalog.addInputsFrom(instrument, 'master.instrument')
     catalog.addInputsFrom(platform, 'master.platform')
-
+    catalog.addInputsFrom(frame.orbit, 'master.orbit')
 
     frame = self._insar.getSlaveFrame()
     instrument = frame.getInstrument()
-    platform = instrument.getPlatform()    
+    platform = instrument.getPlatform()
 
     catalog.addInputsFrom(slave.sensor, 'slave.sensor')
     catalog.addItem('width', slaveRaw.getWidth(), 'slave')
@@ -97,12 +99,32 @@ def runPreprocessor(self):
     catalog.addInputsFrom(frame, 'slave.frame')
     catalog.addInputsFrom(instrument, 'slave.instrument')
     catalog.addInputsFrom(platform, 'slave.platform')
+    catalog.addInputsFrom(frame.orbit, 'slave.orbit')
 
 
-    baseObj = Baseline()
-    baseObj.wireInputPort(name='masterFrame',object=self._insar.getMasterFrame())
-    baseObj.wireInputPort(name='slaveFrame',object=self._insar.getSlaveFrame())
-    baseObj.baseline()
+    optlist = ['all', 'top', 'middle', 'bottom']
+    success=False
+    baseLocation = None
+
+    for option in optlist:
+        baseObj = Baseline()
+        baseObj.configure()
+        baseObj.baselineLocation = option
+        baseObj.wireInputPort(name='masterFrame',object=self._insar.getMasterFrame())
+        baseObj.wireInputPort(name='slaveFrame',object=self._insar.getSlaveFrame())
+        try:
+            baseObj.baseline()
+            success=True
+            baseLocation=option
+        except:
+            print('Baseline computation with option {0} Failed'.format(option))
+            pass
+
+        if success:
+            break
+
+    if not success:
+        raise Exception('Baseline computation failed with all possible options. Images may not overlap.')
 
     catalog.addItem('horizontal_baseline_top', baseObj.hBaselineTop, 'baseline')
     catalog.addItem('horizontal_baseline_rate', baseObj.hBaselineRate, 'baseline')
@@ -112,6 +134,7 @@ def runPreprocessor(self):
     catalog.addItem('vertical_baseline_acc', baseObj.vBaselineAcc, 'baseline')
     catalog.addItem('perp_baseline_top', baseObj.pBaselineTop, 'baseline')
     catalog.addItem('perp_baseline_bottom', baseObj.pBaselineBottom, 'baseline')
+    catalog.addItem('baseline_location', baseLocation, 'baseline')
 
     catalog.printToLog(logger, "runPreprocessor")
     self._insar.procDoc.addAllFromCatalog(catalog)
@@ -137,7 +160,7 @@ def initRawImage(makeRawObj):
         logger.debug("good_bytes_per_line: %s" % (goodBytes))
         objRaw = createRawImage()
         objRaw.setFilename(filename)
-        
+
         objRaw.setNumberGoodBytes(goodBytes)
         objRaw.setWidth(bytesPerLine)
         objRaw.setXmin(makeRawObj.frame.getImage().getXmin())

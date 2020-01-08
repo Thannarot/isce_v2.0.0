@@ -13,10 +13,11 @@
   integer*8 imageInAccessor, imageOutAccessor
   real*8::dr
   real::t0,t1
-  
+
+  integer :: ipatch
   integer :: i,j,k,lineNumber  ! counter variable
   integer,allocatable::rangeline(:)
-  integer,allocatable::rs(:,:),as(:,:) !the validity annotation 
+  integer,allocatable::rs(:,:),as(:,:) !the validity annotation
   real*8::fd,fdd,fddd
   real,allocatable::slc(:,:)
   double precision :: pi,sol
@@ -40,8 +41,8 @@
   allocate(s_mocomp(naz))
   allocate(t_mocomp(naz))
   allocate(i_mocomp(naz))
-   
-  !copy the sch position into an array share in arraymodule 
+
+  !copy the sch position into an array share in arraymodule
   do i = 1,dim1_sch
     do j = 1,dim2_sch
       schMoc(i,j) = sch(i,j)
@@ -54,6 +55,9 @@
   t0=secnds(0.0)
   pi = getPI()
   sol = getSpeedOfLight()
+
+  !!Set up SCH basis
+  call radar_to_xyz(elp, peg, ptm)
 
   fd = dopplerCentroidCoefficients(1)
   fdd = dopplerCentroidCoefficients(2)
@@ -88,18 +92,30 @@
      !write(22,rec=j) slc(:,j)
   !enddo
   !close(22)
-  
+
+  slcSensingStart = sensingStart
+
   do j=1,naz
     !call setLineSequential(imageOutAccessor,slc(:,j))
 
     call setLineSequential(imageOutAccessor,trans1(:,j))
-  enddo 
+  enddo
   !the mocompPositionSize is passed back to the python module so it can allocate the
   !right dimension when retrieving the data from fortran
   do k=1,dim2_sch
      if(i_mocomp(k).eq.0)exit
      mocompPositionSize = k
   end do
+
+!!  Create mocomp orbit here before exiting - PSA
+  ipatch = nr/2
+  rho_mocomp = r0 + (ipatch-1) * dr
+  print *, 'Range for mocomping: ', rho_mocomp
+
+  call estMocompOrbit(rho_mocomp,ht,rcurv,wvl,vel,fd,fdd, &
+             fddd,ilrl,orbit,ptm,mocompOrbit)
+
+
   t1=secnds(t0)
   print *,'Writing slc file uses',t1,'seconds'
   deallocate(schMoc)
@@ -110,4 +126,4 @@
   deallocate(as)
 
 
-end subroutine 
+end subroutine

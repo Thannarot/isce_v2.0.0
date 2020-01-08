@@ -16,6 +16,7 @@ class PRC(object):
         self.lastEpoch = 0
         self.tdtOffset = 0
         self.orbit = Orbit()
+        self.orbit.configure()
         self.orbit.setOrbitQuality('Precise')
         self.orbit.setOrbitSource('PRC')
         return None
@@ -41,7 +42,7 @@ class PRC(object):
 
     def __parseLine(self,line):
         """Parse a line from a PRC orbit file"""
-        referenceFrame = line[0:6]
+        referenceFrame = line[0:6].decode('utf-8')
         if (referenceFrame == 'STATE '):
             self.__parseStateLine(line)
         if (referenceFrame == 'STTERR'):
@@ -62,6 +63,7 @@ class PRC(object):
         dt = self.__j2000ToDatetime(j2000Day,tdt)
 
         sv = StateVector()
+        sv.configure()
         sv.setTime(dt)
         sv.setPosition([x,y,z])
         sv.setVelocity([vx,vy,vz])

@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2012 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2012 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,7 +30,7 @@
 #include <vector>
 using namespace std;
 
-static char * const __doc__ = "Python extension for correct.F";
+static const char * const __doc__ = "Python extension for correct.F";
 
 PyModuleDef moduledef = {
     //header
@@ -163,24 +163,6 @@ PyObject * allocate_smsch_C(PyObject* self, PyObject* args)
     return Py_BuildValue("i", 0);
 }
 
-PyObject * allocate_dopcoeff_C(PyObject *self, PyObject *args)
-{
-    int dim1 = 0;
-    if(!PyArg_ParseTuple(args, "i", &dim1))
-    {
-        return NULL;
-    }
-    allocate_dopcoeff_f(&dim1);
-    return Py_BuildValue("i", 0);
-}
-
-PyObject * deallocate_dopcoeff_C(PyObject *self, PyObject *args)
-{
-    deallocate_dopcoeff_f();
-    return Py_BuildValue("i", 0);
-}
-
-
 PyObject * deallocate_smsch_C(PyObject* self, PyObject* args)
 {
     deallocate_smsch_f();
@@ -193,11 +175,13 @@ PyObject * correct_C(PyObject* self, PyObject* args)
     uint64_t var1;
     uint64_t var2;
     uint64_t var3;
-    if(!PyArg_ParseTuple(args, "KKKK",&var0,&var1,&var2,&var3))
+    uint64_t var4;
+    uint64_t var5;
+    if(!PyArg_ParseTuple(args, "KKKKKK",&var0,&var1,&var2,&var3,&var4,&var5))
     {
         return NULL;
     }
-    correct_f(&var0,&var1,&var2,&var3);
+    correct_f(&var0,&var1,&var2,&var3,&var4,&var5);
     return Py_BuildValue("i", 0);
 }
 PyObject * setReferenceOrbit_C(PyObject* self, PyObject* args)
@@ -660,39 +644,12 @@ PyObject * setSc_C(PyObject* self, PyObject* args)
 
 PyObject * setDopCoeff_C(PyObject *self, PyObject* args)
 {
-    PyObject * list;
-    int dim1 = 0;
-    if(!PyArg_ParseTuple(args, "O", &list))
+    uint64_t var;
+    if(!PyArg_ParseTuple(args, "K", &var))
     {
     return NULL;
     }
-    if(!PyList_Check(list))
-    {
-    cout << "Error in file " << __FILE__ << " at line " << __LINE__ <<
-            ". Expecting a list type object. \n";
-    exit(1);
-    }
-    dim1 = (int) PyList_Size(list);
-    double *vectorV = new double[dim1];
-    for(int j=0; j<dim1; j++)
-    {
-    PyObject* listEl = PyList_GetItem(list,j);
-    if(listEl == NULL)
-    {
-        cout << "Error in file " << __FILE__ << " at line " << __LINE__ <<
-                ". Cannot retrieve list element \n";
-        exit(1);
-    }
-    vectorV[j] = (double) PyFloat_AsDouble(listEl);
-    if(PyErr_Occurred() != NULL)
-    {
-        cout << "Error in file " << __FILE__ << " at line " << __LINE__ <<
-                ". Cannot convert Py Object to C double. \n";
-        exit(1);
-    }
-    }
-    setDopCoeff_f(vectorV, &dim1);
-    delete [] vectorV;
+    setDopCoeff_f(&var);
     return Py_BuildValue("i", 0);
 }
 

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,29 +41,82 @@ from isceobj.Scene.Track import Track
 from iscesys.DateTimeUtil.DateTimeUtil import DateTimeUtil as DTUtil
 from iscesys.Component.Component import Component
 
-class EnviSAT(Component):
+ORBIT_DIRECTORY = Component.Parameter(
+    'orbitDir',
+    public_name='ORBIT_DIRECTORY',
+    default=None,
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Location of the orbit directory if an orbit file is not provided.'
+)
+
+ORBITFILE = Component.Parameter(
+    'orbitFile',
+    public_name='ORBITFILE',
+    default=None,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Orbit file.'
+)
+
+INSTRUMENTFILE = Component.Parameter(
+    'instrumentFile',
+    public_name='INSTRUMENTFILE',
+    default=None,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Instrument file.'
+)
+
+INSTRUMENT_DIRECTORY = Component.Parameter(
+    'instrumentDir',
+    public_name='INSTRUMENT_DIRECTORY',
+    default=None,
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Instrument directory if an instrument file is not provided.'
+)
+
+IMAGEFILE = Component.Parameter(
+    '_imageryFileList',
+    public_name='IMAGEFILE',
+    default='',
+    container=list,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Input image file.'
+)
+
+from .Sensor import Sensor
+class EnviSAT(Sensor):
+
+
+    parameter_list = (ORBIT_DIRECTORY,
+                      ORBITFILE,
+                      INSTRUMENTFILE,
+                      INSTRUMENT_DIRECTORY,
+                      IMAGEFILE)           + Sensor.parameter_list
+
     """
         A Class for parsing EnviSAT instrument and imagery files
     """
 
-    def __init__(self):
-        Component.__init__(self)
-        self.instrumentFile = None
+    family = 'envisat'
+
+    def __init__(self,family='',name=''):
+        super(EnviSAT, self).__init__(family if family else  self.__class__.family, name=name)
         self.imageryFile = None
-        self._imageryFileList = ''
-        self.orbitFile = None
-        self.output = None
         self._instrumentFileData = None
         self._imageryFileData = None
         self.logger = logging.getLogger("isce.sensor.EnviSAT")
         self.frame = None
         self.frameList = []
 
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'ORBITFILE': ['self.orbitFile','str','mandatory'],
-                                      'INSTRUMENTFILE': ['self.instrumentFile','str','mandatory'],
-                                      'IMAGEFILE': ['self._imageryFileList','str','mandatory'],
-                                      'OUTPUT': ['self.output','str','optional']}
 
         self.constants = {'antennaLength': 10.0,
                           'iBias': 128,
@@ -77,11 +130,16 @@ class EnviSAT(Component):
             Parse both imagery and instrument files and create
             objects representing the platform, instrument and scene
         """
-        instrumentFileParser = InstrumentFile(fileName=self.instrumentFile)
-        self._instrumentFileData = instrumentFileParser.parse()
 
         imageryFileParser = ImageryFile(fileName=self.imageryFile)
         self._imageryFileData = imageryFileParser.parse()
+        first_line_utc = datetime.datetime.strptime(self._imageryFileData['SENSING_START'], '%d-%b-%Y %H:%M:%S.%f')
+
+        if self.instrumentFile in [None, '']:
+            self.findInstrumentFile(first_line_utc)
+
+        instrumentFileParser = InstrumentFile(fileName=self.instrumentFile)
+        self._instrumentFileData = instrumentFileParser.parse()
 
         self.populateMetadata()
 
@@ -100,7 +158,7 @@ class EnviSAT(Component):
         platform.setMission("Envisat")
         platform.setPointingDirection(-1)
         platform.setAntennaLength(self.constants['antennaLength'])
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
 
     def _populateInstrument(self):
         """Populate the instrument object with metadata"""
@@ -111,6 +169,14 @@ class EnviSAT(Component):
         pri = self._imageryFileData['priCodeword']/self._instrumentFileData['sampleRate']
         chirpPulseBandwidth = self._imageryFileData['chirpPulseBandwidthCodeword']*16.0e6/255.0
         chirpSlope = chirpPulseBandwidth/txPulseLength
+
+        ####ChirpSlope from GADS
+        index = self._imageryFileData['antennaBeamSetNumber']-1
+        chirpSlope = 2.0*self._instrumentFileData['nom_chirp_{0}'.format(index)][6]
+
+        if (chirpSlope * txPulseLength) > chirpPulseBandwidth:
+            print('Warning: Chirp Bandwidth > Slope * Pulse length')
+            print('Check parser again .....')
 
         instrument.setRangePixelSize(rangeSampleSpacing)
         instrument.setPulseLength(txPulseLength)
@@ -161,6 +227,9 @@ class EnviSAT(Component):
         self.frame.setSensingStop(last_line_utc)
 
     def _populateOrbit(self):
+        if self.orbitFile in [None, '']:
+            self.findOrbitFile()
+
         dorParser = DOR(fileName=self.orbitFile)
         dorParser.parse()
         startTime = self.frame.getSensingStart() - datetime.timedelta(minutes=5)
@@ -183,7 +252,7 @@ class EnviSAT(Component):
         rawImage.setByteOrder('l')
         rawImage.setXmin(0)
         rawImage.setXmax(2*width)
-        rawImage.setWidth(width)
+        rawImage.setWidth(2*width)
         self.frame.setImage(rawImage)
 
 
@@ -196,8 +265,8 @@ class EnviSAT(Component):
         lib = ctypes.cdll.LoadLibrary(os.path.dirname(__file__) + '/envisat.so')
         #check if input file is a string or a list (then do concatenation)
         #ussume that one orbit and one instrument is enough for all the frame in the list
-        if isinstance(self._imageryFileList,str):
-            self._imageryFileList = [self._imageryFileList]
+#        if isinstance(self._imageryFileList,str):
+#            self._imageryFileList = [self._imageryFileList]
         self.frameList = []
         for i in range(len(self._imageryFileList)):
             appendStr = '_' + str(i) #intermediate raw files suffix
@@ -277,6 +346,88 @@ class EnviSAT(Component):
                 pass
             pass
         pass
+
+    def findOrbitFile(self):
+
+        datefmt = '%Y%m%d%H%M%S'
+        sensingStart = self.frame.getSensingStart()
+
+        outFile = None
+
+        if self.orbitDir in [None,'']:
+            raise Exception('No Envisat Orbit File or Orbit Directory specified')
+
+        try:
+            for fname in os.listdir(self.orbitDir):
+                if not os.path.isfile(os.path.join(self.orbitDir,fname)):
+                    continue
+
+                if not fname.startswith('DOR'):
+                    continue
+
+                fields = fname.split('_')
+                procdate = datetime.datetime.strptime(fields[-6][-8:] + fields[-5], datefmt)
+                startdate = datetime.datetime.strptime(fields[-4] + fields[-3], datefmt)
+                enddate = datetime.datetime.strptime(fields[-2] + fields[-1], datefmt)
+
+                if (sensingStart > startdate) and (sensingStart < enddate):
+                    outFile = os.path.join(self.orbitDir, fname)
+                    break
+
+        except:
+            raise Exception('Error occured when trying to find orbit file in %s'%(self.orbitDir))
+
+        if not outFile:
+            raise Exception('Envisat orbit file could not be found in %s'%(self.orbitDir))
+
+        self.orbitFile = outFile
+        return outFile
+
+
+    def findInstrumentFile(self, sensingStart):
+
+        datefmt = '%Y%m%d%H%M%S'
+        if sensingStart is None:
+            raise Exception('Image data not read in yet')
+
+        outFile = None
+
+        if self.instrumentDir in [None,'']:
+            raise Exception('No Envisat Instrument File or Instrument Directory specified')
+
+        try:
+            for fname in os.listdir(self.instrumentDir):
+                if not os.path.isfile(os.path.join(self.instrumentDir, fname)):
+                    continue
+
+                if not fname.startswith('ASA_INS'):
+                    continue
+
+                fields = fname.split('_')
+                procdate = datetime.datetime.strptime(fields[-6][-8:] + fields[-5], datefmt)
+                startdate = datetime.datetime.strptime(fields[-4] + fields[-3], datefmt)
+                enddate = datetime.datetime.strptime(fields[-2] + fields[-1], datefmt)
+
+                if (sensingStart > startdate) and (sensingStart < enddate):
+                    outFile = os.path.join(self.instrumentDir, fname)
+                    break
+
+        except:
+            raise Exception('Error occured when trying to find instrument file in %s'%(self.instrumentDir))
+
+        if not outFile:
+            raise Exception('Envisat instrument file could not be found in %s'%(self.instrumentDir))
+
+        self.instrumentFile = outFile
+        return outFile
+
+
+
+
+
+
+
+
 
 class BaseEnvisatFile(object):
     """Class for parsing common Envisat metadata"""
@@ -423,8 +574,11 @@ class InstrumentFile(BaseEnvisatFile):
         # the values for the number of PRIs between transmit and receive.  If you are
         # bored and want to code the remaining 130+ values, there is a table at:
         # http://envisat.esa.int/handbooks/asar/CNTR6-6-3.htm#eph.asar.asardf.asarrec.ASA_INS_AX_GADS
+        self.fp.seek(65788, os.SEEK_CUR)
+        for ii in range(7):
+            gadsDict['nom_chirp_{0}'.format(ii)] = self._readAndUnpackData(36,">9f", numberOfFields=9)
 
-        self.fp.seek(69884, os.SEEK_CUR) # Seek to record 66
+        self.fp.seek(4096 - 36*7, os.SEEK_CUR) # Seek to record 66
         gadsDict['rangeGateBias'] = self._readAndUnpackData(length=4, format=">f", type=float)
         self.fp.seek(91678, os.SEEK_CUR) # Seek to record 105
         self.fp.seek(28, os.SEEK_CUR) # Skip to the r_values

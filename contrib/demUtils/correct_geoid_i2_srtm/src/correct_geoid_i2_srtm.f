@@ -263,7 +263,7 @@ c     correct the data for the geoid
                !r_outdata(j) = nint(r_indata(j) - r_geoid_cor*i_input*i_sign)
                r_outdata(j) = (r_indata(j) - r_geoid_cor*i_input*i_sign)
             else
-               r_outdata(j) = r_outhgtnull
+               r_outdata(j) = (1.0-nullIsWater) * r_outhgtnull - nullIsWater * r_geoid_cor*i_input*i_sign
             endif
 
          enddo

@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,6 +26,7 @@ import isceobj
 
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 from mroipac.correlation.correlation import Correlation
+from isceobj.Util.decorators import use_api
 
 logger = logging.getLogger('isce.insar.runCoherence')
 
@@ -35,6 +36,7 @@ CORRELATION_METHOD = {
     'cchz_wave' : operator.methodcaller('calculateCorrelation')
     }
 
+@use_api
 def runCoherence(self, method="phase_gradient"):
                           
     logger.info("Calculating Coherence")
@@ -45,22 +47,30 @@ def runCoherence(self, method="phase_gradient"):
 #    IU.copyAttributes(resampAmpImage, ampImage)
 #    ampImage.setAccessMode('read')
 #    ampImage.createImage()
-    ampImage = self.insar.getResampOnlyAmp().copy(access_mode='read')
+#    ampImage = self.insar.getResampOnlyAmp().copy(access_mode='read')
+    ampImage = isceobj.createImage()
+    ampImage.load( self.insar.getResampOnlyAmp().filename + '.xml')
+    ampImage.setAccessMode('READ')
+    ampImage.createImage()
     
     # Initialize the flattened inteferogram
     topoflatIntFilename = self.insar.topophaseFlatFilename
-    intImage = isceobj.createIntImage()
-    widthInt = self.insar.resampIntImage.getWidth()
-    intImage.setFilename(topoflatIntFilename)
-    intImage.setWidth(widthInt)
-    intImage.setAccessMode('read')
+    intImage = isceobj.createImage()
+    intImage.load ( self.insar.topophaseFlatFilename + '.xml')
+    intImage.setAccessMode('READ')
     intImage.createImage()
+
+#    widthInt = self.insar.resampIntImage.getWidth()
+#    intImage.setFilename(topoflatIntFilename)
+#    intImage.setWidth(widthInt)
+#    intImage.setAccessMode('read')
+#    intImage.createImage()
 
     # Create the coherence image
     cohFilename = topoflatIntFilename.replace('.flat', '.cor')
     cohImage = isceobj.createOffsetImage()
     cohImage.setFilename(cohFilename)
-    cohImage.setWidth(widthInt)
+    cohImage.setWidth(intImage.width)
     cohImage.setAccessMode('write')
     cohImage.createImage()
 
@@ -74,10 +84,11 @@ def runCoherence(self, method="phase_gradient"):
     intImage.finalizeImage()
     ampImage.finalizeImage()
 
-    try:
-        CORRELATION_METHOD[method](cor)
-    except KeyError:
-        print("Unrecognized correlation method")
-        sys.exit(1)
-        pass
+    cor.calculateCorrelation()
+#    try:
+#        CORRELATION_METHOD[method](cor)
+#    except KeyError:
+#        print("Unrecognized correlation method")
+#        sys.exit(1)
+#        pass
     return None

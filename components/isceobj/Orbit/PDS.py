@@ -10,6 +10,7 @@ class PDS(object):
         self.firstEpoch = 0
         self.lastEpoch = 0
         self.orbit = Orbit()
+        self.orbit.configure()
         self.orbit.setOrbitSource('PDS')
 
     def getOrbit(self):
@@ -59,6 +60,7 @@ class PDS(object):
         dt = self.__parseDateTimeString(date,time)
         
         sv = StateVector()
+        sv.configure()
         sv.setTime(dt)
         sv.setPosition([x,y,z])
         sv.setVelocity([vx,vy,vz])

@@ -46,6 +46,7 @@
             integer, parameter :: UTM_2_LLH = 2
             integer, parameter :: LLH_2_XYZ = 1
             integer, parameter :: XYZ_2_LLH = 2
+            integer, parameter :: XYZ_2_LLH_OLD = 3
         
         contains
 
@@ -60,5 +61,6 @@
             include 'latlon.F'
             include 'lookvec.F'
             include 'radar_to_xyz.F'
+            include 'tcnbasis.F'
 
         end module geometryModule

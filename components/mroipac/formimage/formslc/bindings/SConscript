@@ -17,7 +17,7 @@ project = envformslc['PROJECT']
 envformslc.AppendUnique(LIBPATH = envformslc['PRJ_LIB_DIR'])
 libPath = envformslc['LIBPATH']
 install = envformslc['PRJ_SCONS_INSTALL'] + '/' + package + '/' + project
-libList = ['formslcRoi','formimage','utilLib','LineAccessor','fftw3f']
+libList = ['formslcRoi','utilLib','DataAccessor','InterleavedAccessor','formimage','fftw3f']
 envformslc.PrependUnique(LIBS = libList)
 module = envformslc.LoadableModule(target = 'formslc.abi3.so', source = 'formslcmodule.cpp') 
 envformslc.Install(install,module)

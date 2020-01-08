@@ -18,11 +18,17 @@ extern "C"
   void setLineLength1_f(int*);
   PyObject* setLineLength1_C(PyObject*, PyObject*);
 
+  void setImageLength1_f(int*);
+  PyObject* setImageLength1_C(PyObject*, PyObject*);
+
   void setImageDatatype2_f(char*, int);
   PyObject* setImageDatatype2_C(PyObject*, PyObject*);
 
   void setLineLength2_f(int*);
   PyObject* setLineLength2_C(PyObject*, PyObject*);
+
+  void setImageLength2_f(int*);
+  PyObject* setImageLength2_C(PyObject*, PyObject*);
 
   void setFirstSampleDown_f(int*);
   void setLastSampleDown_f(int*);
@@ -159,8 +165,10 @@ static PyMethodDef ampcor_methods[] =
 
  { "setImageDataType1_Py", setImageDatatype1_C, METH_VARARGS," "},
  { "setLineLength1_Py", setLineLength1_C, METH_VARARGS," "},
+ { "setImageLength1_Py", setImageLength1_C, METH_VARARGS, " "},
  { "setImageDataType2_Py", setImageDatatype2_C, METH_VARARGS," "},
  { "setLineLength2_Py", setLineLength2_C, METH_VARARGS," "},
+ { "setImageLength2_Py", setImageLength2_C, METH_VARARGS, " "},
  { "setFirstSampleDown_Py", setFirstSampleDown_C, METH_VARARGS, " "},
  { "setLastSampleDown_Py", setLastSampleDown_C, METH_VARARGS, " "},
  { "setSkipSampleDown_Py", setSkipSampleDown_C, METH_VARARGS, " "},

@@ -16,13 +16,13 @@
 
 extern "C"
 {
-	PyObject * nbymhgt_C(PyObject *, PyObject *);
+        PyObject * nbymhgt_C(PyObject *, PyObject *);
 
 }
 
 static PyMethodDef nbymhgt_methods[] =
 {
-	{"nbymhgt_Py", nbymhgt_C, METH_VARARGS, " "},
-	{NULL, NULL, 0, NULL}
+        {"nbymhgt_Py", nbymhgt_C, METH_VARARGS, " "},
+        {NULL, NULL, 0, NULL}
 };
-#endif nbymhgtmodule_h
+#endif //nbymhgtmodule_h

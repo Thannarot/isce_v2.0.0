@@ -62,6 +62,7 @@ static const int UTM_2_LLH = 2;
 //Lat Lon to XYZ conversions
 static const int LLH_2_XYZ = 1;
 static const int XYZ_2_LLH = 2;
+static const int XYZ_2_LLH_OLD = 3;
 
 //Function declarations
 void convert_sch_to_xyz_C(cEllipsoid* ptm, double r_schv[3], double r_xyzv[3], int i_type);

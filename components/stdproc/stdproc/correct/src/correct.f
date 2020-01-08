@@ -1,23 +1,24 @@
 !c  topocorrect - approximate topo correction
-      subroutine correct(intAccessor,zschAccessor,topophaseMphAccessor,topophaseFlatAccessor)
+      subroutine correct(intAccessor,zschAccessor,topophaseMphAccessor,topophaseFlatAccessor,masterRangeAccessor,slaveRangeAccessor)
       use correctState
       use fortranUtils
 
       implicit none
       include 'omp_lib.h'
-      integer*8 zschAccessor,intAccessor,topophaseMphAccessor,topophaseFlatAccessor
+      integer*8 zschAccessor,intAccessor,topophaseMphAccessor
+      integer*8 slaveRangeAccessor, topophaseFlatAccessor
+      integer*8 masterRangeAccessor
       integer lineFile
       !integer width, length
-      real*4, allocatable ::zsch(:)
+      real*4, allocatable ::zsch(:), slvrng(:), masrng(:)
       real*4  r_phase,r_phase_zero
       real*8, allocatable :: rho(:),squintshift(:)
-      complex, allocatable::c_int(:),c_flat(:),c_topo(:),c_topomht(:)
+      complex, allocatable::c_intf(:),c_flat(:),c_topo(:),c_topomht(:)
+      real*8, allocatable :: dopline(:)
       real*8 sch(3)
       real*8 r2d,refhgt
       integer pixel
       real*8 beta,fd, temp
-      character*1 num(9)
-      character*2 numnum(10)
       real*8 b1(3),b2(3),b1mag,b2mag,s1mag,s2mag,smmag,rm1,rm2
       real*8 rho1,rho2,r_los(3),r_schp(3)
       real*8 smxyz(3),s1xyz(3),s2xyz(3)
@@ -31,9 +32,8 @@
       real*8 coseta1,coseta2
       real*8 pi 
       real*8 q,q0
-
-      data num/'1','2','3','4','5','6','7','8','9'/
-      data numnum/'10','11','12','13','14','15','16','17','18','19'/
+      real*8 terheight, radius0
+      real*8 rdir
 
 !c  types needed
 
@@ -77,12 +77,15 @@
 
 !c  allocate variable arrays
         allocate (zsch(width))
+        allocate (slvrng(width))
+        allocate (masrng(width))
         allocate (rho(width))
-        allocate (c_int(width))
+        allocate (c_intf(width))
         allocate (c_flat(width))
         allocate (c_topo(width))
         allocate (c_topomht(width))
         allocate (squintshift(width))
+        allocate (dopline(width))
 
 !c  some constants
       
@@ -107,28 +110,29 @@
       print *,'Local earth radius of curvature: ',rcurv
 
 
-      print *, 'Ncoeff : ', ndop
-      print *, 'Coeffs: ', dopcoeff
-!c  precalculate squint-related shift for each range location
-      line=1
+!c  precalculate ranges for pixel bins
       do pixel=1,width
-         temp=1.0d0
-         fd=0.0d0
-         do j=1,ndop
-            fd = fd + dopcoeff(j)*temp
-            temp = temp*pixel
-         end do
-         fd = fd*prf
          rho(pixel)=r0+rspace*(pixel-1)*Nrnglooks
-         tanbeta=-fd*(height+rcurv)*wvl*rho(pixel)/vel/(rcurv**2+(height+rcurv)**2-rho(pixel)**2)
-         squintshift(pixel) = -rcurv*atan(tanbeta)
       end do
 
 
 !c  initialize the transformation matrices
-      call radar_to_xyz(elp,peg,ptm)
+
+      radius0 =  rdir(elp%r_a,elp%r_e2,peg%r_hdg,peg%r_lat)
+      terheight = rcurv - radius0
+      call radar_to_xyz(elp,peg,ptm,terheight)
 
       do line=1,length
+
+         !c Read in doppler values
+         call getLineSequential(dopAcc,dopline,lineFile)
+         do pixel=1, width
+            fd = dopline(pixel)*prf
+            tanbeta=-fd*(height+rcurv)*wvl*rho(pixel)/vel/(rcurv**2+(height+rcurv)**2-rho(pixel)**2)
+            squintshift(pixel) = -rcurv*atan(tanbeta)
+        end do
+
+
 
          !c Read the height file
          call getLineSequential(zschAccessor,zsch,lineFile)
@@ -177,7 +181,7 @@
          !$omp shared(eta1,eta2,sat1,sat2,moc) &
          !$omp shared(width,height,rcurv,zsch,rho,s_mocomp)&
          !$omp shared(is_mocomp,line,Nazlooks,squintshift,ptm,r_schp) &
-         !$omp shared(pi,wvl,mocbase,c_topo,ilrl)
+         !$omp shared(pi,wvl,mocbase,c_topo,ilrl,slvrng,masrng)
          do pixel=1,width
 !c  first get phase for elevated pixel
 !  get sch for pixel under consideration
@@ -231,6 +235,8 @@
             phresid=(rm2-rm1)+flat
             phresid=phresid*4*pi/wvl
 
+            slvrng(pixel) = rho(pixel)-rm2
+            masrng(pixel) = rho(pixel)-rm1
 !repeat phase calculation for zero-elevation pixel
             cosalpha=((height+rcurv)**2+(rcurv+0.0)**2-rho(pixel)**2)/2./(height+rcurv)/(rcurv+0.0)
             sch(1)=s_mocomp(is_mocomp+line*Nazlooks-Nazlooks/2)
@@ -251,28 +257,42 @@
          enddo
          !$omp end parallel do
            
-         
-         call getLineSequential(intAccessor,c_int(:),lineFile)
+         if (intAccessor .gt. 0) then 
+             call getLineSequential(intAccessor,c_intf(:),lineFile)
 
-         !$omp parallel do private(pixel)
-         !$omp shared(c_flat,c_topomht,c_topo,c_int)
-         do pixel=1,width
-              c_flat(pixel)=c_int(pixel)*conjg(c_topo(pixel))
-              c_topomht(pixel)=c_topo(pixel)*abs(c_int(pixel))
-         end do
-         !$omp end parallel do
+             !$omp parallel do private(pixel)
+             !$omp shared(c_flat,c_topomht,c_topo,c_intf)
+             do pixel=1,width
+                c_flat(pixel)=c_intf(pixel)*conjg(c_topo(pixel))
+                c_topomht(pixel)=c_topo(pixel)*abs(c_intf(pixel))
+             end do
+             !$omp end parallel do
 
+            call setLineSequential(topophaseFlatAccessor,c_flat(:))
+            call setLineSequential(topophaseMphAccessor,c_topomht(:))
+        else
+            call setLineSequential(topophaseMphAccessor, c_topo(:))
+        endif
+        
 
-         call setLineSequential(topophaseMphAccessor,c_topomht(:))
-         call setLineSequential(topophaseFlatAccessor,c_flat(:))
+         if (masterRangeAccessor .ne. 0) then
+            call setLineSequential(masterRangeAccessor, masrng(:))
+         endif
+
+         if (slaveRangeAccessor .ne. 0) then
+            call setLineSequential(slaveRangeAccessor, slvrng(:))
+         endif
       enddo
 
 
        deallocate (zsch)
+       deallocate (masrng)
+       deallocate (slvrng)
        deallocate (rho)
-       deallocate (c_int)
+       deallocate (c_intf)
        deallocate (c_flat)
        deallocate (c_topo)
        deallocate (squintshift)
+       deallocate (dopline)
       end
 

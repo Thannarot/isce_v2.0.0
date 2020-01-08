@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,43 +30,131 @@ from isceobj.Doppler import calc_dop
 import isceobj
 from isceobj.Util.decorators import pickled, logged, port
 
+HEADER = Component.Parameter(
+    'header',
+    public_name='HEADER',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+FIRST_LINE = Component.Parameter(
+    'firstLine',
+    public_name='FIRST_LINE',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+QOFFSET = Component.Parameter(
+    'Qoffset',
+    public_name='QOFFSET',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+WIDTH = Component.Parameter(
+    'width',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+LAST_LINE = Component.Parameter(
+    'lastLine',
+    public_name='LAST_LINE',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+IOFFSET = Component.Parameter(
+    'Ioffset',
+    public_name='IOFFSET',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+RAW_FILENAME = Component.Parameter(
+    'rawFilename',
+    public_name='RAW_FILENAME',
+    default='',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+RNG_DOPPLER = Component.Parameter(
+    'rngDoppler',
+    public_name='RNG_DOPPLER',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+FD = Component.Parameter(
+    'fd',
+    public_name='FD',
+    default=None,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
 @pickled
 class Calc_dop(Component):
 
+
+    parameter_list = (
+                      HEADER,
+                      FIRST_LINE,
+                      QOFFSET,
+                      WIDTH,
+                      LAST_LINE,
+                      IOFFSET,
+                      RAW_FILENAME
+                     )
+
+
+
     logging_name = 'isceobj.Doppler.Calc_dop'
     
-    dictionaryOfVariables = {
-        'RAW_FILENAME' : ['rawFilename', 'str','optional'],
-        'HEADER' : ['header', 'int','mandatory'],
-        'WIDTH' : ['width', 'int','mandatory'],
-        'LAST_LINE' : ['lastLine', 'int','mandatory'],
-        'FIRST_LINE' : ['firstLine', 'int','mandatory'],
-        'IOFFSET' : ['Ioffset', 'float','mandatory'],
-        'QOFFSET' : ['Qoffset', 'float','mandatory']
-        }
 
-    dictionaryOfOutputVariables = {
-        'RNG_DOPPLER' : 'rngDoppler',
-        'FD' : 'fd'
-        }
     
+    family = 'calc_dop'
     @logged
-    def __init__(self):
-        super(Calc_dop, self).__init__()
-        self.rawFilename = ''
-        self.header = None 
-        self.width = None
-        self.lastLine = None
-        self.firstLine = None 
-        self.Ioffset = None
-        self.Qoffset = None
-        self.rngDoppler = []
+    def __init__(self,family='',name=''):
+        super(Calc_dop, self).__init__(family if family else  self.__class__.family, name=name)
         self.dim1_rngDoppler = None
-        self.fd = None
-        self.quadratic = {}
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
+        self.quadratic = {}   #insarapp
+        self.coeff_list = None  #roiapp
         self.initOptionalAndMandatoryLists()
         self.createPorts()
         return None
@@ -131,7 +219,8 @@ class Calc_dop(Component):
         self.quadratic['a'] = self.fd # for now use only zero order term 
         self.quadratic['b'] = 0  
         self.quadratic['c'] = 0
-    
+   
+        self.coeff_list = [self.fd,0.,0.]
     def setDefaults(self):
         if self.firstLine is None:
             self.firstLine = 100

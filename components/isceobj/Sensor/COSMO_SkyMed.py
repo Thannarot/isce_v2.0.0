@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,17 +37,31 @@ from iscesys.DateTimeUtil.DateTimeUtil import DateTimeUtil as DTUtil
 from isceobj.Sensor import tkfunc,createAuxFile
 from iscesys.Component.Component import Component
 from .Sensor import Sensor
+import numpy as np
+
+HDF5 = Component.Parameter(
+    'hdf5FileList',
+    public_name='HDF5',
+    default=None,
+    container=list,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Single or list of hdf5 csk input file(s)'
+)
 
 class COSMO_SkyMed(Sensor):
     """
         A class to parse COSMO-SkyMed metadata
     """
-    logging_name = "isce.sensor.COSMO_SkyMed"
 
-    def __init__(self):
-        super(COSMO_SkyMed,self).__init__()
+    parameter_list = (HDF5,) + Sensor.parameter_list
+    logging_name = "isce.sensor.COSMO_SkyMed"
+    family = 'cosmo_skymed'
+
+    def __init__(self,family='',name=''):
+        super().__init__(family if family else  self.__class__.family, name=name)
         self.hdf5 = None
-        self.hdf5FileList = None
         #used to allow refactoring on tkfunc
         self._imageFileList = None
 
@@ -59,10 +73,6 @@ class COSMO_SkyMed(Sensor):
         self.rangeFirstTime = None
         self.rangeLastTime = None
 
-        self.dictionaryOfVariables = {
-            'HDF5': ['hdf5FileList','str','mandatory'],
-            'OUTPUT': ['output','str','optional']
-            }
 
         ## make this a class attribute, and a Sensor.Constant--not a dictionary.
         self.constants = {'iBias': 127.5,
@@ -99,8 +109,11 @@ class COSMO_SkyMed(Sensor):
     def _populatePlatform(self, file=None):
         platform = self.frame.getInstrument().getPlatform()
 
+        if np.isnan(file['S01'].attrs['Equivalent First Column Time']) and (len(file['S01/B001'].attrs['Range First Times']) > 1):
+            raise NotImplementedError('Current CSK reader does not handle RAW data not adjusted for SWST shifts')
+
         platform.setMission(file.attrs['Satellite ID']) # Could use Mission ID as well
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
         platform.setPointingDirection(self.lookMap[file.attrs['Look Side'].decode('utf-8')])
         platform.setAntennaLength(file.attrs['Antenna Length'])
 
@@ -140,7 +153,6 @@ class COSMO_SkyMed(Sensor):
         self.frame.setSensingStop(sensingStop)
 
         rangePixelSize = self.frame.getInstrument().getRangePixelSize()
-        #Spurious factor of 2 removed - PSA
         farRange = slantRange +  self.frame.getNumberOfSamples()*rangePixelSize
         self.frame.setFarRange(farRange)
 
@@ -182,9 +194,8 @@ class COSMO_SkyMed(Sensor):
         self.dopplerAzimuthTime = file.attrs['Centroid vs Azimuth Time Polynomial']
         self.rangeRefTime = file.attrs['Range Polynomial Reference Time']
         self.azimuthRefTime = file.attrs['Azimuth Polynomial Reference Time']
-        ####Lazy fix for testing - PSA
-        self.rangeFirstTime = self.rangeRefTime
-        self.rangeLastTime = self.rangeRefTime
+        self.rangeFirstTime = file['S01']['B001'].attrs['Range First Times'][0]
+        self.rangeLastTime = self.rangeFirstTime + (self.frame.getNumberOfSamples()-1) / self.frame.instrument.getRangeSamplingRate()
 
 
     def extractImage(self):
@@ -193,10 +204,6 @@ class COSMO_SkyMed(Sensor):
         from ctypes import cdll, c_char_p
         extract_csk = cdll.LoadLibrary(os.path.dirname(__file__)+'/csk.so')
         # Prepare and run the C-based extractor
-
-        #check if the input is a string. if so put it into one element list
-        if(isinstance(self.hdf5FileList,str)):
-            self.hdf5FileList = [self.hdf5FileList]
 
         for i in range(len(self.hdf5FileList)):
             #need to create a new instance every time
@@ -246,9 +253,44 @@ class COSMO_SkyMed(Sensor):
         """
         quadratic = {}
         midtime = (self.rangeLastTime + self.rangeFirstTime)*0.5 - self.rangeRefTime
-        fd_mid = self.dopplerRangeTime[0] + self.dopplerRangeTime[1]*midtime + self.dopplerRangeTime[2]*midtime*midtime
 
+        fd_mid = 0.0
+        x = 1.0
+        for ind,coeff in enumerate(self.dopplerRangeTime):
+            fd_mid += coeff*x
+            x *= midtime
+
+        ####insarApp style
         quadratic['a'] = fd_mid/self.frame.getInstrument().getPulseRepetitionFrequency()
         quadratic['b'] = 0.
         quadratic['c'] = 0.
+
+
+        ###For roiApp more accurate
+        ####Convert stuff to pixel wise coefficients
+        from isceobj.Util import Poly1D
+        
+        coeffs = self.dopplerRangeTime
+        dr = self.frame.getInstrument().getRangePixelSize()
+        rref = 0.5 * Const.c * self.rangeRefTime 
+        r0 = self.frame.getStartingRange()
+        norm = 0.5*Const.c/dr
+
+        dcoeffs = []
+        for ind, val in enumerate(coeffs):
+            dcoeffs.append( val / (norm**ind))
+
+
+        poly = Poly1D.Poly1D()
+        poly.initPoly(order=len(coeffs)-1)
+        poly.setMean( (rref - r0)/dr - 1.0)
+        poly.setCoeffs(dcoeffs)
+
+
+        pix = np.linspace(0,self.frame.getNumberOfSamples(),num=len(coeffs)+1)
+        evals = poly(pix)
+        fit = np.polyfit(pix,evals, len(coeffs)-1)
+        self.frame._dopplerVsPixel = list(fit[::-1])
+        print('Doppler Fit: ', fit[::-1])
+
         return quadratic

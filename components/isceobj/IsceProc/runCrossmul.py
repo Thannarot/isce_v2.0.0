@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -22,7 +22,7 @@
 # Comment: Adapted from IsceProc/runResamp.py
 import os
 import logging
-from stdproc.stdproc import crossmul
+from components.stdproc.stdproc import crossmul
 import isceobj
 
 from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
@@ -34,7 +34,7 @@ def runCrossmul(self):
     resampName = self._isce.resampImageName
     azLooks = self._isce.numberAzimuthLooks
     rgLooks = self._isce.numberRangeLooks
-    lines = self._isce.numberResampLines
+    lines = int( self._isce.numberResampLines ) # ML 2014-08-21 - added int, but need to change IsceProc
 
     for sceneid1, sceneid2 in self._isce.selectedPairs:
         pair = (sceneid1, sceneid2)
@@ -43,6 +43,7 @@ def runCrossmul(self):
         for pol in self._isce.selectedPols:
             imageSlc1 = self._isce.slcImages[sceneid1][pol]
             imageSlc2 = self._isce.slcImages[sceneid2][pol]
+
             catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
             sid = self._isce.formatname(pair, pol)
             resampFilename = os.path.join(self.getoutputdir(sceneid1, sceneid2), self._isce.formatname(pair, pol, resampName))
@@ -86,9 +87,9 @@ def run(imageSlc1, imageSlc2, resampName, azLooks, rgLooks, lines, catalog=None,
     IU.copyAttributes(objAmp, imageAmp)
     objAmp.setAccessMode('write')
     objAmp.createImage()
-    
+
     objCrossmul = crossmul.createcrossmul()
-    objCrossmul.width = intWidth
+    objCrossmul.width = slcWidth
     objCrossmul.length = lines
     objCrossmul.LooksDown = azLooks
     objCrossmul.LooksAcross = rgLooks

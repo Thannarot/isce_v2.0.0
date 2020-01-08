@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,16 +28,89 @@ logging.config.fileConfig(os.path.join(os.environ['ISCE_HOME'], 'defaults',
     'logging', 'logging.conf'))
 
 from isceobj.Util.decorators import type_check, force, pickled, logged
+import numpy as np
+
+from iscesys.Component.Component import Component
+
+X = Component.Parameter('x',
+        public_name='x',
+        default=None,
+        type=float,
+        mandatory=True,
+        doc = 'Range location')
+
+DX = Component.Parameter('dx',
+        public_name='dx',
+        default=None,
+        type=float,
+        mandatory=True,
+        doc = 'Range offset')
+
+Y = Component.Parameter('y',
+        public_name='y',
+        default=None,
+        type=float,
+        mandatory=True,
+        doc = 'Azimuth location')
+
+DY = Component.Parameter('dy',
+        public_name='dy',
+        default=None,
+        type=float,
+        mandatory=True,
+        doc = 'Azimuth offset')
+
+SIGMA_X = Component.Parameter('sigmax',
+        public_name='sigmax',
+        default=0,
+        type=float,
+        mandatory=True,
+        doc = 'Range covariance')
+
+SIGMA_Y = Component.Parameter('sigmay',
+        public_name='sigmay',
+        default=0,
+        type=float,
+        mandatory=True,
+        doc = 'Azimuth covariance')
+
+SIGMA_XY = Component.Parameter('sigmaxy',
+        public_name='sigmaxy',
+        default=0,
+        type=float,
+        mandatory=True,
+        doc = 'Cross covariance')
+
+SNR = Component.Parameter('snr',
+        public_name='snr',
+        default=0,
+        type=float,
+        mandatory=True,
+        doc = 'Signal to Noise Ratio')
 
 @pickled
-class Offset(object):
+class Offset(Component):
     """A class to represent the two-dimensional offset of a particular
     location"""
 
     logging_name = "isceobj.Location.Offset"
 
+    family = 'offset'
+    parameter_list = (
+                      X,
+                      Y,
+                      DX,
+                      DY,
+                      SIGMA_X,
+                      SIGMA_Y,
+                      SIGMA_XY,
+                      SNR
+                     )
     @logged
-    def __init__(self, x=None, y=None, dx=None, dy=None, snr=0.0, sigmax=0.0, sigmay=0.0, sigmaxy=0.0):
+    def __init__(self, x=None, y=None, dx=None, dy=None, snr=0.0,
+                 sigmax=0.0, sigmay=0.0, sigmaxy=0.0,
+                 family = None, name = None):
+        super(Offset, self).__init__(family=family if family else  self.__class__.family, name=name)
         self.x = x
         self.dx = dx
         self.y = y
@@ -75,20 +148,72 @@ class Offset(object):
     def getCovariance(self):
         return self.sigmax, self.sigmay, self.sigmaxy
 
+
     def __str__(self):
         retstr = "%s %s %s %s %s %s %s %s" % (self.x,self.dx,self.y,self.dy,self.snr, self.sigmax, self.sigmay, self.sigmaxy)
         return retstr
 
+
+OFFSETS = Component.Parameter('_offsets',
+        public_name='offsets',
+        default=[],
+        type=float,
+        mandatory=False,
+        intent='output',
+        doc = 'List of offsets')
+
 @pickled
-class OffsetField(object):
+class OffsetField(Component):
     """A class to represent a collection of offsets defining an offset field"""
     logging_name = "isceobj.Location.OffsetField"
 
+    family = 'offsetfield'
+    parameter_list = (
+                      OFFSETS,
+                     )
     @logged
-    def __init__(self):
+    def __init__(self,family=None,name=None):
+
+        super(OffsetField, self).__init__(
+            family=family if family else  self.__class__.family, name=name)
         self._last = 0
-        self._offsets = []
+        self._cpOffsets = None
         return None
+
+    #extend dump method. Convert Offset object to list before dumping it
+    def dump(self,filename):
+
+        self.adaptToRender()
+        super(OffsetField,self).dump(filename)
+        #restore to list of Offset
+        self.restoreAfterRendering()
+
+    def load(self,filename):
+        import copy
+
+        super(OffsetField,self).load(filename)
+        #make a copy
+        cpOffsets = copy.deepcopy(self._offsets)
+        self.packOffsetswithCovariance(cpOffsets)
+
+    def adaptToRender(self):
+        import copy
+        #make a copy before dumping
+        self._cpOffsets = copy.deepcopy(self._offsets)
+        #change the offsets to a list on numbers instead of Offset
+        self._offsets = self.unpackOffsetswithCovariance()
+
+    def restoreAfterRendering(self):
+        self._offsets = self._cpOffsets
+
+    def initProperties(self,catalog):
+        if 'offsets' in catalog:
+            offsets = catalog['offsets']
+            import numpy as np
+            offsets = np.array(offsets)
+            self.packOffsetswithCovariance(offsets.T)
+            catalog.pop('offsets')
+        super().initProperties(catalog)
 
     def getLocationRanges(self):
         xdxydysnr = self.unpackOffsets()
@@ -183,28 +308,30 @@ class OffsetField(object):
             self._last = 0 # This is so that we can restart iteration
             raise StopIteration()
 
-    def packOffsets(self, offsets):#crete an offset field from a list of offets
+    def packOffsets(self, offsets):#create an offset field from a list of offets
+        self._offset = []
         for i in range(len(offsets[0])):
             #note that different ordering (x,y,dx,dy,snr) instead of (x,dx,y,dy,snr)
             self.addOffset(
-                Offset(offsets[0][i],
-                       offsets[2][i],
-                       offsets[1][i],
-                       offsets[3][i],
-                       offsets[4][i])
+                Offset(x=offsets[0][i],
+                       y=offsets[2][i],
+                       dx=offsets[1][i],
+                       dy=offsets[3][i],
+                       snr=offsets[4][i])
                 )
 
     def packOffsetswithCovariance(self, offsets):
+        self._offset = []
         for i in range(len(offsets[0])):
             self.addOffset(
-                    Offset(offsets[0][i],
-                           offsets[2][i],
-                           offsets[1][i],
-                           offsets[3][i],
-                           offsets[4][i],
-                           offsets[5][i],
-                           offsets[6][i],
-                           offsets[7][i])
+                    Offset(x=offsets[0][i],
+                           y=offsets[2][i],
+                           dx=offsets[1][i],
+                           dy=offsets[3][i],
+                           snr=offsets[4][i],
+                           sigmax=offsets[5][i],
+                           sigmay=offsets[6][i],
+                           sigmaxy=offsets[7][i])
                     )
 
     def unpackOffsets(self):
@@ -257,3 +384,124 @@ class OffsetField(object):
         return self._offsets
 
     pass
+
+    def getFitPolynomials(self,rangeOrder=2,azimuthOrder=2,maxOrder=True, usenumpy=False):
+        from stdproc.stdproc.offsetpoly.Offsetpoly import Offsetpoly
+        from isceobj.Util import Poly2D
+
+        numCoeff = 0
+        ####Try and use Howard's polynomial fit code whenever possible
+        if (rangeOrder == azimuthOrder) and (rangeOrder <= 3):
+            if (rangeOrder == 1):
+                if maxOrder:
+                    numCoeff = 3
+                else:
+                    numCoeff = 4
+            elif (rangeOrder == 2):
+                if maxOrder:
+                    numCoeff = 6
+            elif (rangeOrder == 3):
+                if maxOrder:
+                    numCoeff = 10
+
+
+        inArr = np.array(self.unpackOffsets())
+        azmin = np.min(inArr[:,2])
+        inArr[:,2] -= azmin
+
+        ####Use Howard's code
+        if (numCoeff != 0) and not usenumpy:
+            x = list(inArr[:,0])
+            y = list(inArr[:,2])
+            dx = list(inArr[:,1])
+            dy = list(inArr[:,3])
+            sig = list(inArr[:,4])
+
+            ####Range Offsets
+            obj = Offsetpoly()
+            obj.setLocationAcross(x)
+            obj.setLocationDown(y)
+            obj.setSNR(sig)
+            obj.setOffset(dx)
+            obj.numberFitCoefficients = numCoeff
+            obj.offsetpoly()
+
+            val = obj.offsetPoly
+
+            #####Unpack into 2D array
+            if numCoeff == 3:
+                coeffs = [[val[0], val[1]],
+                          [val[2], 0.0]]
+
+            elif numCoeff == 4:
+                coeffs = [[val[0], val[1]],
+                          [val[2], val[3]]]
+
+            elif numCoeff == 6:
+                coeffs = [[val[0], val[1], val[4]],
+                          [val[2], val[3], 0.0],
+                          [val[5], 0.0, 0.0]]
+
+            elif numCoeff == 10:
+                ####Unpacking needs to be checked.
+                coeffs = [[val[0], val[1], val[4], val[8]],
+                          [val[2], val[3], val[6], 0.0],
+                          [val[5], val[7],0.0, 0.0],
+                          [val[9], 0.0, 0.0, 0.0]]
+
+
+            rangePoly = Poly2D.Poly2D()
+            rangePoly.setMeanAzimuth(azmin)
+            rangePoly.initPoly(rangeOrder=rangeOrder, azimuthOrder=azimuthOrder, coeffs=coeffs)
+
+            ####Azimuth Offsets
+            obj.setOffset(dy)
+            obj.offsetpoly()
+            val = obj.offsetPoly
+
+            #####Unpack into 2D array
+            if numCoeff == 3:
+                coeffs = [[val[0], val[1]],
+                          [val[2], 0.0]]
+
+            elif numCoeff == 4:
+                coeffs = [[val[0], val[1]],
+                          [val[2], val[3]]]
+
+            elif numCoeff == 6:
+                coeffs = [[val[0], val[1], val[4]],
+                          [val[2], val[3], 0.0],
+                          [val[5], 0.0, 0.0]]
+
+            elif numCoeff == 10:
+                ####Unpacking needs to be checked.
+                coeffs = [[val[0], val[1], val[4], val[8]],
+                          [val[2], val[3], val[6], 0.0],
+                          [val[5], val[7],0.0, 0.0],
+                          [val[9], 0.0, 0.0, 0.0]]
+
+            azimuthPoly = Poly2D.Poly2D()
+            azimuthPoly.setMeanAzimuth(azmin)
+            azimuthPoly.initPoly(rangeOrder=rangeOrder, azimuthOrder=azimuthOrder, coeffs=coeffs)
+
+        ####Fallback to numpy based polynomial fitting
+        else:
+
+            x = inArr[:,0]
+            y = inArr[:,2]
+            dx = inArr[:,1]
+            dy = inArr[:,3]
+            sig = inArr[:,4]
+
+
+            azimuthPoly = Poly2D.Poly2D()
+            azimuthPoly.initPoly(rangeOrder=rangeOrder, azimuthOrder=azimuthOrder)
+            azimuthPoly.polyfit(x,y,dy, sig=sig)
+            azimuthPoly._meanAzimuth += azmin
+
+            rangePoly = Poly2D.Poly2D()
+            rangePoly.initPoly(rangeOrder=rangeOrder, azimuthOrder=azimuthOrder)
+            rangePoly.polyfit(x,y,dx,sig=sig)
+            rangePoly._meanAzimuth += azmin
+
+        return (azimuthPoly, rangePoly)

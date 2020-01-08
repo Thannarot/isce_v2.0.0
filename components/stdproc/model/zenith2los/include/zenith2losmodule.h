@@ -31,7 +31,7 @@ extern "C"
     PyObject* setLongitudeInfo_C(PyObject *, PyObject *);
 }
 
-static PyMethodDef zenith2los_methods[] = 
+static PyMethodDef zenith2los_methods[] =
 {
     {"createZenith2LOS", createZenith2LOS_C, METH_VARARGS, " "},
     {"destroyZenith2LOS", destroyZenith2LOS_C, METH_VARARGS, " "},
@@ -44,4 +44,4 @@ static PyMethodDef zenith2los_methods[] =
     {"setLongitudeInfo", setLongitudeInfo_C, METH_VARARGS, " "},
     {NULL, NULL, 0 , NULL}
 };
-#endif zenith2losmodule_h
+#endif //zenith2losmodule_h

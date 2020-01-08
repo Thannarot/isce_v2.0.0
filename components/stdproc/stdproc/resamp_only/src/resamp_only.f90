@@ -154,11 +154,17 @@
       ist=1
 !c    open offset file
 
+      f0 = 0.0d0
+      f1 = 0.0d0
+      f2 = 0.0d0
+      f3 = 0.0d0
+
+      i_na = size(dopplerCoefficients)
       !jng set the doppler coefficients
       f0 = dopplerCoefficients(1)
-      f1 = dopplerCoefficients(2)
-      f2 = dopplerCoefficients(3)
-      f3 = dopplerCoefficients(4)
+      if(i_na.gt.1) f1 = dopplerCoefficients(2)
+      if(i_na.gt.2) f2 = dopplerCoefficients(3)
+      if(i_na.gt.3) f3 = dopplerCoefficients(4)
 
       if(istats .eq. 1)then
          write(MESSAGE,*) ' '

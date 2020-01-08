@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,13 +59,32 @@ class _RunWrapper(object):
 
     pass
 
+
+
+# runEstimateHeights is a facility
+def createEstimateHeights(other, sensor):
+    if "uavsar" in sensor.lower():
+        from .runEstimateHeights_peg import runEstimateHeights
+    else:
+        from .runEstimateHeights import runEstimateHeights
+    return _RunWrapper(other, runEstimateHeights)
+
 # we turned runFormSLC into a facility
 def createFormSLC(other, sensor):
-    if sensor.lower() in ["terrasarx","cosmo_skymed_slc","radarsat2",'tandemx', 'kompsat5']:
+    if sensor.lower() in ["terrasarx","cosmo_skymed_slc","radarsat2",'tandemx', 'kompsat5','risat1_slc','sentinel1a', 'alos2','ers_slc','alos_slc','envisat_slc']:
         from .runFormSLCTSX import runFormSLC
+    elif sensor.lower() in ["uavsar_rpi"]:
+        from .runFormSLCisce import runFormSLC
     else:
         from .runFormSLC import runFormSLC
     return _RunWrapper(other, runFormSLC)
+
+def createSetmocomppath(other, sensor):
+    if sensor.lower() in ["uavsar_rpi"]:
+        from .runSetmocomppathFromFrames import runSetmocomppath
+    else:
+        from .runSetmocomppath import runSetmocomppath
+    return _RunWrapper(other, runSetmocomppath)
 
 
 def createUnwrapper(other, do_unwrap = None, unwrapperName = None,
@@ -83,6 +102,19 @@ def createUnwrapper(other, do_unwrap = None, unwrapperName = None,
     elif unwrapperName.lower() == 'grass':
         from .runUnwrapGrass import runUnwrap
     return _RunWrapper(other, runUnwrap)
+
+def createUnwrap2Stage(other, do_unwrap_2stage = None, unwrapperName = None):
+    if (not do_unwrap_2stage) or (unwrapperName.lower() == 'icu') or (unwrapperName.lower() == 'grass'):
+        #if not defined create an empty method that does nothing
+        def runUnwrap2Stage(*arg, **kwargs):
+            return None
+    else:
+      try:
+        import pulp
+        from .runUnwrap2Stage import runUnwrap2Stage
+      except ImportError:
+        raise Exception('Please install PuLP Linear Programming API to run 2stage unwrap')
+    return _RunWrapper(other, runUnwrap2Stage)
 
 def createOffsetprf(other, coregisterMethod, do_offsetprf=True):
     if not do_offsetprf:
@@ -106,11 +138,12 @@ def createRgoffset(other, coregisterMethod, do_rgoffset=True):
         from .runRgoffset import runRgoffset
     return _RunWrapper(other, runRgoffset)
 
+createMaskImages = _factory("runMaskImages")
+createCreateWbdMask = _factory("runCreateWbdMask")
 createCreateDem = _factory("createDem")
 createExtractInfo = _factory("extractInfo")
 createPreprocessor = _factory("runPreprocessor")
 createPulseTiming = _factory("runPulseTiming")
-createEstimateHeights = _factory("runEstimateHeights")
 createSetmocomppath = _factory("runSetmocomppath")
 createOrbit2sch = _factory("runOrbit2sch")
 createUpdatePreprocInfo = _factory("runUpdatePreprocInfo")
@@ -122,10 +155,8 @@ createMocompbaseline = _factory("runMocompbaseline")
 createTopo = _factory("runTopo")
 createCorrect = _factory("runCorrect")
 createShadecpx2rg = _factory("runShadecpx2rg")
-#createRgoffset = _factory("runRgoffset_nstage")
 createResamp_only = _factory("runResamp_only")
 createCoherence = _factory("runCoherence")
 createFilter = _factory("runFilter")
 createGrass = _factory("runGrass")
 createGeocode = _factory("runGeocode")
-

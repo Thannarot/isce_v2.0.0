@@ -21,7 +21,7 @@
 #include <stdint.h>
 using namespace std;
 
-static char * const __doc__ = "Python extension for zenith2los";
+static const char * const __doc__ = "Python extension for zenith2los";
 
 PyModuleDef moduledef = {
     // header
@@ -169,4 +169,3 @@ PyObject* zenith2los_C(PyObject* self, PyObject* args)
     ((zenith2los*)(ptr))->process(model,lat,lon,los,out);
     return Py_BuildValue("i",0);
 }
-

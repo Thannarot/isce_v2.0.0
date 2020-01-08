@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -48,39 +48,60 @@ from iscesys.Component.Component import Component
 #Moreover each parameter can be set with the corresponding accessor method setParameter() (see the class member methods).
 #@see DataAccessor.Image.
 #@see Component.Component.
+DATA_TYPE = Component.Parameter('dataType',
+                      public_name='DATA_TYPE',
+                      default='byte',
+                      type=str,
+                      mandatory=True,
+                      doc='Image data type.')
+IMAGE_TYPE = Component.Parameter('imageType',
+                       public_name='IMAGE_TYPE',
+                       default='stream',
+                       type=str,
+                       mandatory=False,
+                       private=True,
+                       doc='Image type used for displaying.')
+'''
+WIDTH = Component.Parameter('width',
+                       public_name='WIDTH',
+                       default=1,
+                       type=int,
+                       mandatory=True,
+                       doc='Image width.')
+'''
 class StreamImage(Image):
 
+    parameter_list = (
+                  DATA_TYPE,
+                  IMAGE_TYPE,
+                  #WIDTH
+                  ) 
 
     def createImage(self):
         
         self.checkInitialization()
         Image.createImage(self)        
 
-    def initImage(self,filename,accessmode):#overload baseclass methetod since non need to define the width, since it's 1
+    def initImage(self,filename,accessmode):#overload baseclass method since no need to define the width, since it's 1
         Image.initImage(self,filename,accessmode,self.width)
+ 
+    def updateParameters(self):
+        self.extendParameterList(Image,StreamImage)
+        super(StreamImage,self).updateParameters()
+ 
+    family = "streamimage"
 
-    def __init__(self):
+    def __init__(self,family='',name=''):
 
-        
-        Image.__init__(self)
-
+        self.updateParameters()
+        super(StreamImage, self).__init__(family if family else  self.__class__.family, name=name)
+        #self._instanceInit()
+        self.width = 1;
         self.initOptionalAndMandatoryLists()
         self.addDescription('STR":" byte stream object.')  
-            
         
 
-        
-        #optional variables
-        self.bands = 1
-        self.scheme = 'BIP'
-        self.dataType = 'BYTE'
-        self.width = 1
-        
-        #mandatory variables
-        self.filename = ''
-        self.accessMode = ''
-
-        self.logger = logging.getLogger('isce.Image.SlcImageBase')
+        self.logger = logging.getLogger('isce.Image.StreamImage')
         
         return
     
@@ -90,13 +111,8 @@ class StreamImage(Image):
         return d
     def __setstate__(self,d):
         self.__dict__.update(d)
-        self.logger = logging.getLogger('isce.Image.SlcImageBase')
+        self.logger = logging.getLogger('isce.Image.StreamImage')
         return
 
 #end class
 
-
-
-
-if __name__ == "__main__":
-    sys.exit(main())

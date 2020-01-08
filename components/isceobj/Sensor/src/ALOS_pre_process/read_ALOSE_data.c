@@ -153,7 +153,8 @@ long read_ALOSE_data (FILE *imagefile, FILE *outfile, struct PRM *prm, long *byt
 		data_length = record_length1;
 
 		/* write line header to output data  */
-          	fwrite((void *) &sdr, line_prefix_size, 1, outfile);
+                /* PSA - turning off headers
+          	fwrite((void *) &sdr, line_prefix_size, 1, outfile); */
 
 		/* write either fbd or fbs */
 

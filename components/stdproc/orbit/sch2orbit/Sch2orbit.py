@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,7 +35,8 @@ ORBIT_POSITION = Component.Parameter(
     'orbitPosition',
     public_name='orbit sch position vectors',
     default=[],
-    type=list,
+    container=list,
+    type=float,
     units='m',
     mandatory=True,
     doc="Orbit xyz position vectors"
@@ -45,7 +46,8 @@ ORBIT_VELOCITY = Component.Parameter(
     'orbitVelocity',
     public_name='orbit sch velocity vectors',
     default=[],
-    type=list,
+    container=list,
+    type=float,
     units='m/s',
     mandatory=True,
     doc="Orbit xyz velocity vectors"
@@ -122,11 +124,11 @@ RADIUS_OF_CURVATURE = Component.Parameter(
     )
 
 class Sch2orbit(Component):
-    
+
     planetGM = CN.EarthGM
     ellipsoidMajorSemiAxis = CN.EarthMajorSemiAxis
     ellipsoidEccentricitySquared = CN.EarthEccentricitySquared
-    
+
     def __init__(self,
                  averageHeight=None,
                  planet=None,
@@ -144,15 +146,15 @@ class Sch2orbit(Component):
         self._numVectors = None
         self._time = None
         self._orbit = None
-        
+
         self.position = []
         self.velocity = []
         self.acceleration = []
         self.logger = logging.getLogger('isce.sch2orbit')
-        self.dictionaryOfOutputVariables = {'XYZ_POSITION' : 'self.position', 
-	
+        self.dictionaryOfOutputVariables = {'XYZ_POSITION' : 'self.position',
+
                                             'XYZ_VELOCITY':'self.velocity',
-	 
+
                                             'XYZ_GRAVITATIONAL_ACCELERATION':'self.acceleration'}
         return
 
@@ -164,7 +166,7 @@ class Sch2orbit(Component):
         # Add the ports
         self.inputPorts.add(orbitPort)
         self.inputPorts.add(planetPort)
-        self.inputPorts.add(pegPort)     
+        self.inputPorts.add(pegPort)
         return None
 
 
@@ -200,10 +202,10 @@ class Sch2orbit(Component):
         sch2orbit.setPegLongitude_Py(float(self.pegLongitude))
         sch2orbit.setPegHeading_Py(float(self.pegHeading))
         sch2orbit.setRadiusOfCurvature_Py(float(self.radiusOfCurvature))
-            
-        sch2orbit.setOrbitPosition_Py(self.orbitPosition, 
+
+        sch2orbit.setOrbitPosition_Py(self.orbitPosition,
                                       self._numVectors)
-        sch2orbit.setOrbitVelocity_Py(self.orbitVelocity, 
+        sch2orbit.setOrbitVelocity_Py(self.orbitVelocity,
                                       self._numVectors)
         sch2orbit.setPlanetGM_Py(float(self.planetGM))
         sch2orbit.setEllipsoidMajorSemiAxis_Py(
@@ -282,7 +284,7 @@ class Sch2orbit(Component):
         sch2orbit.deallocateArrays_Py()
 
         return
-    
+
 
     @property
     def orbit(self):
@@ -300,7 +302,7 @@ class Sch2orbit(Component):
         self.time = time
         return None
 
-    def addOrbit(self):                
+    def addOrbit(self):
         orbit = self.inputPorts['orbit']
         if orbit:
             try:
@@ -312,12 +314,12 @@ class Sch2orbit(Component):
                 self.logger.error(
                     "orbit port should look like an orbit, not: %s" %
                     (orbit.__class__)
-                    )  
-                raise AttributeError 
+                    )
+                raise AttributeError
             pass
         return None
-        
-    def addPlanet(self):        
+
+    def addPlanet(self):
         planet = self._inputPorts.getPort('planet').getObject()
         if(planet):
             try:
@@ -328,9 +330,9 @@ class Sch2orbit(Component):
                 self.logger.error(
                     "Object %s requires get_GM(), get_elp().get_a() and get_elp().get_e2() methods" % (planet.__class__)
                     )
-                raise AttributeError 
-        
-    def addPeg(self):        
+                raise AttributeError
+
+    def addPeg(self):
         peg = self._inputPorts.getPort('peg').getObject()
         if(peg):
             try:
@@ -343,10 +345,8 @@ class Sch2orbit(Component):
                     "Object %s requires getLatitude(), getLongitude() and getHeading() methods" %
                     (peg.__class__)
                     )
-                raise AttributeError 
-                   
+                raise AttributeError
+
             pass
         pass
     pass
-
-

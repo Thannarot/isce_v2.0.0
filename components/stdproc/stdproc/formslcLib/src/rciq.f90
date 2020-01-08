@@ -23,11 +23,11 @@
       integer*4 ifrst,nbytes        !First pixel to read, Number of bytes per line
       integer*4 ngood,nlinesaz	    !Number of good bytes, Number of range pixels 
       integer*4 i,j                 !Local Variables
-      integer*1,allocatable :: inbuf(:)     !Contiguous Input Buffer
       real*4    unpacki(256),unpackq(256)   !Unpacking arrays
       integer colPos,rowPos,numEl   !Local Variables
-      complex*8,allocatable :: tmp(:)	    !Array for storing one line of complex data
-      
+      complex*8,allocatable :: tmp(:,:)         !Array for storing one line of complex data
+
+      integer*4 ieof;
       write(*,*)'I/Q range starting record, pixel: ',irec,ifrst
 
 !c   init ffts for parallel version
@@ -41,17 +41,30 @@
       if(iflip.eq.1)write(*,*)'Flipping i/q data...'
 
 !c   Initialize buffers
-      allocate(inbuf(nnn*nbytes))   !Allocate memory for an entire patch of data
-      allocate(tmp(ranfft))
+      allocate(tmp(ranfft,nnn)) !jng
       trans1 = 0		    !Intialize O/P buffer to zero
-      inbuf = 0			    !Initialize I/P buffer to zero
       tmp = 0			    !Initialize temporary buffer to zero
 
 !c   Actually read in the buffer
       rowPos = irec + 1		    !First line starts from irec+1
       colPos =  1		    !Starting from first column 
       numEl = nbytes*nnn            !Number of bytes to read
-      call getSequentialElements(rawAccessor,inbuf,rowPos,colPos,numEl) !Read
+      ieof = 0
+      !skip the first ifrst bytes in each line
+      call setLineOffset(rawAccessor,ifrst)
+      !start from line rowPos
+      call initSequentialAccessor(rawAccessor,rowPos)
+      do j = 1, nnn 
+        call getLineSequential(rawAccessor,tmp(1:ngood/2,j),ieof)
+        if(ieof .lt. 0) then
+          ! jng note that the eof is reached when reading the full last line.
+          ! I would expected that the next read would have set the eof flag. That's
+          ! why is not numEl = nbytes*(j-1) 
+          numEl = nbytes*j
+          exit
+        end if
+          
+      end do
 !c   Report if fewer elements were read in
       if(numEl .ne. nbytes*nnn) then
            write(6,*) "Warning. Number of elements requested is ", nbytes*nnn ,"while the number of elements read is", numEl 
@@ -59,45 +72,41 @@
 
 !c    Start of the openmp parallel loop
 
-!$omp parallel  private(tmp) &
-!$omp shared(nnn,unpacki,unpackq,ifrst,iflip,nbytes,ngood,numEl,trans1)
+!$omp parallel &
+!$omp shared(nnn,unpacki,unpackq,ifrst,iflip,nbytes,ngood,numEl,trans1,tmp)
 !$omp do
       do j = 1, min(numEl/nbytes,nnn)      !For each line read in
-         do i=1,ngood/2   !-ifrst ==> Piyush		   !For each good pixel
-            tmp(i)= &
-             cmplx(unpacki(1+iand(255,inbuf(((i+ifrst)*2-1+iflip+(j-1)*nbytes)))), &
-                   unpackq(1+iand(255,inbuf(((i+ifrst)*2-iflip+(j-1)*nbytes)))))   
-	 end do   !Done unpacking the line
-
+         
 	 !Fill the rest of the line with zeros
 	 do i=ngood/2+1,ranfft   !-ifrst ==> Piyush
-            tmp(i)=cmplx(0.,0.)
+            tmp(i,j)=cmplx(0.,0.)
+
          end do
 
          !Forward transform the data line 
-	 call cfft1d_jpl(ranfft,tmp,-1)
-
+         call cfft1d_jpl(ranfft,tmp(:,j),-1)
 	 !Multiply with the FFT of the reference chirp
          do i=1,ranfft
-            tmp(i)=tmp(i)*ref1(i)
+            tmp(i,j)=tmp(i,j)*ref1(i)
+
          end do
 
 	 !Inverse Fourier Transform
-         call cfft1d_jpl(ranfft,tmp,1)
+         call cfft1d_jpl(ranfft,tmp(:,j),1)
+
 
 	 ! Number of valid samples copied to output
          do i=1,nlinesaz
-            trans1(j,i)=tmp(i)
+            trans1(j,i)=tmp(i,j)
+
          end do
       end do
 !$omp end do
 !$omp end parallel 
 
-      ! Deallocate the temporary input buffer
-      deallocate(inbuf)
-
+     
       ! Destroy FFTW plans
-      call cfft1d_jpl(ranfft,tmp,2)
+      call cfft1d_jpl(ranfft,tmp(:,1),2)
 
       deallocate(tmp)
       return

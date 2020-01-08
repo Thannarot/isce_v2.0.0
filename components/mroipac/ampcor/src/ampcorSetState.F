@@ -28,6 +28,20 @@
           i_samples(2) = i_samples2_val
        end
 
+       subroutine setImageLength1(ival)
+           use ampcorState
+           implicit none
+           integer ival
+           i_lines(1) = ival
+       end 
+
+       subroutine setImageLength2(ival)
+           use ampcorState
+           implicit none
+           integer ival
+           i_lines(2) = ival
+       end
+
 !c Processing parameters
 
        subroutine setFirstSampleDown(i_strtline_val)

@@ -1,93 +1,3 @@
-c     roi -- patch mode interferometric processor with prati filter 
-c            wide swath version
-c 
-c   UPDATE LOG:
-c       This version uses MPI (Message Passing Interface)
-c       to parallelize the roi sequential computations.
-c       Compiler flag -DMPI_PARA is needed
-c       in order to have the MPI code.        03/01/04
-CPOD      
-CPOD=pod
-CPOD
-CPOD=head1 USAGE
-CPOD
-CPOD roi input_file 
-CPOD
-CPODwhere input_file is the name of the RDF formatted input file
-CPOD
-CPOD or 
-CPOD
-CPOD roi < input_file
-CPOD
-CPODwhere input_file is old style list of input parameters
-CPOD
-CPOD=head1 FUNCTION
-CPOD
-CPODThis program will process two raw synthetic aperture radar data sets
-CPODinto images and perform a resampling operation on one of them based on input
-CPODpolynomials that describe the spatially variable offset between the 
-CPODtwo images. The outputs are then coaligned single-look complex (SLC) images
-CPODin floating point that can be interfered to make an interferogram.
-CPOD
-CPODThe program forms images by an overlap save method.  The input is divided
-CPODinto overlapping patches. Each patch goes through a series of filtering
-CPODoperations: range compression of each line, followed by azimuth FFT, range
-CPODmigration correction, azimuth compression. Resampling of the second image to 
-CPODalign with the first is done during range migration correction in range, and 
-CPOD with linear phase ramps in the frequency domain in azimuth.
-CPOD
-CPOD=head1 ROUTINES CALLED
-CPOD
-CPOD cfft1d_jpl, rc_patch, ac_patch, rm_patch, cffts,
-CPOD radopp, moddop, outdop, nextpower,
-CPOD mp_super, p_setup, mp_numthreads,
-CPOD rdflen, rdfval, 
-CPOD rdf_clear, rdf_init, rdf_read
-CPOD
-CPOD=head1 CALLED BY
-CPOD
-CPOD=head1 FILES USED
-CPOD
-CPODProgram reads in an RDF command file.
-CPOD
-CPODProgram reads in two flat, binary, raw data files.
-CPODEach pixel in the raw data files are expected be
-CPODbyte oriented data, either real (offset-video) samples,
-CPODone byte each, or complex (I/Q) samples, one byte for 
-CPODthe real part and one byte for the imaginary part.
-CPODThe files contain the images to be interfered with each other
-CPODafter processing. 
-CPOD
-CPODProgram reads an ASCII data window position (DWP) file and automatic 
-CPODgain control (AGC) file each with format (line#,value). Zero length 
-CPODis OK for these files. 
-CPOD
-CPOD=head1 FILES CREATED
-CPOD
-CPODProgram creates two SLC images as output (or one if /dev/null is specified
-CPODas an output file).  It also generates a multi-look power image for diagnostic 
-CPODpurposes.
-CPOD
-CPODThe most common usage of roi presently is to produce a single image rather than
-CPODattempt to align two images with the offset fields.  This is because resamp_roi
-CPODdoes a better job of handling large offset variability.
-CPOD
-CPOD=head1 DIAGNOSTIC FILES
-CPOD
-CPODCode has option to dump binary complex images after range compression,
-CPODazimuth FFT, and range migration correction for channel 1
-CPOD
-CPOD=head1 HISTORY
-CPOD
-CPODOriginal Routines: Howard Zebker and Paul Rosen
-CPODEdited over the years repeatedly by Paul Rosen and Scott Hensley
-CPOD
-CPOD=head1 LAST UPDATE
-CPOD
-CPODPaul Rosen, 25 Nov. 2003
-CPOD
-CPOD=cut
-
       subroutine formslc(ptImageRaw,ptImageSLC)
         
       use fortranUtils
@@ -106,8 +16,7 @@ CPOD=cut
       real*8       sloper, interr, slopea, intera
       real*8       dsloper, dinterr, dslopea, dintera
       real*8       dp1, fr1, slope1, slope2
-      real*8        earthgm
-      integer*4    ideskew, iflip, iq, nr_fftf, nr_fftr, npow
+      integer*4    iq, nr_fftf, nr_fftr, npow
       integer*4    i, j, k
       integer*4    nl, nls, ifrst, irec, npts
       integer*4    ier, ipatch, ifs
@@ -124,46 +33,42 @@ CPOD=cut
       integer*4    nint, NextPower
       integer*4    nagc, ndwp, offsetSet
       real*4 t2, t3, t4
-      character*4  ROMIO
+      
       !c++ middleman objects pointers attached to the SLC and RAW images 
       INTEGER*8 :: ptImageSLC, ptImageRaw
+      
       ! memory buffer to contain a slc line
       COMPLEX*8, allocatable, DIMENSION(:) ::dataLineSet
       REAL*4, DIMENSION(:), ALLOCATABLE :: agc, dwp
       ! memory buffer to contain a raw line
       INTEGER*1, allocatable, DIMENSION(:) ::  dataLineGet
-      integer*4 lineWidthSlc,lineWidthRaw
-
-
-
 
       real*4 seconds
       external seconds
 
-      data         earthgm/0.398600485042958863d15/
       double precision :: sol
 
-c initialize all arrays
+!c initialize all arrays
     
       sol = getSpeedOfLight()
-c get image line sizes.
+      pi =  getPI()
+      pi2 = 2.0 * pi
 
-      call getFileWidth(ptImageSLC, lineWidthSlc)	
-      allocate(dataLineSet(lineWidthSlc))
-      call getFileWidth(ptImageRaw, lineWidthRaw)	
-      allocate(dataLineGet(lineWidthRaw))
-c     
-**********  input parameters  **********
-c     
-c     enter input parameters
-c
+!c get image line sizes.
+      allocate(dataLineSet(nlinesaz))
+      allocate(dataLineGet(nbytes1))
+!c     
+!**********  input parameters  **********
+!c     
+!c     enter input parameters
+!c
       write(6,*) 'ROI - Repeat Orbit Interferometric processor'
       write(6,*) ''
-c     
+!c     
       nagc = 0
 
       ndwp = 0
-c     compute the azimuth parameters
+!c     compute the azimuth parameters
       
       iradelta = 0
       iusedopp = 1
@@ -192,15 +97,13 @@ c where single variables
       write(6,*) 'actual orbital pulse spacing ', dxsamp1
 
       delr=sol/fs/2.
-c      name_in_1 = '950523.raw'
-c      name_out = '950523.slc'
       write(6,*) ''
       write(6,*) 'First line to read in file 1 (start at 0) ', ifirstline 
       write(6,*) '# of range input patches ', npatches
       write(6,*) 'First sample pair to use ',ifirst
       write(6,*) 'Azimuth patch size ',nnn
       write(6,*) 'Number of valid points in azimuth ',na_valid
-      write(6,*) 'Deskew the image? ',deskew
+      write(6,*) 'Deskew the image? ',ideskew
       write(6,*) 'First range bin to save in file 1 ', isave
       write(6,*) 'Number of range bins to process ', nlinesaz
       write(6,*) 'Delta range pixels for second file: ',iradelta
@@ -216,14 +119,14 @@ c      name_out = '950523.slc'
      $     r001
       write(6,*) 'PRF 1 (pps) ', prf1
       write(6,*) 'i/q means, i1,q1 ', xmi1, xmq1
-      write(6,*) 'Flip i/q ', iqflip
+      write(6,*) 'Flip i/q ', iflip
       write(6,*) 'Desired azimuth resolution (m) ', azres
       write(6,*) 'Number azimuth looks (m) ', nlooks
       write(6,*) 'Range sampling rate (Hz) ', fs
       write(6,*) 'Chirp Slope (Hz/s) ', slope
       write(6,*) 'Pulse Duration (s) ', pulsedur
       write(6,*) 'Chirp extension ', nextend
-      write(6,*) 'Secondary Range Correction ', srm
+      write(6,*) 'Secondary Range Correction ', isrm
       write(6,*) 'Radar Wavelength (m) ', wavl
       write(6,*) 'Range Spectral Weighting ', rhww
       write(6,*) 'Fractional bandwidth to remove ', pctbw, pctbwaz
@@ -237,13 +140,12 @@ c      name_out = '950523.slc'
 
       t0 = seconds(0.0)           ! start timer
 
-      pi = 4.*atan(1.)
-      pi2 = 2. * pi
 
-      iflip = 0
+
       iq = 1
-      if(iqflip .eq. 'Y' .or. iqflip .eq. 'y') iflip = 1
-      if(iqflip .eq. 'O' .or. iqflip .eq. 'o') iq = 0
+
+!!      Currently, not considering offset video 
+!!      if(iqflip .eq. 'O' .or. iqflip .eq. 'o') iq = 0
 
       fwidth=slope*pulsedur
       if(iq .eq. 0) then 
@@ -337,6 +239,7 @@ c     iradelta, and nextend
       
       r01 = r001 + (isave-nextend-1) * delr
 
+      slc_r0 = r01
       write(6,*) 'updated start ranges (m) ',r01
 
       call outdopp(fd3,fdd3,fddd3,fdddd3,r001,r01,delr)
@@ -365,7 +268,7 @@ c secondary range migration correction to chirp rate (from CY memo)
 c
       slope1 = slope
       slope2 = slope
-      if((srm .eq. 'y' .or. srm .eq. 'Y')) then
+      if(isrm .ne. 0) then
 
          r1 = r001 + delr* nlinesaz/2.
          fr1 = -2. * vel1**2/(wavl*r1) 
@@ -423,8 +326,8 @@ c
             ref(k) = ref(i)
             ref1(k) = ref1(i)
          end do
-         do i = 1 , nextend	
-       	    k = npts - nextend+i
+         do i = 1 , nextend     
+            k = npts - nextend+i
             if(k .le. 0) k = k + nr_fftf
             ref(k) = cmplx(0.,0.)
             ref1(k) = cmplx(0.,0.)
@@ -503,8 +406,6 @@ c     load the unpacking array
          end do
       end if
       
-      ideskew = 0
-      if(deskew .eq. 'y' .or. deskew .eq. 'Y') ideskew = 1
 
       t2=seconds(t0)
       write(6,*) 'XXX elapsed time before looping over patches', t2
@@ -516,9 +417,9 @@ c
       ioutrc1 = 0
       ioutrc2 = 0
 
-        
+      
+      slc_line0 = 0
 c     get offsets for the given patch
-         
       do ipatch=1,npatches
          slpr = sloper+(ipatch-1)*dsloper
          intr = interr+(ipatch-1)*dinterr
@@ -543,7 +444,7 @@ c
 c     compress channels
          
 c do range compression for file 1
-	
+        
          
          write(6,*) ''
          write(6,*) ' range compressing channel 1 .....'
@@ -552,13 +453,16 @@ c do range compression for file 1
          irec=ifirstline+(ipatch-1)*na_valid
          ifrst= ifirst+isave-1
 
+         if (ipatch.eq.1) then
+             slc_line0 = irec + ifs +1 
+         endif
+
+
          t3=seconds(t0)
          call rcpatch(ptImageRaw, dataLineGet,nnn,nlinesaz,trans,unpacki1,unpackq1,
      $        ref1,irec,ifrst,nbytes1,ngood1,nr_fftf, nr_fftr,iq,iflip, 
-     $           agc,dwp,nagc,ndwp, ROMIO)
-c         call rcpatch(FDSC1,nnn,nlinesaz,trans,unpacki1,unpackq1,
-c     $        ref1,irec,ifrst,nbytes1,ngood1,nr_fftf, nr_fftr,iq,iflip, 
-c     $           agc,dwp,nagc,ndwp, ROMIO) 
+     $           agc,dwp,nagc,ndwp)
+         
          t4=seconds(t0)
          write(6,*) 'XXX rcpatch took: ',t4-t3,'s'
 
@@ -601,7 +505,9 @@ c multiply by reference and inverse transform lines for file 1
 c write out the slc for file 1
 
          t3=seconds(t0)
-	 offsetSet = 0
+         offsetSet = 0
+
+
          do i = nnn/2-na_valid/2+1, nnn/2+na_valid/2
             do j = 1 , nlinesaz
 c Giangi
@@ -611,8 +517,7 @@ cc               write(6,*) aimag(data(j)), real(data(j))
             end do
                
             ioutrec1 = ioutrec1 + 1
-        
-	  call setLineSequential(ptImageSLC,dataLineSet)
+          call setLineSequential(ptImageSLC,dataLineSet)
                
          end do
          t4=seconds(t0)
@@ -712,7 +617,7 @@ c     if first time through, save complex images for file 2
 
       subroutine radopp(fd, fdd, fddd, fdddd, r, del)
 
-      real*8 	fd, fdd, fddd, fdddd, r, del, temp1, temp2, temp3, temp4
+      real*8    fd, fdd, fddd, fdddd, r, del, temp1, temp2, temp3, temp4
 
       temp1 = fd
      .       - fdd   * (r/del)
@@ -736,7 +641,7 @@ c     if first time through, save complex images for file 2
       subroutine outdopp(fd, fdd, fddd, fdddd, r_old, r_new, del)
 
       implicit none
-      real*8 	fd, fdd, fddd, fdddd, r_old, r_new, del, temp1, temp2, temp3, temp4
+      real*8    fd, fdd, fddd, fdddd, r_old, r_new, del, temp1, temp2, temp3, temp4
 
       temp1 = fd
      .       + fdd   * ((r_new-r_old)/del)

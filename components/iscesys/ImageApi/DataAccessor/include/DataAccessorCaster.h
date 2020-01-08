@@ -8,7 +8,7 @@
 #define ERR_MESSAGE cout << "Error in file " << __FILE__ << " at line " << __LINE__  << " Exiting" <<  endl; exit(1);
 #endif
 
-#include "InterleavedAccessor.h"
+#include "InterleavedBase.h"
 #include "DataAccessor.h"
 #include "DataCaster.h"
 #include <stdint.h>
@@ -17,7 +17,7 @@ using namespace std;
 class DataAccessorCaster : public DataAccessor
 {
     public:
-        DataAccessorCaster(InterleavedAccessor * accessor, DataCaster * caster)
+        DataAccessorCaster(InterleavedBase * accessor, DataCaster * caster)
         {
             Accessor = accessor;
             Caster = caster;
@@ -26,6 +26,9 @@ class DataAccessorCaster : public DataAccessor
             DataSizeIn  = Caster->getDataSizeIn();
             DataSizeOut  = Caster->getDataSizeOut();
             LineCounter = 0;
+            LineOffset = 0;
+            NumberOfLines = Accessor->getNumberOfLines();
+
         }           
         ~DataAccessorCaster(){}
         void getStreamAtPos(char * buf,int & pos,int & numEl);
@@ -43,6 +46,9 @@ class DataAccessorCaster : public DataAccessor
         void getSequentialElements(char * buf, int row, int col, int & numEl);
         void setSequentialElements(char * buf, int row, int col, int  numEl);
         void finalize();
+        double getPx2d(int row, int col);
+        double getPx1d(int pos);
+
     protected:
         
 };

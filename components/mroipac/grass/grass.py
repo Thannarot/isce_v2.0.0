@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,6 +59,13 @@ MAX_BRANCH_LENGTH = Component.Parameter('maxBranchLength',
         mandatory = False,
         doc = 'Maximum length of a branch')
 
+COR_BANDS = Component.Parameter('corrFilebands',
+        public_name = 'COR_BANDS',
+        default = None,
+        type = int,
+        mandatory = False,
+        doc = 'Number of bands in correlation file')
+
 class Grass(Component):
     """This is a python interface to the grass unwrapper that comes with ROI_PAC."""
 
@@ -69,7 +76,8 @@ class Grass(Component):
                       STARTY,
                       CORR_THRESHOLD,
                       FLAG_FILE,
-                      MAX_BRANCH_LENGTH)
+                      MAX_BRANCH_LENGTH,
+                      COR_BANDS)
 
     def __init__(self, name=''):
         super(Grass, self).__init__(family=self.__class__.family, name=name)
@@ -92,6 +100,7 @@ class Grass(Component):
     def addCorrelation(self):
         cor = self.inputPorts['correlation']
         self.correlation = cor
+        self.corrFilebands = cor.bands
 
     def addUnwrapped(self):
         unw = self.inputPorts['unwrapped interferogram']
@@ -154,6 +163,7 @@ class Grass(Component):
         maskFile_C = ctypes.c_char_p(self.correlation.getFilename().encode('utf-8'))
         width_C = ctypes.c_int(self.interferogram.getWidth())         
         corThreshold_C = ctypes.c_double(threshold)
+        bands_C = ctypes.c_int(self.corrFilebands)
         xmin_C = ctypes.c_int(0)
         xmax_C = ctypes.c_int(-1)
         ymin_C = ctypes.c_int(0)
@@ -164,7 +174,7 @@ class Grass(Component):
         self.logger.info("Calculating Residues")
         self.grasslib.residues(intFile_C, flagFile_C, width_C, xmin_C, xmax_C, ymin_C, ymax_C)
         self.grasslib.trees(flagFile_C,width_C,mbl_C,start_C,xmin_C,xmax_C,ymin_C,ymax_C)
-        self.grasslib.corr_flag(maskFile_C,flagFile_C,width_C,corThreshold_C,start_C,xmin_C,xmax_C,ymin_C,ymax_C)
+        self.grasslib.corr_flag(maskFile_C,flagFile_C,width_C,corThreshold_C,start_C,xmin_C,xmax_C,ymin_C,ymax_C, bands_C)
         ###Create ISCE XML for mask file
         ####Currently image API does not support UINT8
         mskImage = isceobj.createImage()

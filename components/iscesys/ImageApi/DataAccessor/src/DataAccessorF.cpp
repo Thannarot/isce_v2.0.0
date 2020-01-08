@@ -5,13 +5,21 @@
 #include <string>
 #include <vector>
 using namespace std;
-/*
-void rewindImage_f(uint64_t * ptDataAccessor)
-{
-	((DataAccessor * ) (* ptDataAccessor))->rewindImage();
-}
-*/
 
+void rewindAccessor_f(uint64_t * ptDataAccessor)
+{
+	((DataAccessor * ) (* ptDataAccessor))->rewindAccessor();
+}
+
+
+int getWidth_f(uint64_t * ptDataAccessor)
+{
+   return ((DataAccessor * ) (* ptDataAccessor))->getWidth();
+}
+int getNumberOfLines_f(uint64_t * ptDataAccessor)
+{
+    return ((DataAccessor * ) (* ptDataAccessor))->getNumberOfLines();
+}
 void setLineSequential_f(uint64_t * ptDataAccessor,  char * dataLine) 
 {
     ((DataAccessor * ) (* ptDataAccessor))->setLineSequential(dataLine);
@@ -124,4 +132,31 @@ void initSequentialAccessor_f(uint64_t * ptDataAccessor, int * begLine)
     (*begLine) -= 1;
     ((DataAccessor * ) (* ptDataAccessor))->initSequentialAccessor((*begLine));
     (*begLine) += 1;
+}
+double getPx1d_f(uint64_t * ptDataAccessor,int * ptPos)
+{
+  (*ptPos) -= 1;
+  double ret = ((DataAccessor * ) (* ptDataAccessor))->getPx1d((*ptPos));
+  (*ptPos) += 1;
+
+  return ret;
+
+}
+double getPx2d_f(uint64_t * ptDataAccessor,int * ptRow, int * ptCol)
+{
+  (*ptRow) -= 1;
+  (*ptCol) -= 1;
+  double ret = ((DataAccessor * ) (* ptDataAccessor))->getPx2d((*ptRow),(*ptCol));
+  (*ptRow) += 1;
+  (*ptCol) += 1;
+  return ret;
+
+}
+void setLineOffset_f(uint64_t * ptDataAccessor,int * lineoff)
+{
+  ((DataAccessor * ) (* ptDataAccessor))->setLineOffset((*lineoff));
+}
+int getLineOffset_f(uint64_t * ptDataAccessor)
+{
+  return ((DataAccessor * ) (* ptDataAccessor))->getLineOffset();
 }

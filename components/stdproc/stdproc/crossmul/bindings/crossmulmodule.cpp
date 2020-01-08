@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,7 @@
 #include <stdint.h>
 using namespace std;
 
-static char * const __doc__ = "Python extension for crossmul.F";
+static const char * const __doc__ = "Python extension for crossmul.F";
 
 PyModuleDef moduledef = {
     //header
@@ -75,6 +75,8 @@ PyObject * destroyCrossMul_C(PyObject* self, PyObject* args)
     {
         delete ((crossmulState*)(ptr));
     }
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 PyObject * setWidth_C(PyObject* self, PyObject* args)
@@ -86,7 +88,8 @@ PyObject * setWidth_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->na = var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 PyObject * setLength_C(PyObject* self, PyObject* args)
@@ -98,7 +101,8 @@ PyObject * setLength_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->nd = var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 PyObject * setLooksAcross_C(PyObject* self, PyObject* args)
@@ -110,7 +114,8 @@ PyObject * setLooksAcross_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->looksac = var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 PyObject * setLooksDown_C(PyObject* self, PyObject* args)
@@ -122,7 +127,8 @@ PyObject * setLooksDown_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->looksdn = var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 
@@ -135,7 +141,8 @@ PyObject * setScale_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->scale = var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 PyObject * setBlocksize_C(PyObject* self, PyObject* args)
@@ -147,7 +154,62 @@ PyObject * setBlocksize_C(PyObject* self, PyObject* args)
         return NULL;
     }
     ((crossmulState*)(ptr))->blocksize =  var;
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyObject * setWavelengths_C(PyObject* self, PyObject* args)
+{
+    double v1, v2;
+    uint64_t ptr;
+    if (!PyArg_ParseTuple(args,"Kdd", &ptr, &v1, &v2))
+    {
+        return NULL;
+    }
+    ((crossmulState*)(ptr))->wvl1 = v1;
+    ((crossmulState*)(ptr))->wvl2 = v2;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyObject * setSpacings_C(PyObject* self, PyObject* args)
+{
+    double v1, v2;
+    uint64_t ptr;
+    if (!PyArg_ParseTuple(args,"Kdd", &ptr, &v1, &v2))
+    {
+        return NULL;
+    }
+    ((crossmulState*)(ptr))->drg1 = v1;
+    ((crossmulState*)(ptr))->drg2 = v2;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyObject * setFlattenFlag_C(PyObject* self, PyObject* args)
+{
+    int var;
+    uint64_t ptr;
+    if(!PyArg_ParseTuple(args, "Ki", &ptr, &var))
+    {
+        return NULL;
+    }
+    ((crossmulState*)(ptr))->flatten =  var;
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyObject * setFilterWeight_C(PyObject* self, PyObject* args)
+{
+    double var;
+    uint64_t ptr;
+    if(!PyArg_ParseTuple(args, "Kd", &ptr, &var))
+    {
+        return NULL;
+    }
+    ((crossmulState*)(ptr))->wgt =  var;
+    Py_INCREF(Py_None);
+    return Py_None;
 }
 
 
@@ -160,5 +222,6 @@ PyObject * crossmul_C(PyObject *self, PyObject *args)
         return NULL;
     }
     crossmul_f((crossmulState*)(state), &slc1, &slc2, &ifg, &amp);
-    return Py_BuildValue("i", 0);
+    Py_INCREF(Py_None);
+    return Py_None;
 }

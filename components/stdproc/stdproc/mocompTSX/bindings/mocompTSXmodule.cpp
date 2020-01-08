@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2012 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2012 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,7 +30,7 @@
 #include <vector>
 using namespace std;
 
-static char * const __doc__ = "Python extension for mocompTSX.F";
+static const char * const __doc__ = "Python extension for mocompTSX.F";
 
 PyModuleDef moduledef = {
     // header
@@ -431,5 +431,91 @@ PyObject * getMocompPosition_C(PyObject* self, PyObject* args)
     return Py_BuildValue("N",list1);
 }
 
+//New stuff for estMocompOrbit
+PyObject *setOrbit_C(PyObject *self, PyObject *args)
+{
+    uint64_t orbPtr;
+    cOrbit * ptr;
+    if(!PyArg_ParseTuple(args, "K", &orbPtr))
+    {
+        return NULL;
+    }
+
+    ptr = (cOrbit*) orbPtr;
+    setOrbit_f(ptr);
+    return Py_BuildValue("i", 0);
+}
+PyObject *setMocompOrbit_C(PyObject *self, PyObject *args)
+{
+    uint64_t orbPtr;
+    cOrbit * ptr;
+    if(!PyArg_ParseTuple(args, "K", &orbPtr))
+    {
+        return NULL;
+    }
+
+    ptr = (cOrbit*) orbPtr;
+
+    setMocompOrbit_f(ptr);
+    return Py_BuildValue("i",0);
+}
+PyObject *setPlanet_C(PyObject *self, PyObject *args)
+{
+    double a;
+    double e2;
+    if(!PyArg_ParseTuple(args,"dd",&a,&e2))
+    {
+        return NULL;
+    }
+    setPlanet_f(&a,&e2);
+    return Py_BuildValue("i", 0);
+}
+PyObject *setEllipsoid_C(PyObject *self, PyObject *args)
+{
+    double spin;
+    double gm;
+    if(!PyArg_ParseTuple(args,"dd",&spin,&gm))
+    {
+        return NULL;
+    }
+    setEllipsoid_f(&spin,&gm);
+    return Py_BuildValue("i", 0);
+}
+PyObject *setPegPoint_C(PyObject *self, PyObject *args)
+{
+    double latitude;
+    double longitude;
+    double heading;
+    if(!PyArg_ParseTuple(args,"ddd",&latitude,&longitude,&heading))
+    {
+        return NULL;
+    }
+    setPegPoint_f(&latitude,&longitude,&heading);
+    return Py_BuildValue("i", 0);
+}
+
+PyObject *setSensingStart_C(PyObject *self, PyObject *args)
+{
+     double var;
+     if(!PyArg_ParseTuple(args, "d", &var))
+     {
+         return NULL;
+     }
+     setSensingStart_f(&var);
+     return Py_BuildValue("i", 0);
+}
+PyObject *getSlcSensingStart_C(PyObject *self, PyObject *args)
+{
+     double var;
+     getSlcSensingStart_f(&var);
+     return Py_BuildValue("d", var);
+}
+
+PyObject *getMocompRange_C(PyObject *self, PyObject *args)
+{
+     double var;
+     getMocompRange_f(&var);
+     return Py_BuildValue("d", var);
+}
 
 // end of file

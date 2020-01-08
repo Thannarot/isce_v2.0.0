@@ -48,5 +48,12 @@ SConscript(simamplitude)
 denseoffsets = os.path.join('denseoffsets', 'SConscript')
 SConscript(denseoffsets)
 
+hist = os.path.join('histogram', 'SConscript')
+SConscript(hist)
+
 SConscript(os.path.join('Library', 'SConscript'),
     variant_dir=os.path.join(envUtil['PRJ_SCONS_BUILD'], package, 'Library', 'src'))
+test = os.path.join('test', 'SConscript')
+SConscript(test)
+imutil = os.path.join('ImageUtil','SConscript')
+SConscript(imutil)

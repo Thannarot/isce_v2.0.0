@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,20 +84,20 @@ def runUnwrap(self,costMode = None,initMethod = None, defomax = None, initOnly =
     outImage.setFilename(unwrapName)
     outImage.setWidth(width)
     outImage.setAccessMode('read')
-    outImage.createImage()
-    outImage.renderHdr()
     outImage.finalizeImage()
+    outImage.renderHdr()
 
     #####Check if connected components was created
     if snp.dumpConnectedComponents:
         connImage = isceobj.Image.createImage()
         connImage.setFilename(unwrapName+'.conncomp')
+        #At least one can query for the name used
+        self.insar.connectedComponentsFilename = unwrapName+'.conncomp'
         connImage.setWidth(width)
         connImage.setAccessMode('read')
         connImage.setDataType('BYTE')
-        connImage.createImage()
-        connImage.renderHdr()
         connImage.finalizeImage()
+        connImage.renderHdr()
 
     return
 def runUnwrapMcf(self):

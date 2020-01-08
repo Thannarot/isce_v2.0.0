@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -31,14 +31,425 @@ from isceobj.Scene.Frame import FrameMixin
 ## Master Slave Hash Table
 MASTER_SLAVE = {0:'master', 1:'slave', 'master':'master', 'slave':'slave'}
 
-RESAMP_IMAGE_NAME_BASE = Component.Parameter('_resampImageName',
-    public_name='resamp image name base',
-    default='resampImage',
-    type='str',
+PROCEED_IF_ZERO_DEM = Component.Parameter(
+    '_proceedIfZeroDem',
+    public_name='proceed if zero dem',
+    default=False,
+    type=bool,
     mandatory=False,
-    doc=('Base name for output interferogram and amplitude files, '+
-         'with fixed extensions .int and .amp added')
+    doc='Flag to apply continue processing if a dem is not available or cannot be downloaded.'
 )
+
+RESAMP_IMAGE_NAME_BASE = Component.Parameter('_resampImageName',
+                                  public_name='resamp image name base',
+                                  default='resampImage',
+                                  type=str,
+                                  mandatory=False,
+                                  doc=('Base name for output interferogram and amplitude files, '+
+                                  'with fixed extensions .int and .amp added')
+                                 )
+
+PEG = Component.Facility('_peg',
+                          public_name='peg',
+                          module='isceobj.Location.Peg',
+                          factory='Peg',
+                          mandatory=False,
+                          doc='')
+
+IS_MOCOMP = Component.Parameter('is_mocomp',
+    public_name='is_mocomp',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=''
+)
+
+RG_IMAGE_NAME = Component.Parameter('_rgImageName',
+                                    public_name='rgImageName',
+                                    default='rgImage',
+                                    type=str,
+                                    mandatory=False,
+                                    doc='')
+AZRES_FACTOR = Component.Parameter('_azResFactor',
+                                    public_name='azResFactor',
+                                    default=1.,
+                                    type=float,
+                                    mandatory=False,
+                                    doc='Factor that multiplies the azimuth resolution adopted in focusing.')
+
+SIM_AMP_IMAGE_NAME = Component.Parameter('_simAmpImageName',
+                                         public_name='simAmpImageName',
+                                         default='simamp.rdr',
+                                         type=str,
+                                         mandatory=False,
+                                         doc='')
+
+APPLY_WATER_MASK = Component.Parameter(
+    '_applyWaterMask',
+    public_name='applyWaterMask',
+    default=True,
+    type=bool,
+    mandatory=False,
+    doc='Flag to apply water mask to images before unwrapping.'
+)
+
+WATER_MASK_IMAGE_NAME = Component.Parameter(
+    '_waterMaskImageName',
+    public_name='waterMaskImageName',
+    default='waterMask.msk',
+    type=str,
+    mandatory=False,
+    doc='Filename of the water body mask image in radar coordinate cropped to the interferogram size.'
+)
+RESAMP_ONLY_IMAGE_NAME = Component.Parameter(
+    '_resampOnlyImageName',
+    public_name='resampOnlyImageName',
+    default='resampOnlyImage.int',
+    type=str,
+    mandatory=False,
+    doc='Filename of the dem-resampled interferogram.'
+)
+
+RESAMP_ONLY_AMP_NAME = Component.Parameter(
+    '_resampOnlyAmpName',
+    public_name='resampOnlyAmpName',
+    default=RESAMP_ONLY_IMAGE_NAME.default.replace('.int', '.amp'),
+    type=str,
+    mandatory=False,
+    doc='Filename of the dem-resampled amplitudes.'
+)
+
+OFFSET_IMAGE_NAME = Component.Parameter('_offsetImageName',
+                                        public_name='offsetImageName',
+                                        default='Offset.mht',
+                                        type=str,
+                                        mandatory=False,
+                                        doc='')
+
+DEM_INIT_FILE = Component.Parameter('_demInitFile',
+                                    public_name='demInitFile',
+                                    default='DemImage.xml',
+                                    type=str,
+                                    mandatory=False,
+                                    doc='')
+
+
+FIRST_SAMPLE_ACROSS_PRF = Component.Parameter('_firstSampleAcrossPrf',
+                                              public_name='firstSampleAcrossPrf',
+                                              default=50,
+                                              type=int,
+                                              mandatory=False,
+                                              doc='')
+
+
+FIRST_SAMPLE_DOWN_PRF = Component.Parameter('_firstSampleDownPrf',
+                                            public_name='firstSampleDownPrf',
+                                            default=50,
+                                            type=int,
+                                            mandatory=False,
+                                            doc='')
+
+
+NUMBER_LOCATION_ACROSS_PRF = Component.Parameter('_numberLocationAcrossPrf',
+                                                 public_name='numberLocationAcrossPrf',
+                                                 default=40,
+                                                 type=int,
+                                                 mandatory=False,
+                                                 doc='')
+
+
+NUMBER_LOCATION_DOWN_PRF = Component.Parameter('_numberLocationDownPrf',
+                                               public_name='numberLocationDownPrf',
+                                               default=50,
+                                               type=int,
+                                               mandatory=False,
+                                               doc='')
+
+NUMBER_VALID_PULSES = Component.Parameter('_numberValidPulses',
+                                          public_name='numberValidPulses',
+                                          default=2048,
+                                          type=int,
+                                          mandatory=False,
+                                          doc='')
+
+FIRST_SAMPLE_ACROSS = Component.Parameter('_firstSampleAcross',
+                                          public_name='firstSampleAcross',
+                                          default=50,
+                                          type=int,
+                                          mandatory=False,
+                                          doc='')
+
+
+FIRST_SAMPLE_DOWN = Component.Parameter('_firstSampleDown',
+                                        public_name='firstSampleDown',
+                                        default=50,
+                                        type=int,
+                                        mandatory=False,
+                                        doc='')
+
+
+NUMBER_LOCATION_ACROSS = Component.Parameter('_numberLocationAcross',
+                                             public_name='numberLocationAcross',
+                                             default=40,
+                                             type=int,
+                                             mandatory=False,
+                                             doc='')
+
+
+NUMBER_LOCATION_DOWN = Component.Parameter('_numberLocationDown',
+                                           public_name='numberLocationDown',
+                                           default=40,
+                                           type=int,
+                                           mandatory=False,
+                                           doc='')
+
+
+
+
+TOPOPHASE_ITERATIONS = Component.Parameter('_topophaseIterations',
+                                           public_name='topophaseIterations',
+                                           default=25,
+                                           type=int,
+                                           mandatory=False,
+                                           doc='')
+
+
+COHERENCE_FILENAME = Component.Parameter('_coherenceFilename',
+                                         public_name='coherenceFilename',
+                                         default='topophase.cor',
+                                         type=str,
+                                         mandatory=False,
+                                         doc='')
+
+
+UNWRAPPED_INT_FILENAME = Component.Parameter('_unwrappedIntFilename',
+                                             public_name='unwrappedIntFilename',
+                                             default='filt_topophase.unw',
+                                             type=str,
+                                             mandatory=False,
+                                             doc='')
+
+UNWRAPPED_2STAGE_FILENAME = Component.Parameter('_unwrapped2StageFilename',
+                                             public_name='unwrapped2StageFilename',
+                                             default='filt_topophase_2stage.unw',
+                                             type=str,
+                                             mandatory=False,
+                                             doc='Output File name of 2Stage unwrapper')
+
+CONNECTED_COMPONENTS_FILENAME = Component.Parameter(
+    '_connectedComponentsFilename',
+    public_name='connectedComponentsFilename',
+    default=None,
+    type=str,
+    mandatory=False,
+    doc=''
+)
+
+PHSIG_FILENAME = Component.Parameter('_phsigFilename',
+                                     public_name='phsigFilename',
+                                     default='phsig.cor',
+                                     type=str,
+                                     mandatory=False,
+                                     doc='')
+
+
+TOPOPHASE_MPH_FILENAME = Component.Parameter('_topophaseMphFilename',
+                                             public_name='topophaseMphFilename',
+                                             default='topophase.mph',
+                                             type=str,
+                                             mandatory=False,
+                                             doc='')
+
+
+TOPOPHASE_FLAT_FILENAME = Component.Parameter('_topophaseFlatFilename',
+                                              public_name='topophaseFlatFilename',
+                                              default='topophase.flat',
+                                              type=str,
+                                              mandatory=False,
+                                              doc='')
+
+
+FILT_TOPOPHASE_FLAT_FILENAME = Component.Parameter('_filt_topophaseFlatFilename',
+                                                   public_name='filt_topophaseFlatFilename',
+                                                   default='filt_topophase.flat',
+                                                   type=str,
+                                                   mandatory=False,
+                                                   doc='')
+
+
+HEIGHT_FILENAME = Component.Parameter('_heightFilename',
+                                      public_name='heightFilename',
+                                      default='z.rdr',
+                                      type=str,
+                                      mandatory=False,
+                                      doc='')
+
+
+HEIGHT_SCH_FILENAME = Component.Parameter('_heightSchFilename',
+                                          public_name='heightSchFilename',
+                                          default='zsch.rdr',
+                                          type=str,
+                                          mandatory=False,
+                                          doc='')
+
+
+GEOCODE_FILENAME = Component.Parameter('_geocodeFilename',
+                                       public_name='geocodeFilename',
+                                       default='topophase.geo',
+                                       type=str,
+                                       mandatory=False,
+                                       doc='')
+
+
+LOS_FILENAME = Component.Parameter('_losFilename',
+                                   public_name='losFilename',
+                                   default='los.rdr',
+                                   type=str,
+                                   mandatory=False,
+                                   doc='')
+
+
+LAT_FILENAME = Component.Parameter('_latFilename',
+                                   public_name='latFilename',
+                                   default='lat.rdr',
+                                   type=str,
+                                   mandatory=False,
+                                   doc='')
+
+
+LON_FILENAME = Component.Parameter('_lonFilename',
+                                   public_name='lonFilename',
+                                   default='lon.rdr',
+                                   type=str,
+                                   mandatory=False,
+                                   doc='')
+
+
+DEM_CROP_FILENAME = Component.Parameter('_demCropFilename',
+                                        public_name='demCropFilename',
+                                        default='dem.crop',
+                                        type=str,
+                                        mandatory=False,
+                                        doc='')
+
+
+FILTER_STRENGTH = Component.Parameter('_filterStrength',
+                                      public_name='filterStrength',
+                                      default=0.7,
+                                      type=float,
+                                      mandatory=False,
+                                      doc='')
+
+NUMBER_PATCHES = Component.Parameter('_numberPatches',
+                                     public_name='numberPatches',
+                                     default=None,
+                                     type=int,
+                                     mandatory=False,
+                                     doc='')
+
+
+PATCH_SIZE = Component.Parameter('_patchSize',
+                                 public_name='patchSize',
+                                 default=8192,
+                                 type=int,
+                                 mandatory=False,
+                                 doc='')
+
+SECONDARY_RANGE_MIGRATION_FLAG = Component.Parameter('_secondaryRangeMigrationFlag',
+     public_name='secondaryRangeMigrationFlag',
+     default=None,
+     type=str,
+     mandatory=False,
+     doc=''
+)
+POSTING = Component.Parameter('_posting',
+                              public_name='posting',
+                              default=15,
+                              type=int,
+                              mandatory=False,
+                              doc='')
+
+
+NUMBER_FIT_COEFFICIENTS = Component.Parameter('_numberFitCoefficients',
+                                              public_name='numberFitCoefficients',
+                                              default=6,
+                                              type=int,
+                                              mandatory=False,
+                                              doc='')
+
+
+NUMBER_LOOKS = Component.Parameter('_numberLooks',
+                                   public_name='numberLooks',
+                                   default=4,
+                                   type=int,
+                                   mandatory=False,
+                                   doc='')
+
+
+NUMBER_AZIMUTH_LOOKS = Component.Parameter('_numberAzimuthLooks',
+                                           public_name='numberAzimuthLooks',
+                                           default=1,
+                                           type=int,
+                                           mandatory=False,
+                                           doc='')
+
+
+NUMBER_RANGE_LOOKS = Component.Parameter('_numberRangeLooks',
+    public_name='numberRangeLooks',
+    default=None,
+    type=int,
+    mandatory=False,
+    doc=''
+)
+
+
+SHADE_FACTOR = Component.Parameter('_shadeFactor',
+                                   public_name='shadeFactor',
+                                   default=3,
+                                   type=int,
+                                   mandatory=False,
+                                   doc='')
+
+#ask
+MASTER_SQUINT = Component.Parameter('_masterSquint',
+                                    public_name='masterSquint',
+                                    default=0.,
+                                    type=float,
+                                    mandatory=False,
+                                    doc='')
+
+#ask
+SLAVE_SQUINT = Component.Parameter('_slaveSquint',
+                                   public_name='slaveSquint',
+                                   default=0.,
+                                   type=float,
+                                   mandatory=False,
+                                   doc='')
+
+GEOCODE_LIST = Component.Parameter('_geocode_list',
+    public_name='geocode_list',
+    default=[COHERENCE_FILENAME,
+             UNWRAPPED_INT_FILENAME,
+             PHSIG_FILENAME,
+             LOS_FILENAME,
+             TOPOPHASE_FLAT_FILENAME,
+             FILT_TOPOPHASE_FLAT_FILENAME,
+             RESAMP_ONLY_AMP_NAME,
+             UNWRAPPED_2STAGE_FILENAME,
+             ],
+    container=list,
+    type=str,
+    mandatory=False,
+    doc='List of files to geocode'
+)
+UNMASKED_PREFIX = Component.Parameter('_unmaskedPrefix',
+                                   public_name='unmaskedPrefix',
+                                   default='unmasked',
+                                   type=str,
+                                   mandatory=False,
+                                   doc='Prefix prepended to the image filenames that have not been water masked')
+
+
 
 class InsarProc(Component, FrameMixin):
     """
@@ -46,120 +457,88 @@ class InsarProc(Component, FrameMixin):
     to modify and return their values.
     """
 
-    parameter_list = (RESAMP_IMAGE_NAME_BASE,)
+    parameter_list = (RESAMP_IMAGE_NAME_BASE,
+                      IS_MOCOMP,
+                      RG_IMAGE_NAME,
+                      AZRES_FACTOR,
+                      SIM_AMP_IMAGE_NAME,
+                      APPLY_WATER_MASK,
+                      WATER_MASK_IMAGE_NAME,
+                      RESAMP_ONLY_IMAGE_NAME,
+                      RESAMP_ONLY_AMP_NAME,
+                      OFFSET_IMAGE_NAME,
+                      DEM_INIT_FILE,
+                      FIRST_SAMPLE_ACROSS_PRF,
+                      FIRST_SAMPLE_DOWN_PRF,
+                      NUMBER_LOCATION_ACROSS_PRF,
+                      NUMBER_LOCATION_DOWN_PRF,
+                      NUMBER_VALID_PULSES,
+                      FIRST_SAMPLE_ACROSS,
+                      FIRST_SAMPLE_DOWN,
+                      NUMBER_LOCATION_ACROSS,
+                      NUMBER_LOCATION_DOWN,
+                      TOPOPHASE_ITERATIONS,
+                      COHERENCE_FILENAME,
+                      UNWRAPPED_INT_FILENAME,
+                      CONNECTED_COMPONENTS_FILENAME,
+                      PHSIG_FILENAME,
+                      TOPOPHASE_MPH_FILENAME,
+                      TOPOPHASE_FLAT_FILENAME,
+                      FILT_TOPOPHASE_FLAT_FILENAME,
+                      HEIGHT_FILENAME,
+                      HEIGHT_SCH_FILENAME,
+                      GEOCODE_FILENAME,
+                      LOS_FILENAME,
+                      LAT_FILENAME,
+                      LON_FILENAME,
+                      DEM_CROP_FILENAME,
+                      FILTER_STRENGTH,
+                      NUMBER_PATCHES,
+                      PATCH_SIZE,
+                      SECONDARY_RANGE_MIGRATION_FLAG,
+                      POSTING,
+                      NUMBER_FIT_COEFFICIENTS,
+                      NUMBER_LOOKS,
+                      NUMBER_AZIMUTH_LOOKS,
+                      NUMBER_RANGE_LOOKS,
+                      SHADE_FACTOR,
+                      MASTER_SQUINT,
+                      SLAVE_SQUINT,
+                      GEOCODE_LIST,
+                      UNMASKED_PREFIX,
+                      UNWRAPPED_2STAGE_FILENAME,
+                      PROCEED_IF_ZERO_DEM)
 
-    _masterFrame = None
-    _slaveFrame = None
-    _masterOrbit = None
-    _slaveOrbit = None
-    _masterDoppler = None
-    _slaveDoppler = None
-    _peg = None
-    _pegH1 = None
-    _pegH2 = None
-    _fdH1 = None
-    _fdH2 = None
-    _pegV1 = None
-    _pegV2 = None
-    is_mocomp = None
-    _masterRawImage = None
-    _slaveRawImage = None
-    _masterSlcImage = None
-    _slaveSlcImage = None
-    _offsetAzimuthImage = None
-    _offsetRangeImage = None
-    _resampAmpImage = None
-    _resampIntImage = None
-    _resampOnlyImage = None
-    _resampOnlyAmp = None
-    _topoIntImage = None
-    _heightTopoImage = None
-    _rgImageName = 'rgImage'
-    _rgImage = None
-    _simAmpImageName = 'simamp.rdr'
-    _simAmpImage = None
-#    _resampImageName = 'resampImage'
-    _resampOnlyImageName = 'resampOnlyImage.int'
-    _offsetImageName = 'Offset.mht'
-    _demImage = None
-    _demInitFile =  'DemImage.xml'
-    _firstSampleAcrossPrf = 50
-    _firstSampleDownPrf = 50
-    _numberLocationAcrossPrf = 40
-    _numberLocationDownPrf = 50
-    _numberRangeBins = None
-    _firstSampleAcross = 50
-    _firstSampleDown = 50
-    _numberLocationAcross = 40
-    _numberLocationDown = 40
-    _topocorrectFlatImage = None
-    _offsetField = None
-    _refinedOffsetField = None
-    _offsetField1 = None
-    _refinedOffsetField1 = None
-    _topophaseIterations = 25
-    _coherenceFilename = 'topophase.cor'
-    _unwrappedIntFilename = 'filt_topophase.unw'
-    _phsigFilename = 'phsig.cor'
-    _topophaseMphFilename = 'topophase.mph'
-    _topophaseFlatFilename = 'topophase.flat'
-    _filt_topophaseFlatFilename = 'filt_' + _topophaseFlatFilename
-    _heightFilename = 'z.rdr'
-    _heightSchFilename = 'zsch.rdr'
-    _geocodeFilename = 'topophase.geo'
-    _losFilename = 'los.rdr'
-    _latFilename = 'lat.rdr'
-    _lonFilename = 'lon.rdr'
-    _demCropFilename = 'dem.crop'
-    # The strength of the Goldstein-Werner filter
-    _filterStrength = 0.7
-    # This is hard-coded from the original script
-    _numberValidPulses = 2048
-    _numberPatches = None
-    _patchSize = 8192
-    _machineEndianness = 'l'
-    _secondaryRangeMigrationFlag = None
-    _chirpExtension = 0
-    _slantRangePixelSpacing = None
-    _dopplerCentroid = None
-    _posting = 15
-    _numberFitCoefficients = 6
-    _numberLooks = 4
-    _numberAzimuthLooks = 1
-    _numberRangeLooks = None
-    _numberResampLines = None
-    _shadeFactor = 3
-    _processingDirectory = None
-    _checkPointer =  None
-    _formSLC1 = None
-    _formSLC2 = None
-    _mocompBaseline = None
-    _topocorrect = None
-    _topo = None
-    _masterSquint = 0
-    _slaveSquint = 0
-    _lookSide = -1    #Right looking by default.
-    _geocode_list = [
-                        _coherenceFilename,
-                        _unwrappedIntFilename,
-                        _phsigFilename,
-                        _losFilename,
-                        _topophaseFlatFilename,
-                        _filt_topophaseFlatFilename,
-                        _resampOnlyImageName.replace('.int', '.amp')
-                       ]
+    facility_list = (
+                     PEG,
+                     )
 
-    family='insarProc_conf'
+
+    family='insarcontext'
 
     def __init__(self, name='', procDoc=None):
-        self.name = name
-        super(InsarProc, self).__init__(family=self.__class__.family,
-            name=name)
-        self.configure()
+        #self.updatePrivate()
+
+        super().__init__(family=self.__class__.family, name=name)
         self.procDoc = procDoc
-        self._workingDirectory = os.getcwd()
-        self._dataDirectory = os.getcwd()
         return None
+
+    def _init(self):
+        """
+        Method called after Parameters are configured.
+        Determine whether some Parameters still have unresolved
+        Parameters as their default values and resolve them.
+        """
+
+        #Determine whether the geocode_list still contains Parameters
+        #and give those elements the proper value.  This will happen
+        #whenever the user doesn't provide as input a geocode_list for
+        #this component.
+        for i, x in enumerate(self.geocode_list):
+            if isinstance(x, Component.Parameter):
+                y = getattr(self, getattr(x, 'attrname'))
+                self.geocode_list[i] = y
+        return
 
     def get_is_mocomp(self):
         self.is_mocomp =  int((
@@ -168,7 +547,10 @@ class InsarProc(Component, FrameMixin):
         return self.is_mocomp
 
     # Getters
-
+    @property
+    def proceedIfZeroDem(self):
+        return self._proceedIfZeroDem
+   
     def getLookSide(self):
         return self._lookSide
 
@@ -276,7 +658,6 @@ class InsarProc(Component, FrameMixin):
 
     def getResampOnlyImage(self):
         return self._resampOnlyImage
-
     def getResampOnlyAmp(self):
         return self._resampOnlyAmp
 
@@ -300,7 +681,9 @@ class InsarProc(Component, FrameMixin):
 
     def getSimAmpImageName(self):
         return self._simAmpImageName
-
+    @property 
+    def applyWaterMask(self):
+        return self._applyWaterMask
     def getRgImageName(self):
         return self._rgImageName
 
@@ -315,7 +698,9 @@ class InsarProc(Component, FrameMixin):
 
     def getResampImageName(self):
         return self._resampImageName
-
+    @property
+    def resampOnlyAmpName(self):
+        return self._resampOnlyAmpName
     def getResampOnlyImageName(self):
         return self._resampOnlyImageName
     def getTopocorrectFlatImage(self):
@@ -417,6 +802,12 @@ class InsarProc(Component, FrameMixin):
     def getUnwrappedIntFilename(self):
         return self._unwrappedIntFilename
 
+    def getUnwrapped2StageFilename(self):
+        return self._unwrapped2StageFilename
+      
+    def getConnectedComponentsFilename(self):
+        return self._connectedComponentsFilename
+
     def getPhsigFilename(self):
         return self._phsigFilename
 
@@ -447,25 +838,34 @@ class InsarProc(Component, FrameMixin):
     def getTopophaseIterations(self):
         return self._topophaseIterations
 
-    def getProcessingDirectory(self):
-        return self._processingDirectory
-
-    def getWorkingDirectory(self):
-        return self._workingDirectory
-
-    def getDataDirectory(self):
-        return self._dataDirectory
-
     def getFilterStrength(self):
         return self._filterStrength
-
-    def getCheckPointer(self):
-        return self._checkPointer
 
     def getGeocodeList(self):
         return self._geocode_list
 
+    def getRawMasterIQImage(self):
+        return self._rawMasterIQImage
+
+    def getRawSlaveIQImage(self):
+        return self._rawSlaveIQImage
+    @property 
+    def azResFactor(self):
+        return self._azResFactor
+    @property
+    def wbdImage(self):
+        return self._wbdImage
+    @property 
+    def waterMaskImageName(self):
+        return self._waterMaskImageName 
+    @property
+    def unmaskedPrefix(self):
+        return self._unmaskedPrefix
     # Setters
+    @proceedIfZeroDem.setter
+    def proceedIfZeroDem(self,proceedIfZeroDem):
+        self._proceedIfZeroDem = proceedIfZeroDem
+        
     def setLookSide(self, lookSide):
         self._lookSide = lookSide
 
@@ -562,7 +962,6 @@ class InsarProc(Component, FrameMixin):
 
     def setResampOnlyImage(self, image):
         self._resampOnlyImage = image
-
     def setResampOnlyAmp(self, image):
         self._resampOnlyAmp = image
 
@@ -574,7 +973,9 @@ class InsarProc(Component, FrameMixin):
 
     def setSimAmpImageName(self, name):
         self._simAmpImageName = name
-
+    @applyWaterMask.setter 
+    def applyWaterMask(self,val):
+        self._applyWaterMask = val
     def setSLC1ImageName(self, name):
         self._slc1ImageName = name
 
@@ -589,9 +990,11 @@ class InsarProc(Component, FrameMixin):
 
     def setResampImageName(self, name):
         self._resampImageName = name
-
     def setResampOnlyImageName(self, name):
         self._resampOnlyImageName = name
+    @resampOnlyAmpName.setter
+    def resampOnlyAmpName(self, name):
+        self._resampOnlyAmpName = name
 
     def setDemImage(self, image):
         self._demImage = image
@@ -662,14 +1065,14 @@ class InsarProc(Component, FrameMixin):
         """Should probably be a percentage rather than value"""
         self._chirpExtension = int(ext)
         return None
-
+    
     @property
     def chirpExtensionPercentage(self):
         return NotImplemented
     @chirpExtensionPercentage.setter
     def chirpExtensionPercentage(self, value):
         raise AttributeError("Can only set chirpExtension")
-
+   
     def setSlantRangePixelSpacing(self, x):
         self._slantRangePixelSpacing = x
 
@@ -709,6 +1112,12 @@ class InsarProc(Component, FrameMixin):
     def setUnwrappedIntFilename(self, filename):
         self._unwrappedIntFilename = filename
 
+    def setUnwrapped2StageFilename(self, filename):
+        self._unwrapped2StageFilename= filename
+
+    def setConnectedComponentsFilename(self,val):
+        self._connectedComponentsFilename = val
+
     def setPhsigFilename(self, filename):
         self._phsigFilename = filename
 
@@ -739,24 +1148,30 @@ class InsarProc(Component, FrameMixin):
     def setTopophaseIterations(self, iter):
         self._topophaseIterations = iter
 
-    def setProcessingDirectory(self, pdir):
-        self._processingDirectory = pdir
-
-    def setWorkingDirectory(self, wdir):
-        self._workingDirectory = wdir
-
-    def setDataDirectory(self, ddir):
-        self._dataDirectory = ddir
-
     def setFilterStrength(self, alpha):
         self._filterStrength = alpha
-
-    def setCheckPointer(self, cp):
-        self._checkPointer = cp
 
     def setGeocodeList(self,prd):
         self._geocode_list = prd
 
+    def setRawMasterIQImage(self,im):
+        self._rawMasterIQImage = im
+
+    def setRawSlaveIQImage(self,im):
+        self._rawSlaveIQImage = im
+    
+    @azResFactor.setter
+    def azResFactor(self,val):
+        self._azResFactor = val
+    @wbdImage.setter
+    def wbdImage(self,val):
+        self._wbdImage = val
+    @waterMaskImageName.setter
+    def waterMaskImageName(self,val):
+        self._waterMaskImageName = val
+    @unmaskedPrefix.setter
+    def unmaskedPrefix(self,val):
+        self._unmaskedPrefix = val
     ## folowing are tbd to split formSLC.
     def _hasher(self, index, Attr):
         return getattr(self, MASTER_SLAVE[index] + Attr)
@@ -841,6 +1256,8 @@ class InsarProc(Component, FrameMixin):
     secondaryRangeMigrationFlag = property(getSecondaryRangeMigrationFlag, setSecondaryRangeMigrationFlag)
     coherenceFilename = property(getCoherenceFilename, setCoherenceFilename)
     unwrappedIntFilename = property(getUnwrappedIntFilename, setUnwrappedIntFilename)
+    unwrapped2StageFilename = property(getUnwrapped2StageFilename, setUnwrapped2StageFilename)
+    connectedComponentsFilename = property(getConnectedComponentsFilename,setConnectedComponentsFilename)
     phsigFilename = property(getPhsigFilename, setPhsigFilename)
     topophaseMphFilename = property(getTopophaseMphFilename, setTopophaseMphFilename)
     topophaseFlatFilename = property(getTopophaseFlatFilename, setTopophaseFlatFilename)
@@ -851,6 +1268,7 @@ class InsarProc(Component, FrameMixin):
     losFilename = property(getLosFilename, setLosFilename)
     latFilename = property(getLatFilename, setLatFilename)
     lonFilename = property(getLonFilename, setLonFilename)
+    lookSide = property(getLookSide, setLookSide)
     topophaseIterations = property(getTopophaseIterations, setTopophaseIterations)
     slantRangePixelSpacing = property(getSlantRangePixelSpacing, setSlantRangePixelSpacing)
     dopplerCentroid = property(getDopplerCentroid, setDopplerCentroid)
@@ -862,11 +1280,7 @@ class InsarProc(Component, FrameMixin):
     numberResampLines = property(getNumberResampLines, setNumberResampLines)
     numberRangeBins = property(getNumberRangeBins, setNumberRangeBins)
     shadeFactor = property(getShadeFactor, setShadeFactor)
-    processingDirectory = property(getProcessingDirectory, setProcessingDirectory)
-    workingDirectory = property(getWorkingDirectory, setWorkingDirectory)
-    dataDirectory = property(getDataDirectory, setDataDirectory)
     filterStrength = property(getFilterStrength, setFilterStrength)
-    checkPointer = property(getCheckPointer, setCheckPointer)
     formSLC1 = property(getFormSLC1, setFormSLC1)
     formSLC2 = property(getFormSLC2, setFormSLC2)
     mocompBaseline = property(getMocompBaseline, setMocompBaseline)
@@ -875,6 +1289,8 @@ class InsarProc(Component, FrameMixin):
     masterSquint = property(getMasterSquint, setMasterSquint)
     slaveSquint = property(getSlaveSquint, setSlaveSquint)
     geocode_list = property(getGeocodeList, setGeocodeList)
+    rawMasterIQImage = property(getRawMasterIQImage, setRawMasterIQImage)
+    rawSlaveIQImage = property(getRawSlaveIQImage, setRawSlaveIQImage)
 
     pass
 
@@ -887,7 +1303,7 @@ class RadarSwath(object):
                  frame=None,
                  orbit=None,
                  doppler=None,
-                 rawimgae=None,
+                 rawimage=None,
                  slcimage=None,
                  squint=None):
         self.frame = frame

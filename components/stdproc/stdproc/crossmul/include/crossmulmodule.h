@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,6 +36,10 @@ extern "C"
     PyObject * setLooksDown_C(PyObject *, PyObject *);
     PyObject * setScale_C(PyObject *, PyObject *);
     PyObject * setBlocksize_C(PyObject *, PyObject *);
+    PyObject * setWavelengths_C(PyObject *, PyObject *);
+    PyObject * setSpacings_C(PyObject*, PyObject*);
+    PyObject * setFlattenFlag_C(PyObject*, PyObject*);
+    PyObject * setFilterWeight_C(PyObject*, PyObject*);
     void crossmul_f(crossmulState*, uint64_t*, uint64_t*, uint64_t*,
         uint64_t*);
     PyObject * crossmul_C(PyObject*, PyObject*);
@@ -53,6 +57,10 @@ static PyMethodDef crossmul_methods[] =
      {"setLooksDown_Py", setLooksDown_C, METH_VARARGS, " "},
      {"setScale_Py", setScale_C, METH_VARARGS, " "},
      {"setBlocksize_Py", setBlocksize_C, METH_VARARGS, " "},
+     {"setWavelengths_Py", setWavelengths_C, METH_VARARGS, " "},
+     {"setSpacings_Py", setSpacings_C, METH_VARARGS, " "},
+     {"setFlattenFlag_Py", setFlattenFlag_C, METH_VARARGS, " "},
+     {"setFilterWeight_Py", setFilterWeight_C, METH_VARARGS, " "},
      {"crossmul_Py", crossmul_C, METH_VARARGS, " "},
      {NULL, NULL, 0, NULL}
 };

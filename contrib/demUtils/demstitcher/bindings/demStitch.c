@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,10 +22,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
-void swap2Bytes(short * in, short * out, int numEl)
+void swap2Bytes(short * in, short * out, uint64_t numEl)
 {
-    int i = 0;
+    uint64_t i = 0;
     for(i = 0; i < numEl; ++i)
     {
        out[i] = (in[i] & 0xFF00) >> 8 | 
@@ -34,27 +35,32 @@ void swap2Bytes(short * in, short * out, int numEl)
 }
 int concatenateDem(char ** filenamesIn, int * numFilesV,char * filenameOut, int * samples, int * swap)
 {
-    int GlobalNumSamples = (*samples);
+    uint64_t GlobalNumSamples = (*samples);
     char ** GlobalInputFilenames = filenamesIn;
     char * GlobalOutputFilename = filenameOut;
     // this has two value [numRow,numCol] i.e. the number of files along the rows and the number of files along the column. 
     int * GlobalNumFiles = numFilesV;
     //number of samples in the file
     int GlobalNeedSwap = (*swap);
-    int i = 0;
-    int j = 0;
-    int k = 0;
-    int l = 0;
-    long int pos = 0;
+    uint64_t i = 0;
+    uint64_t j = 0;
+    uint64_t k = 0;
+    uint64_t l = 0;
+    uint64_t pos = 0;
     FILE * fout;
     
-
+    /*
+    printf("%llu %llu %llu \n",GlobalNumSamples*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1],
+        sizeof(short)*GlobalNumSamples*GlobalNumSamples*((uint64_t)GlobalNumFiles[0]*GlobalNumFiles[1]),
+        sizeof(short)*((GlobalNumSamples - 1)*(uint64_t)GlobalNumFiles[0])*((GlobalNumSamples - 1)*(uint64_t)GlobalNumFiles[1]));
+    return;
+    */
     int numFiles = GlobalNumFiles[0]*GlobalNumFiles[1];
     FILE ** fin = malloc(sizeof(FILE *)*numFiles);
     // load all the images in one buffer, they are small anyway
-    short * inbuf = malloc(sizeof(short)*GlobalNumSamples*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1]);
+    short * inbuf = malloc(sizeof(short)*GlobalNumSamples*GlobalNumSamples*((uint64_t)GlobalNumFiles[0]*GlobalNumFiles[1]));
     //beacuse hte edge overlap we excluse the very last column to the right and the very last row to the bottom
-    short * outbuf = malloc(sizeof(short)*((GlobalNumSamples - 1)*GlobalNumFiles[0])*((GlobalNumSamples - 1)*GlobalNumFiles[1]));
+    short * outbuf = malloc(sizeof(short)*((GlobalNumSamples - 1)*(uint64_t)GlobalNumFiles[0])*((GlobalNumSamples - 1)*(uint64_t)GlobalNumFiles[1]));
     
     if(fin == NULL)
     {
@@ -84,8 +90,8 @@ int concatenateDem(char ** filenamesIn, int * numFilesV,char * filenameOut, int 
     }
     if(GlobalNeedSwap == 1)
     {
-        short * tmpbuf = malloc(sizeof(short)*GlobalNumSamples*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1]);
-        int numEl = GlobalNumSamples*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1];
+        short * tmpbuf = malloc(sizeof(short)*(GlobalNumSamples)*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1]);
+        uint64_t numEl = GlobalNumSamples*GlobalNumSamples*GlobalNumFiles[0]*GlobalNumFiles[1];
         swap2Bytes(inbuf, tmpbuf, numEl);
         free(inbuf);
         inbuf = tmpbuf;

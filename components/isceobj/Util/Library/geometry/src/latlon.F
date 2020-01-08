@@ -33,7 +33,8 @@
 
 !c       LOCAL VARIABLES:
                 real*8 r_re,r_q2,r_q3,r_b,r_q
-                real*8 r_p,r_tant,r_theta,r_a,r_e2
+                real*8 r_p,r_tant,r_theta,r_a,r_e2,r_e4
+                real*8 r_k,r_r,r_s,r_t,r_u,r_rv,r_w,r_d
 
 !c       PROCESSING STEPS:
 
@@ -47,7 +48,29 @@
                     r_v(2) = (r_re + r_llh(3))*cos(r_llh(1))*sin(r_llh(2))
                     r_v(3) = (r_re*(1.d0-r_e2) + r_llh(3))*sin(r_llh(1))               
            
-                elseif(i_type .eq. XYZ_2_LLH)then  !convert vector to lat,lon 
+                elseif(i_type .eq. XYZ_2_LLH) then !convert vector to lat, lon
+                    !!!Translated from python code in
+                    !!!isceobj.Ellipsoid.xyz_to_llh
+                    r_q2 = (r_v(1)**2 + r_v(2)**2)  !!xy2
+                    r_q3 = r_a * r_a   !!a2
+                    r_e4 = r_e2 * r_e2 
+
+                    r_p = r_q2 / r_q3
+                    r_q = (1.0d0 - r_e2)*(r_v(3)**2)/ r_q3
+                    r_r = (r_p+r_q-r_e4)/6.0d0
+                    r_s = (r_e4*r_p*r_q)/(4.0d0 * r_r**3)
+                    r_t = (1.0d0 + r_s + sqrt(r_s *(2.0d0+ r_s)))**(1.0d0/3.0d0)
+                    r_u = r_r * (1.0d0 + r_t + 1.0d0 / r_t)
+                    r_rv = sqrt(r_u**2 + r_e4*r_q)
+                    r_w = r_e2 * (r_u + r_rv - r_q)/(2.0d0 * r_rv)
+                    r_k = sqrt(r_u + r_rv + r_w**2) - r_w
+                    r_d = r_k * sqrt(r_q2) / (r_k + r_e2) 
+                   
+                    r_llh(1) = atan2(r_v(3), r_d)
+                    r_llh(2) = atan2(r_v(2),r_v(1))
+                    r_llh(3) = (r_k + r_e2 - 1.0d0) * sqrt(r_d**2 + r_v(3)**2)/r_k
+
+                elseif(i_type .eq. XYZ_2_LLH_OLD)then  !convert vector to lat,lon 
            
                     r_q2 = 1.d0/(1.d0 - r_e2)
                     r_q = sqrt(r_q2)
@@ -63,7 +86,7 @@
      +                  (r_p - r_e2*r_a*cos(r_theta)**3)
                     r_llh(1) =  atan(r_tant)
                     r_re = r_a/sqrt(1.d0 - r_e2*sin(r_llh(1))**2)
-                    r_llh(3) = r_p/cos(r_llh(1)) - r_re          
+                    r_llh(3) = r_p/cos(r_llh(1)) - r_re
   
                 endif
       

@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -74,37 +74,30 @@ def run(frame1, frame2, orbit1, orbit2, formSlc1, formSlc2, imSlc1, imSlc2, info
 
     widthSlc = imSlc1.getWidth()
 
-    coarseRange = (nearRange1 - nearRange2) / (CN.SPEED_OF_LIGHT / (2 * fs1))
-    coarseAcross = int(coarseRange + 0.5)
-    if(coarseRange <= 0):
-        coarseAcross = int(coarseRange - 0.5)
-
     grossRg = infos['grossRg']
-    print("gross Rg: ", grossRg)
-
     if grossRg is not None:
         coarseAcross = grossRg
-
-    time1, schPosition1, schVelocity1, offset1 = orbit1._unpackOrbit()
-    time2, schPosition2, schVelocity2, offset2 = orbit2._unpackOrbit()
-    s1 = schPosition1[0][0]
-    s1_2 = schPosition1[1][0]
-    s2 = schPosition2[0][0]
-    s2_2 = schPosition2[1][0]
-
-    coarseAz = int(
-        (s1 - s2)/(s2_2 - s2) + prf1*(1/prf1 - 1/prf2)*
-        (patchSize - valid_az_samples)/2
-        )
-    coarseDown = int(coarseAz + 0.5)
-    if(coarseAz <= 0):
-        coarseDown = int(coarseAz - 0.5)
+    else:
+        coarseRange = (nearRange1 - nearRange2) / (CN.SPEED_OF_LIGHT / (2 * fs1))
+        coarseAcross = int(coarseRange + 0.5)
+        if(coarseRange <= 0):
+            coarseAcross = int(coarseRange - 0.5)
 
     grossAz = infos['grossAz']
-    print("gross Az: ", grossAz)
-
     if grossAz is not None:
         coarseDown = grossAz
+    else:
+        time1, schPosition1, schVelocity1, offset1 = orbit1._unpackOrbit()
+        time2, schPosition2, schVelocity2, offset2 = orbit2._unpackOrbit()
+        s1 = schPosition1[0][0]
+        s1_2 = schPosition1[1][0]
+        s2 = schPosition2[0][0]
+        s2_2 = schPosition2[1][0]
+
+        coarseAz = int( (s1 - s2)/(s2_2 - s2) + prf1*(1/prf1 - 1/prf2) * (patchSize - valid_az_samples) / 2 )
+        coarseDown = int(coarseAz + 0.5)
+        if(coarseAz <= 0):
+            coarseDown = int(coarseAz - 0.5)
 
     coarseAcross = 0 + coarseAcross
     coarseDown = 0 + coarseDown
@@ -131,7 +124,54 @@ def run(frame1, frame2, orbit1, orbit2, formSlc1, formSlc2, imSlc1, imSlc2, info
 
     objOffset = isceobj.createEstimateOffsets()
 
-    objOffset.setSearchWindowSize(infos['offsetSearchWindowSize'], infos['sensorName'])
+
+    objOffset.configure()
+    if not objOffset.searchWindowSize:
+        #objOffset.setSearchWindowSize(self.offsetSearchWindowSize, self.sensorName)
+        objOffset.setSearchWindowSize(infos['offsetSearchWindowSize'], infos['sensorName'])
+    margin = 2*objOffset.searchWindowSize + objOffset.windowSize
+
+    offAc = max(firstAc,-coarseAcross)+margin+1
+    offDn = max(firstDown,-coarseDown)+margin+1
+
+    mWidth = mSlc.getWidth()
+    sWidth = sSlc.getWidth()
+    mLength = mSlc.getLength()
+    sLength = sSlc.getLength()
+
+    offDnmax = int(coarseDown + ((prf2/prf1)-1)*mLength)
+    lastAc = int(min(mWidth, sWidth-coarseAcross) - margin-1)
+    lastDown = int(min(mLength, sLength-offDnmax) - margin-1)
+
+
+    if not objOffset.firstSampleAcross:
+        objOffset.setFirstSampleAcross(offAc)
+
+    if not objOffset.lastSampleAcross:
+        objOffset.setLastSampleAcross(lastAc)
+
+    if not objOffset.firstSampleDown:
+        objOffset.setFirstSampleDown(offDn)
+
+    if not objOffset.lastSampleDown:
+        objOffset.setLastSampleDown(lastDown)
+
+    if not objOffset.numberLocationAcross:
+        objOffset.setNumberLocationAcross(numLocationAcross)
+
+    if not objOffset.numberLocationDown:
+        objOffset.setNumberLocationDown(numLocationDown)
+
+    if not objOffset.acrossGrossOffset:
+        objOffset.setAcrossGrossOffset(coarseAcross)
+
+    if not objOffset.downGrossOffset:
+        objOffset.setDownGrossOffset(coarseDown)
+
+    ###Always set these values
+    objOffset.setFirstPRF(prf1)
+    objOffset.setSecondPRF(prf2)
+
     objOffset.setFirstSampleAcross(offAc)
     objOffset.setLastSampleAcross(lastAc)
     objOffset.setNumberLocationAcross(numLocationAcross)

@@ -24,47 +24,47 @@ c  equations from nec memo
        
       do i=1,n
          f1(i)=time-t(i)
-         sum=0.
+         sum=0.0d0
          do j=1,n
-            if(j.ne.i)sum=sum+1./(t(i)-t(j))
+            if(j.ne.i)sum=sum+1.0d0/(t(i)-t(j))
          end do
-         f0(i)=1.-2.*(time-t(i))*sum
+         f0(i)=1.0d0-2.0d0*(time-t(i))*sum
       end do
 
       do i=1,n
-         product=1.
+         product=1.0d0
          do k=1,n
             if(k.ne.i)product=product*(time-t(k))/(t(i)-t(k))
          end do
          h(i)=product
-         sum=0.
+         sum=0.0d0
          do j=1,n
-            product=1.
+            product=1.0d0
             do k=1,n
                if(k.ne.i.and.k.ne.j)product=product*(time-t(k))/(t(i)-t(k))
             end do
-            if(j.ne.i)sum=sum+1./(t(i)-t(j))*product
+            if(j.ne.i)sum=sum+1.0d0/(t(i)-t(j))*product
          end do
          hdot(i)=sum
       end do
 
       do i=1,n
-         g1(i)=h(i)+2.*(time-t(i))*hdot(i)
-         sum=0.
+         g1(i)=h(i)+2.0d0*(time-t(i))*hdot(i)
+         sum=0.0d0
          do j=1,n
             if(i.ne.j)sum=sum+1./(t(i)-t(j))
          end do
-         g0(i)=2.*(f0(i)*hdot(i)-h(i)*sum)
+         g0(i)=2.0d0*(f0(i)*hdot(i)-h(i)*sum)
       end do
 
       do k=1,3
-         sum=0.
+         sum=0.0d0
          do i=1,n
             sum=sum+(x(k,i)*f0(i)+v(k,i)*f1(i))*h(i)*h(i)
          end do
          xx(k)=sum
 
-         sum=0.
+         sum=0.0d0
          do i=1,n
             sum=sum+(x(k,i)*g0(i)+v(k,i)*g1(i))*h(i)  !*h(i) extra in pdf
          end do

@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -33,6 +33,7 @@ from iscesys.Compatibility import Compatibility
 Compatibility.checkPythonVersion()
 from mroipac.ampcor import ampcor
 from isceobj.Util.mathModule import is_power2
+#from isceobj.Util.decorators import use_api
 
 WINDOW_SIZE_WIDTH = Component.Parameter('windowSizeWidth',
         public_name='WINDOW_SIZE_WIDTH',
@@ -194,13 +195,13 @@ IMAGE_DATATYPE1 = Component.Parameter('imageDataType1',
         default='',
         type = str,
         mandatory = False,
-        doc = 'Image data type for reference image (complex / real)')
+        doc = 'Image data type for reference image (complex / real / mag)')
 
 IMAGE_DATATYPE2 = Component.Parameter('imageDataType2',
         default='',
         type = str,
         mandatory=False,
-        doc = 'Image data type for search image (complex / real)')
+        doc = 'Image data type for search image (complex / real/ mag)')
 
 
 SNR_THRESHOLD = Component.Parameter('thresholdSNR',
@@ -251,8 +252,6 @@ DISPLAY_FLAG = Component.Parameter('displayFlag',
         type = bool,
         doc  = 'Display debugging information.')
 
-
-
 class Ampcor(Component):
 
     family = 'ampcor'
@@ -290,6 +289,7 @@ class Ampcor(Component):
                       DEBUG_FLAG,
                       DISPLAY_FLAG)
 
+#    @use_api
     def ampcor(self,slcImage1 = None,slcImage2 = None, band1=None, band2=None):
         if not (slcImage1 == None):
             self.slcImage1 = slcImage1
@@ -334,8 +334,8 @@ class Ampcor(Component):
         self.allocateArrays()
         self.setState()
         
-        self.checkInitialization()
-        self.checkImageLimits()
+#        self.checkInitialization()
+#        self.checkImageLimits()
        
         b1 = int(self.band1)
         b2 = int(self.band2)
@@ -355,8 +355,8 @@ class Ampcor(Component):
             else:
                 self.imageDataType1 = 'real'
         else:
-            if self.imageDataType1 not in ('complex','real'):
-                raise ValueError('ImageDataType1 should be either complex/real.')
+            if self.imageDataType1 not in ('complex','real','mag'):
+                raise ValueError('ImageDataType1 should be either complex/real/mag.')
 
         if self.imageDataType2 == '':
             if self.slcImage2.getDatatype().upper().startswith('C'):
@@ -364,8 +364,8 @@ class Ampcor(Component):
             else:
                 self.imageDataType2 = 'real'
         else:
-            if self.imageDataType2 not in ('complex','real'):
-                raise ValueError('ImageDataType2 should be either complex/real.')
+            if self.imageDataType2 not in ('complex','real','mag'):
+                raise ValueError('ImageDataType2 should be either complex/real/mag.')
         
 
     def checkWindows(self):
@@ -406,7 +406,7 @@ class Ampcor(Component):
                 self.scaleFactorY = self.prf2 / self.prf1
 
         if (self.scaleFactorY < 0.9) or (self.scaleFactorY > 1.1):
-            raise ValueError('Ampcor is designed to work on images with maximum of 10% scale difference in azimuth. Attempting to use images with scale difference of %2.2f'%(self.scaleFactorY))
+            raise ValueError('Ampcor is designed to work on images with maximum of 10%% scale difference in azimuth. Attempting to use images with scale difference of %2.2f'%(self.scaleFactorY))
 
         if self.scaleFactorX is None:
             if (self.rangeSpacing1 is None) or (self.rangeSpacing2 is None):
@@ -415,7 +415,7 @@ class Ampcor(Component):
                 self.scaleFactorX = self.rangeSpacing1/self.rangeSpacing2
 
         if (self.scaleFactorX < 0.9) or (self.scaleFactorX > 1.1):
-            raise ValueError('Ampcor is designed to work on images with maximum of 10% scale difference in range. Attempting to use images with scale difference of %2.2f'%(self.scaleFactorX))
+            raise ValueError('Ampcor is designed to work on images with maximum of 10%% scale difference in range. Attempting to use images with scale difference of %2.2f'%(self.scaleFactorX))
 
         print('Scale Factor in Range: ', self.scaleFactorX)
         print('Scale Factor in Azimuth: ', self.scaleFactorY)
@@ -466,19 +466,27 @@ class Ampcor(Component):
             raise ValueError('Last sample is not far enough from the right edge of the reference image.')
 
         if( self.lastSampleDown > (self.fileLength1 - yMargin) ):
-            raise ValueError('Last sample is not far enough from the bottom edge of the reference image.')
+            raise ValueError('Last sample line %d is not far enough from the bottom edge %d of the reference image.'%(self.lastSampleDown,(self.fileLength1 - yMargin)))
 
-#        if( (self.lastSampleAcross - self.firstSampleAcross) < (2*xMargin)):
-#            raise ValueError('Too small a reference image in the width direction.')
+        #if( (self.lastSampleAcross - self.firstSampleAcross) < (2*xMargin)):
+            #raise ValueError('Too small a reference image in the width direction.')
 
-#        if( (self.lastSampleDown - self.firstSampleDown) < (2*yMargin)):
-#            raise ValueError('Too small a reference image in the height direction.')
+        #if( (self.lastSampleDown - self.firstSampleDown) < (2*yMargin)):
+            #raise ValueError('Too small a reference image in the height direction.')
+
+        if ( self.lastSampleAcross <= self.firstSampleAcross):
+            raise ValueError('Last Sample Across requested is to the left of first sample across')
+
+        if (self.lastSampleDown <= self.firstSampleDown):
+            raise ValueError('Last Sample Down requested is above first sample down')
 
     def setState(self):
         ampcor.setImageDataType1_Py(str(self.imageDataType1))
         ampcor.setImageDataType2_Py(str(self.imageDataType2))
         ampcor.setLineLength1_Py(int(self.lineLength1))
         ampcor.setLineLength2_Py(int(self.lineLength2))
+        ampcor.setImageLength1_Py(int(self.fileLength1))
+        ampcor.setImageLength2_Py(int(self.fileLength2))
         ampcor.setFirstSampleAcross_Py(int(self.firstSampleAcross))
         ampcor.setLastSampleAcross_Py(int(self.lastSampleAcross))
         ampcor.setSkipSampleAcross_Py(int(self.skipSampleAcross))
@@ -601,15 +609,15 @@ class Ampcor(Component):
 
     def setWindowSizeWidth(self, var):
         temp = int(var)
-        if not is_power2(temp):
-            raise ValueError('Window width needs to be a power of 2.')
+        if (temp%2):
+            raise ValueError('Window width must be a multiple of 2.')
         self.windowSizeWidth = temp
         return
 
     def setWindowSizeHeight(self, var):
         temp = int(var)
-        if not is_power2(temp):
-            raise ValueError('Window height needs to be a power of 2.')
+        if (temp%2):
+            raise ValueError('Window height must be a multiple of 2.')
         self.windowSizeHeight = temp
         return
 

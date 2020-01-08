@@ -20,7 +20,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 typedef struct cPoly2d
 {
     int rangeOrder;      //Python range order
@@ -45,7 +48,7 @@ void modifyNorm2d(cPoly2d* src, cPoly2d* targ, double azinorm, double rngnorm);
 //Modify one polynomial to that of another order
 void scalePoly2d(cPoly2d* src, cPoly2d* targ, double minaz, double maxaz, double minrg, double maxrg);
 
-//Get / Set 
+//Get / Set
 void setCoeff2d(cPoly2d* src, int i, int j, double value);
 double getCoeff2d(cPoly2d* src, int i, int j);
 
@@ -60,5 +63,7 @@ void cleanPoly2d(cPoly2d *src);
 
 //Print for debugging
 void printPoly2d(cPoly2d* poly);
-
-#endif poly2d_h 
+#ifdef __cplusplus
+}
+#endif
+#endif //poly2d_h

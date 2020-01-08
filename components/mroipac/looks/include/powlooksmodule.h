@@ -16,13 +16,13 @@
 
 extern "C"
 {
-	PyObject * powlooks_C(PyObject *, PyObject *);
+        PyObject * powlooks_C(PyObject *, PyObject *);
 
 }
 
 static PyMethodDef powlooks_methods[] =
 {
-	{"powlooks_Py", powlooks_C, METH_VARARGS, " "},
-	{NULL, NULL, 0, NULL}
+        {"powlooks_Py", powlooks_C, METH_VARARGS, " "},
+        {NULL, NULL, 0, NULL}
 };
-#endif powlooksmodule_h
+#endif //powlooksmodule_h

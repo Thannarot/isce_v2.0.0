@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2011 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2011 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -72,7 +72,7 @@ class Catalog(OrderedDict):
         if not isinstance(node,str):
             raise TypeError("'node' must be a string")
         nodeList = node.split('.')
-        return _hasNodes(nodeList)
+        return self._hasNodes(nodeList)
 
     def _hasNodes(self, nodeList):
         catalog = self
@@ -108,7 +108,14 @@ class Catalog(OrderedDict):
                  +  "does not have a dictionaryOfVariables attribute!")
         nodePath = node.split('.')
         for k, v in obj.dictionaryOfVariables.items():
-            attr = v[0].replace('self.', '', 1)
+            #check for new and old style dictionaryOfVariables
+            try:
+                attr = v['attrname']
+                #only dump input or inoutput
+                if(v['type'] == 'component' or v['intent'] == 'output'):
+                    continue
+            except Exception:
+                attr = v[0].replace('self.', '', 1)
             self._addItem(k, getattr(obj, attr), nodePath)
         if 'constants' in iter(list(obj.__dict__.keys())):
             for k, v in list(obj.constants.items()):
@@ -120,12 +127,24 @@ class Catalog(OrderedDict):
         attribute into this catalog under the given node.
         """
         if not hasattr(obj, 'dictionaryOfOutputVariables'):
-            raise AttributeError("The object of type '%s' does not have a " + \
-                                 "dictionaryOfOutputVariables attribute!" % obj.__class__.__name__)
-        nodePath = node.split('.')
-        for k, v in obj.dictionaryOfOutputVariables.items():
-            attr = v.replace('self.', '', 1)
-            self._addItem(k, getattr(obj, attr), nodePath)
+            #it's probably the new type of dictionary
+            for k, v in obj.dictionaryOfVariables.items():
+                nodePath = node.split('.')
+                #check for new and old style dictionaryOfVariables
+                try:
+                    attr = v['attrname']
+                    #only dump output or inoutput
+                    if(v['intent'] == 'input'):
+                        continue
+                except Exception:
+                    continue
+                self._addItem(k, getattr(obj, attr), nodePath)
+        else: 
+            #old style/. To be removed once everything is turned into a Configurable           
+            nodePath = node.split('.')
+            for k, v in obj.dictionaryOfOutputVariables.items():
+                attr = v.replace('self.', '', 1)
+                self._addItem(k, getattr(obj, attr), nodePath)
 
     def _addItem(self, key, value, nodePath):
         catalog = self
@@ -199,15 +218,16 @@ class Catalog(OrderedDict):
         logger.info(file.getvalue())
 
     def _printToLog(self, file, catalog):
-        for k, v in catalog.items():
-             if isinstance(v, Catalog):
-                  self._printToLog(file, v)
-             else:
-                  file.write("%s.%s = %s\n" % (catalog.fullName, k, str(v)))
+        for k in sorted(catalog.keys()):
+            v = catalog[k]
+            if isinstance(v, Catalog):
+                self._printToLog(file, v)
+            else:
+                file.write("%s.%s = %s\n" % (catalog.fullName, k, str(v)))
 
     def renderXml(self, file=None, nodeTag=None, elementTag=None):
         if not file:
-           file = self.fullName+'.xml'
+            file = self.fullName+'.xml'
 
         adict = {self.fullName:self}
 
@@ -228,6 +248,15 @@ def dict_to_xml(adict,file,nodeTag=None,elementTag=None):
     tree = ET.ElementTree(et)
     tree.write(file)
 
+def space_repl(key):
+    return key.replace(' ','_')
+
+def slash_repl(key):
+    return key.replace('/','_dirslash_')
+
+def key_clean(key):
+    return slash_repl(space_repl(key))
+
 def dict_to_et(node,adict,nodeTag,elementTag):
     for key, val in adict.items():
         if isinstance(val,UserDict) or isinstance(val,dict):
@@ -236,9 +265,9 @@ def dict_to_et(node,adict,nodeTag,elementTag):
                node.append(subnode)
                name = ET.Element('name')
                subnode.append(name)
-               name.text = str(key)
+               name.text = key_clean(str(key))
             else:
-               subnode = ET.Element(key)
+               subnode = ET.Element(key_clean(str(key)))
                node.append(subnode)
             subnode = dict_to_et(subnode,val,nodeTag,elementTag)
         else:
@@ -247,12 +276,12 @@ def dict_to_et(node,adict,nodeTag,elementTag):
                node.append(subnode)
                name = ET.Element('name')
                subnode.append(name)
-               name.text = str(key)
+               name.text = key_clean(str(key))
                value = ET.Element('value')
                subnode.append(value)
                value.text = str(val).replace('\n', '\\n')
             else:
-               lmnt = ET.Element(key)
+               lmnt = ET.Element(key_clean(str(key)))
                node.append(lmnt)
                lmnt.text = str(val).replace('\n', '\\n')
     return node

@@ -153,6 +153,15 @@ files directly in the insarApp.xml file as in the following example for ALOS:
         </component>
 -->
 
+<!-- To turn off the use of  water mask uncomment this part -->
+<!--    <component name="insarproc">
+            <property name="applyWaterMask">
+                <value>False</value>
+            </property>
+        </component>
+-->
+
+
         <!-- <<PROCESS PART OF IMAGE IN AZIMUTH>> -->
         <!--<property name="Number of Patches">3</property> -->
 
@@ -191,6 +200,12 @@ files directly in the insarApp.xml file as in the following example for ALOS:
         <!--<property name="unwrap">True</property>-->
         <!--<property name="unwrapper name">snaphu_mcf</property>-->
 
+        <!-- 2 Stage unwrapping option requires the following tags:-->
+        <!--<property name="do unwrap">True</property> -->
+        <!--<property name="unwrapper name">snaphu_mcf</property> -->
+        <!--<property name="do unwrap 2 stage">True</property> -->
+        <!--<property name="unwrapper 2 stage name">MCF</property> -->
+
         <!-- <<GEOCODING>> -->
         <!-- Creating geocoded coregistered stacks is easy with ISCE.
              You can specify the exact geocoding bounding box in SNWE format as follows.
@@ -200,7 +215,7 @@ files directly in the insarApp.xml file as in the following example for ALOS:
         <!-- By default ISCE geocodes a long list of products. Once, you are familiar with
              the product names, you can force ISCE to geocode only products of interest to you.
              Geocoding parameters for a file named "abc.def" can be controlled using insarapp_geocode_abcdef.xml-->
-        <!--<property name="geocode list">['filt_topophase.flat', 'los.rdr', 'topophase.cor', 'phsig.cor']</property>-->
+        <!--<property name="geocode list">filt_topophase.flat los.rdr topophase.cor phsig.cor</property>-->
 
 
 <!--

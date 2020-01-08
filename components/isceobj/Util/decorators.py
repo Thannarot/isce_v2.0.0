@@ -1,20 +1,20 @@
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Belz
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -268,3 +268,22 @@ def port(check):
         return port_method
     return port_decorator
 
+##Provide a decorator for those methods that need to use the old api.
+##at one point one might just turn it off by simply returning the original function 
+def use_api(func):
+    from iscesys.ImageApi.DataAccessorPy import DataAccessor
+    def use_api_decorator(*args,**kwargs):
+        #turn on the use of the old image api
+        if DataAccessor._accessorType == 'api':
+            leave = True
+        else:
+            DataAccessor._accessorType = 'api'
+            leave = False
+        ret = func(*args,**kwargs)
+        #turn off. The default will be used, i.e. api for write and gdal for read
+        if not leave:
+            DataAccessor._accessorType = ''
+        return ret
+    return use_api_decorator
+        
+        

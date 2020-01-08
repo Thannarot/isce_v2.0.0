@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -24,6 +24,7 @@
 
 
 from __future__ import print_function
+from iscesys.Component.Component import Component
 import sys
 import os
 import math
@@ -35,7 +36,96 @@ from iscesys.Compatibility import Compatibility
 Compatibility.checkPythonVersion()
 from orbit import pulsetiming
 
+NUMBER_LINES = Component.Parameter(
+    'numberLines',
+    public_name='NUMBER_LINES',
+    default=None,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+LEADER_FILENAME = Component.Parameter(
+    'leaderFilename',
+    public_name='LEADER_FILENAME',
+    default='',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+RAW_FILENAME = Component.Parameter(
+    'rawFilename',
+    public_name='RAW_FILENAME',
+    default='',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+NUMBER_BYTES_PER_LINE = Component.Parameter(
+    'numberBytesPerLine',
+    public_name='NUMBER_BYTES_PER_LINE',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+POSITION = Component.Parameter(
+    'position',
+    public_name='POSITION',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+TIME = Component.Parameter(
+    'time',
+    public_name='TIME',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+VELOCITY = Component.Parameter(
+    'velocity',
+    public_name='VELOCITY',
+    default=[],
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
 class Pulsetiming(Component):
+
+
+    parameter_list = (
+                      NUMBER_LINES,
+                      LEADER_FILENAME,
+                      RAW_FILENAME,
+                      NUMBER_BYTES_PER_LINE,
+                      POSITION,
+                      TIME,
+                      VELOCITY
+                     )
+
 
     def pulsetiming(self,rawImage = None,ledImage = None):
         rawCreatedHere = False
@@ -214,41 +304,17 @@ class Pulsetiming(Component):
         except AttributeError as (errno,strerr):
             print(strerr)
 
-    def __init__(self):
-        Component.__init__(self)
+    family = 'pulsetiming'
+
+    def __init__(self,family='',name=''):
+        super(Pulsetiming, self).__init__(family if family else  self.__class__.family, name=name)
         self.rawImage = ''
-        self.rawFilename = ''
-        self.leaderFilename = ''
-        self.numberBytesPerLine = None
-        self.numberLines = None
-        self.position = []
         self.dim1_position = None
         self.dim2_position = None
-        self.velocity = []
         self.dim1_velocity = None
         self.dim2_velocity = None
-        self.time = []
         self.dim1_time = None
-        self.dictionaryOfVariables = {'NUMBER_BYTES_PER_LINE' : ['self.numberBytesPerLine', 'int','mandatory'], \
-                                      'RAW_FILENAME' : ['self.rawFilename', 'str','optional'], \
-                                      'LEADER_FILENAME' : ['self.leaderFilename', 'str','optional'], \
-                                      'NUMBER_LINES' : ['self.numberLines', 'int','optional']}
         
-        self.dictionaryOfOutputVariables = {'TIME' : 'self.time', \
-                                            'POSITION': 'self.position', \
-                                            'VELOCITY': 'self.velocity'}
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
         return
 
 

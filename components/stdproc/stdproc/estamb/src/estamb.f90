@@ -32,7 +32,7 @@
       integer icaltone1,icaltone2,ifs,ifrst,iusedopp,ipatch,irec,k1start,k1end,k2,line
       integer lun,nl,npfin1,nwr,npts,iamb
       integer initdk,iowrit
-      double precision :: sol,pi
+      double precision :: sol,pi 
 
       double precision, allocatable, dimension(:) :: ampsum, ampsq, numsamp
 

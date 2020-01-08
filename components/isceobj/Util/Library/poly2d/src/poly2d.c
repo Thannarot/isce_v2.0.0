@@ -95,10 +95,8 @@ double evalPoly2d(cPoly2d* poly, double azi, double rng)
     double value = 0.0;
     double scalex,scaley;
     double xval, yval;
-
     xval = (rng - poly->meanRange)/(poly->normRange);
     yval = (azi - poly->meanAzimuth)/(poly->normAzimuth);
-
     scaley = 1.0;
     for(i = 0; i <= poly->azimuthOrder; i++,scaley*=yval)
     {
@@ -106,9 +104,9 @@ double evalPoly2d(cPoly2d* poly, double azi, double rng)
         for(j = 0; j <= poly->rangeOrder; j++,scalex*=xval)
         {
             value += scalex*scaley*getCoeff2d(poly,i,j);
+//            printf("evalPoly2d %f %d %d %f %f\n",getCoeff2d(poly,i,j),i,j,azi,rng);
         }
     }
-
     return value;
 }
 
@@ -154,7 +152,7 @@ void printPoly2d(cPoly2d* poly)
     {
         for(j=0; j<= (poly->rangeOrder); j++)
         {
-            printf("%f\t", getCoeff2d(poly, i, j));
+            printf("%g\t", getCoeff2d(poly, i, j));
         }
         printf("\n");
     }

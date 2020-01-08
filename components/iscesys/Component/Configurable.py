@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2009 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2009 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -39,6 +39,55 @@ from isceobj.Util import key_of_same_content
 ## __import__() calls *should* work, though they whole thing should
 ## use 2.7's importlib module (I don't have it- JEB).
 EXEC = False
+
+from iscesys.Traits import traits
+
+def containerize(a, ttyp, ctyp):
+    """
+    Convert a string version of a list, tuple, or comma-/space-separated
+    string into a Python list of ttyp objects.
+    """
+    if not isinstance(a, str):
+        return a
+
+    #strip off the container indicator ('[', ']' for list, '(', ')' for tuple)
+    if '[' in a:
+        a = a.split('[')[1].split(']')[0]
+    elif '(' in a:
+        a = a.split('(')[1].split(')')[0]
+
+    #At this point a is a string of one item or several items separated by
+    #commas or spaces. This is converted to a list of one or more items
+    #of type ttyp and then cast to the container type (ctyp).  It is
+    #required that the constructor of the container type takes a list
+    #as argument (as is the case for list, tuple, numpy.array to name a few).
+    if ',' in a:
+        return ctyp([ttyp(x.strip()) for x in a.split(',')])
+    else:
+        return ctyp([ttyp(x.strip()) for x in a.split()])
+
+
+def apply_type(value, dtype, ctype=None):
+    '''
+    Function to convert a string representation of an entity's
+    value to the dtype given as input.  Handles an optional
+    argument named 'container' to convert the input string
+    value into a list of entities of the type 'dtype'.
+    '''
+    if isinstance(dtype, str):
+        dtype = traits[dtype]
+
+    #Check if container is defined
+    if ctype:
+        if isinstance(ctype, str):
+            #if ctype is a string get the actual trait
+            ctype = traits[ctype]
+        return containerize(value, dtype, ctype)
+    else:
+        return dtype(value)
+
+    print("dtype {} not in known traits".format(dtype))
+    return
 
 
 ## A metaclass for all configurables
@@ -142,38 +191,43 @@ class DictionaryOfVariables(object):
     pass
 
 
+class SELF():
+    """
+    A class to use for Facility declaration to indicate
+    that an argument is self.  A kludge to work with
+    _RunWrapper class objects that are Facilities.
+    """
+    def __init__(self):
+        pass
+
 ## The base Framework object that implements confugurability.
 class Configurable(object):
 
-    ## Metaclass allows control of Class/Instance creation.
-    __metaclass__ = configurable
-
-    ## A configurable objects paramter list
-    parameter_list = ()
-    ## A configurable objects facilities list (TBD)
-    facility_list = ()
-    ## A configurable objects facilities list (TBD)
-    port_list = ()
 
     ## A Parameter class- supports all types, not just primiatives.
     class Parameter(object):
         '''Parameter( attrname,
         public_name="",
         default=None,
+        container=None,
         type=type,
         mandatory=False,
         units=None,
-        doc="""Please provide a docstring"""):
+        doc="""Please provide a docstring""",
+        private=False):
         '''
         ## if True, do type checking in __init__().
         warn = False
         def __init__(self, attrname,
                      public_name="",
                      default=None,
+                     container=None,
                      type=type,
                      mandatory=False,
                      units=None,
-                     doc="""Please provide a docstring"""):
+                     doc="""Please provide a docstring""",
+                     private=False,
+                     intent='input'):
 
             if self.__class__.warn:
                 raise NotImplementedError
@@ -184,6 +238,10 @@ class Configurable(object):
             ## This name will be used at the command line or xml interface
             ## to indentify the parameter
             self.public_name = public_name or attrname
+            ## Handle container option.  The container attribute is a container
+            ## type that can cast a list into an instance of the container.
+            ## The elements of the list are specified by the 'type' attribute.
+            self.container = container
             ## This is the paramater's data type-- or a tuple of allowable
             ## data types, though that is not fully implemented
             self.type = type
@@ -192,10 +250,16 @@ class Configurable(object):
             self.default = default
             ## units may be used someday
             self.units = units
-            ## Parameter is (not) mandatory iff True (False).
-            self.mandatory = bool(mandatory)
+            ## if private = False -> Parameter is mandatory iff True. It's optional (i.e. if not provided is set
+            # to a default iff False). It still must be set before running
+            # if private = True -> Parameter COULD be provided by the user if mandatory is False but it does not
+            #need to be set before running
+            # User cannot set it if mandatory = True and private is True
+            self.mandatory = mandatory
             ## A helpful docstring for the user, check PEP257.
             self.doc = doc
+            self.private = private
+            self.intent = intent
             return None
 
         ## Calling a parameter makes an instance of its type
@@ -217,6 +281,8 @@ class Configurable(object):
             result += ", type=%s"  % s
             result +=", units=%s" % str(self.units)
             result +=", mandatory=%s" % str(self.mandatory)
+            result +=", private=%s" % str(self.private)
+
             return result + ")"
 
         ## bool is mandatory
@@ -249,7 +315,8 @@ class Configurable(object):
         args=(),
         kwargs={},
         mandatory=False,
-        doc="""Please provide a docstring"""):
+        doc="""Please provide a docstring""",
+        private=False):
         '''
         ## if True, do type checking in __init__().
         warn = False
@@ -266,7 +333,8 @@ class Configurable(object):
                      args=(),
                      kwargs={},
                      mandatory=False,
-                     doc="""Please provide a docstring"""):
+                     doc="""Please provide a docstring""",
+                     private=False):
 
             if self.__class__.warn:
                 raise NotImplementedError
@@ -292,6 +360,9 @@ class Configurable(object):
             self.mandatory = bool(mandatory)
             ## A helpful docstring for the user, check PEP257.
             self.doc = doc
+
+            self.private = private
+
             return None
 
         ## Got get the factory in the name
@@ -300,6 +371,7 @@ class Configurable(object):
                                             fromlist=fromlist or [''])
             self.factory = getattr(self.factorymodule, self.factory_name)
             return None
+
 
         ## Get arguments from the component's parameters
         def extract_args_from_component(self, component):
@@ -413,7 +485,23 @@ class Configurable(object):
             return {self.NAME(): self}
 
         pass
+    #has to be inside the class in this case since the Parameter is defined inside
+    METADATA_LOCATION  = Parameter('metadatalocation',
+                              public_name='METADATA_LOCATION',
+                              default='',
+                              type=str,
+                              mandatory=False,
+                              private=True,
+                              doc='Location of the metadata file where the instance was defined')
+    ## Metaclass allows control of Class/Instance creation.
+    __metaclass__ = configurable
 
+    ## A configurable objects parameter list
+    parameter_list = (METADATA_LOCATION,)
+    ## A configurable objects facilities list (TBD)
+    facility_list = ()
+    ## A configurable objects facilities list (TBD)
+    port_list = ()
     def get_parameter_names(self, func=lambda x: True):
         return map(str, filter(func, self.parameter_list))
 
@@ -436,7 +524,7 @@ class Configurable(object):
 
     ## TBD method: passing a facility to youself should call it
     ## and assign it? Thus, I think,
-    ## map(self.set_facility_attr, self.facility_list) should run everything?
+    #map(self.set_facility_attr, self.facility_list) #should run everything?
     def set_facility_attr(self, facility):
         result = facility(self)
         setattr(self, str(facility), result)
@@ -462,35 +550,96 @@ class Configurable(object):
 
 # and the self.dictionaryOfVariables is:
 #\verbatim
-# self.dictionaryOfVariables = {'SPACECRAFT_NAME':['self.spacecraftName','str','mandatory'], 'BODY_FIXED_VELOCITY':['self.bodyFixedVelocity', 'float','mandatory']}
+# self.dictionaryOfVariables = {'SPACECRAFT_NAME':{'attrname':'spacecraftName','type':'str','mandatory':True},
+# 'BODY_FIXED_VELOCITY':{'attrname':'bodyFixedVelocity', 'type':'float','mandatory':True]}
 #\endverbatim
 # the self.spacecraftName  is set to 'ERS1' and self.bodyFixedVelocity is set to 7552.60745017, while the self.descriptionOfVariables will be set to
 #\verbatim
 #self.descriptionOfVariables = {'SPACECRAFT_NAME':{'doc': 'European Remote Sensing Satellite'}, 'BODY_FIXED_VELOCITY',:{'doc':'velocity of the spacecraft','units':'m/s'}}
 #\endverbatim
-    def renderToDictionary(self,obj,propDict,factDict,miscDict):
-        #remove meaningless values from the dictionaries
 
+    from datetime import datetime as dt
+
+    def renderToDictionary(self,obj,propDict,factDict,miscDict):
+        obj.reformatDictionaryOfVariables()
+    
+        #remove meaningless values from the dictionaries
         for k,v in obj.dictionaryOfVariables.items():
-            val = getattr(obj, v[0].replace('self.',''))
-            if v[1] == 'component':#variable type
+            val = getattr(obj, v['attrname'])
+            #Ignore the EmptyFacilities
+            if isinstance(val,EmptyFacility):
+                continue
+            if v['type'] == 'component':#variable type
                 propDict[k] = {}
                 miscDict[k] = {}
                 #check if the key are equivalent and possible replace the one in the dict with k
-                if DU.keyIsIn(k,obj._dictionaryOfFacilities,True):
+                if DU.keyIsIn(k, obj._dictionaryOfFacilities, True):
                     factDict[k] = obj._dictionaryOfFacilities[k]
+                    if factDict[k]['factoryname'] == 'default':
+                        module,factory = self._getFacilityInfoFromObject(val)
+                        factDict[k] =  {
+                                    'factorymodule':module,
+                                    'factoryname':factory
+                                    }
                 else:
                     factDict[k] = {}
-                self.renderToDictionary(val,propDict[k],factDict[k],miscDict[k])
+
+                #see method comment for detail
+                if val is not None:
+                    val.adaptToRender()
+                    self.renderToDictionary(val,propDict[k],factDict[k],miscDict[k])
+                    val.restoreAfterRendering()
+                else:
+                    if self.logger:
+                        self.logger.warning(
+                            "component {} is empty in object of type {}".format(
+                                v['attrname'], type(obj))
+                        )
+                    else:
+                        print(("***information: "+
+                               "component {} is empty in object of type {}").format(
+                                   v['attrname'], type(obj))
+                        )
             else:
+
                 propDict.update({k:val})
                 if k in obj.unitsOfVariables:
-                    miscDict[k] = {'units':obj.unitsOfVariables[k]}
+                    miscDict[k] = {'units':obj.unitsOfVariables[k]['units']}
                 if k in obj.descriptionOfVariables:
                     try:
-                        miscDict[k].update({'doc':obj.descriptionOfVariables[k]})
+                        miscDict[k].update({'doc':obj.descriptionOfVariables[k]['doc']})
                     except KeyError:
-                        miscDict[k] = {'doc':obj.descriptionOfVariables[k]}
+                        miscDict[k] = {'doc':obj.descriptionOfVariables[k]['doc']}
+
+
+    def _getFacilityInfoFromObject(self,obj):
+        module = obj.__module__
+        fact = obj.__class__.__name__
+        return module,fact
+    #abstract method if the object needs to do some reformatting
+    #which might be needed if some of the attributes cannot be serialized correctly
+    def adaptToRender(self):
+        pass
+
+    #abstract method to be called after adaptToRender to repristinate the original format
+    def restoreAfterRendering(self):
+        pass
+    def reformatDictionaryOfVariables(self):
+        newDict = {}
+        for k,v in self.dictionaryOfVariables.items():
+            if isinstance(v,list):
+                if k in self.dictionaryOfOutputVariables:
+                    intent = 'output'
+                else:
+                    intent = 'input'
+                newDict[k] = {'attrname':v[0].replace('self.',''),'type':v[1],
+                              'mandatory':True if v[2] == 'mandatory' else False,'private':False,
+                              'intent':intent}
+            elif isinstance(v, dict):
+                newDict[k] = v
+            else:
+                continue
+            self.dictionaryOfVariables = newDict
 
 
     def init(self,propDict=None,factDict=None,docDict=None,unitsDict=None):
@@ -549,6 +698,7 @@ class Configurable(object):
         #init recursively
         self.initRecursive(self.catalog,self._dictionaryOfFacilities)
 
+
     def initProperties(self,dictProp):
         """ as for calling _facilities, if we make sure that this method is
         called in the contructure we don't have to worry about this part
@@ -559,44 +709,48 @@ class Configurable(object):
         except:# not implemented
             pass
         """
+
+        self.reformatDictionaryOfVariables()
         from iscesys.Parsers.Parser import const_key
         for k,v in dictProp.items():
             if k == const_key:
                 continue
             #if it is  a property than it should be in dictionary of variables
             try:
-                kp, vp = key_of_same_content(k, self.dictionaryOfVariables)
                 #pure property are only present in dictProp
-                if(k not in self._dictionaryOfFacilities):
-                    compName = vp[0]
-                    compName = compName.replace('self.','') # the dictionary of variables used to contain the self.
-                    setattr(self,compName,v)
+                if(k.upper() not in list(map(str.upper, list(self._dictionaryOfFacilities.keys())))):
+                    kp, vp = key_of_same_content(k, self.dictionaryOfVariables)
+                    compName = vp['attrname']
+                    dtype = vp['type']
+                    ctype = vp['container'] if 'container' in vp.keys() else None
+                    v = apply_type(v, dtype, ctype)
+                    setattr(self, compName, v)
 
             except:#if it is not try to see if it implements a the _parameter
-                warnOrErr = 'Error'
-                if self._ignoreMissing:
-                    warnOrErr = 'Warning'
-                message='%s. The attribute corresponding to the key '%warnOrErr + \
-                    '"%s" is not present in the object "%s".\nPossible causes are the definition'%(str(k),str(self.__class__)) + \
-                    ' in the xml file of such attribute that is no longer defined \nin the '+ \
-                    'object "%s" or a spelling error'%str(self.__class__)
-
-                if self.logger:
+                if k not in self._parametersExceptions:
+                    warnOrErr = 'Error'
                     if self._ignoreMissing:
-                        self.logger.warning(message)
+                        warnOrErr = 'Warning'
+                    message='%s. The attribute corresponding to the key '%warnOrErr + \
+                        '"%s" is not present in the object "%s".\nPossible causes are the definition'%(str(k),str(self.__class__)) + \
+                        ' in the xml file of such attribute that is no longer defined \nin the '+ \
+                        'object "%s" or a spelling error'%str(self.__class__)
+
+                    if self.logger:
+                        if self._ignoreMissing:
+                            self.logger.warning(message)
+                        else:
+                            self.logger.error(message)
                     else:
-                        self.logger.error(message)
-                else:
-                    print(message)
-                if not self._ignoreMissing:
-                    sys.exit(1)
+                        print(message)
+                    if not self._ignoreMissing:
+                        sys.exit(1)
 
     def initRecursive(self,dictProp,dictFact):
         #separate simple properties from factories.
         #first init the properties since some time they might be used by the factories
 
         self.initProperties(dictProp)
-
 
         for k, dFk  in dictFact.items():
             #create an instance of the object
@@ -622,6 +776,11 @@ class Configurable(object):
 
             try:
                 factoryname = dFk['factoryname']
+                #factoryname = default means that the object is private, it does not need
+                #to be initialized and when dumped the factory info will be extracted from
+                #the object itself
+                if(factoryname == 'default'):
+                    continue
             except:
                 if self.logger:
                     self.logger.error('Cannot create object without a factory method.')
@@ -676,7 +835,7 @@ class Configurable(object):
 
             #now look for all the complex objects that are in dictFact and extract the factory
             nextDict = {}
-            keyList = ['attrname','factorymodule','factoryname','kwargs','doc','args','mandatory']
+            keyList = ['attrname','factorymodule','factoryname','kwargs','doc','args','mandatory','private']
             for k1, v1 in dFk.items():
                 #check that it is not one of the reserved factory keys
                 isReserved = False
@@ -701,49 +860,67 @@ class Configurable(object):
 
             # now the component is initialized. let's set it into the comp object giving the prescribed name
             kp, vp = key_of_same_content(k,self._dictionaryOfFacilities)
+
             try:
                 #try the dictionaryOfFacilities to see if it is defined
-                #and has the attrname. That means that it has beed passed from the command line.
+                #and has the attrname.
+                #for private parameters that are object the facility method in
+                #not implemented, just the property. When reloding the dictionaryOfFacility
+                #is updated with the info from the xml file but the 'attrname' is missing
+                #so check is tha k was defined in the dictionaryOfVariables since it contains
+                #all the parameters
+                try:
+                    compName = vp['attrname']
+                except Exception:
+                    if kp in [x.lower() for x in  self.dictionaryOfVariables.keys()]:
+                        compName = k
 
-                compName = vp['attrname']
                 compName = compName.replace('self.','')# the dictionary of variables used to contain the self.
-                setattr(self,compName,comp)
-
+                setattr(self, compName, comp)
             except:
                 if self.logger:
                     self.logger.error('The attribute',k,',is not present in the  _dictionaryOfFacilities.')
                 else:
                     print('The attribute',k,',is not present in the _dictionaryOfFacilities.')
 
-
-
-
 ##
 # This method checks if all the variables are initialized to a meaningful value. It throws an exception if at least one variable is not properly initialzed.
 ##
     def checkInitialization(self):
+        self.reformatDictionaryOfVariables()
         for key , val in self.dictionaryOfVariables.items():
-            if val[self.Variable.typePos] == 'None':
+            #when private or when intent is output (which defaults to private False and mandatory False)
+            #do not check
+            if val['private'] == True or val['type'] == 'component' or  val['intent'] == 'output':
                 continue
-            attrName = val[self.Variable.selfPos].replace('self.','')
+            attrName = val['attrname']
             valNow = getattr(self,attrName)
             if not valNow and not (valNow == 0):
-                 raise Exception('The variable %s must be initialized'%key)
+                raise Exception('The variable %s must be initialized'%key)
 
     def _parameters(self):
         """Define the user configurable parameters for this application"""
 
         for item in self.__class__.parameter_list:
             try:
+                try:
+                    from copy import deepcopy
+                    default = deepcopy(item.default)
+                except:
+                    default = item.default
+
                 setattr(self,
                         item.attrname,
                         self.parameter(item.attrname,
                                        public_name=item.public_name,
-                                       default=item.default,
+                                       default=default,
                                        units=None,
                                        doc=item.doc,
+                                       container=item.container,
                                        type=item.type,
-                                       mandatory=item.mandatory
+                                       mandatory=item.mandatory,
+                                       private=item.private,
+                                       intent=item.intent
                                        )
                         )
             except AttributeError:
@@ -755,12 +932,95 @@ class Configurable(object):
             pass
         return None
 
+    def _facilitiesEmpty(self):
+        """
+        First pass in configuring a Component requires placeholder facilities
+        to be defined before running the _parameters method to create the
+        dictionaryOfVariables from Parameters.  This method will do this with
+        the EmptyFacility class.
+        """
+
+        #Check if the facility_list tuple is empty
+        if not self.facility_list:
+            #If so, then let _facilities handle this case
+            #in case the component redefined _facilities
+            self._facilities()
+
+        #Create the facilities as attributes of the component
+        #without unpacking the arguments; that will happen in
+        #_facilities after the parameters are handled
+        for item in self.__class__.facility_list:
+            try:
+                setattr(self,
+                    item.attrname,
+                    self.facility(
+                        item.attrname,
+                        public_name=item.public_name,
+                        module=item.module_name,
+                        factory=item.factory_name,
+                        args=item.args,
+                        mandatory=item.mandatory,
+                        doc=item.doc
+                    )
+                )
+            except AttributeError:
+                message = (
+                    "Failed to set facility %s type %s in %s" %
+                    (str(item), item.__class__.__name__, repr(self))
+                    )
+                raise AttributeError(message)
+            pass
+
+        return
+
     def _facilities(self):
         """
         Method that the developer should replace in order to define the facilities of the application
         """
-        return
 
+        #Don't do anything if the facility_list is empty
+        if not self.facility_list:
+            return
+
+        for item in self.__class__.facility_list:
+            try:
+                #convert item.args that are Parameter instances to the
+                #corresponding attribute value that was set in self_parameters
+                #also check if one of the args is an instance of SELF class
+                #which is sometimes required as an argument to the facility
+                #constructor
+                largs = list(item.args)
+                for i, arg in enumerate(largs):
+                    if isinstance(arg, SELF):
+                        largs[i] = self
+                    elif isinstance(arg, Parameter):
+                        largs[i] = getattr(self, arg.attrname)
+                    else:
+                        largs[i] = arg
+                targs = tuple(largs)
+                setattr(self,
+                    item.attrname,
+                    self.facility(
+                        item.attrname,
+                        public_name=item.public_name,
+                        module=item.module_name,
+                        factory=item.factory_name,
+                        args=targs,
+                        private=item.private,
+                        mandatory=item.mandatory,
+                        doc=item.doc
+                    )
+                )
+            except AttributeError:
+                message = (
+                    "Failed to set facility %s type %s in %s" %
+                    (str(item), item.__class__.__name__, repr(self))
+                    )
+                raise AttributeError(message)
+            pass
+
+        return
+    
     def _init(self):
         """
         Method that the developer may replace in order to do anything after parameters are set and before facilities are created
@@ -778,6 +1038,7 @@ class Configurable(object):
         Method that the developer may replace in order to do anything after main is called such as finalizing objects that were created.
         """
         return
+
     def _processFacilities(self, cmdLineDict):
 
         self._cmdLineDict = cmdLineDict
@@ -801,74 +1062,167 @@ class Configurable(object):
 
         return
 
-    def parameter(self,attrname,public_name=None,default=None,units=None,doc=None,type=None,mandatory=False):
-        if not units == None:
+    #Note: mandatory private
+    #      True      True  -> must be set by the framework before running
+    #      True      False -> must be set by the user before running
+    #      False     True  -> could be set by the user or framework but is not necessary
+    #      False     False -> could be set by user, if not the framework sets a default
+
+
+    def parameter(self,attrname,public_name=None,default=None,units=None,
+                  doc=None,container=None,type=None,mandatory=False,
+                  private=False,intent='input'):
+        public_name = DU.renormalizeKey(public_name)
+        if units:
             # Required to be a dictionary of dictionaries in
             # DictUtils.updateDictionary to match structure
             # created from user inputs in Parser
             self.unitsOfVariables[public_name] = {'units':units}
-        if not doc == None:
+        if doc:
             # Required to be a dictionary of dictionaries in
             # DictUtils.updateDictionary to match structure
             # created from user inputs in Parser
             self.descriptionOfVariables[public_name] = {'doc':doc}
-        if not type == None:
+        if type:
             self.typeOfVariables[public_name] = type
-        if mandatory is True:
+
+        #for backward compatibility we need to map the mandatory/private to some string
+        if (mandatory is True or mandatory == 'True') and private is False:
             mand = 'mandatory'
             self.mandatoryVariables.append(public_name)
-        elif mandatory is False :
-            mand = 'optional'
-            self.optionalVariables.append(public_name)
-        #need to add this case. optional means that is needed by if the user does not set it then a default result is used.
-        #None means that if not given then it is not used. For instance for the ImageAPI the Cater might not be needed when no casting is required
-        elif mandatory == None:
-            mand = 'None'
-
-        self.dictionaryOfVariables[public_name] = [attrname,type,mand]
-        return default
-
-
-    def facility(self,attrname,public_name=None,module=None,factory=None,doc=None,args=(),kwargs={},mandatory=False):
-        self._dictionaryOfFacilities[public_name] = {'attrname':attrname,
-                                              'factorymodule':module,
-                                              'factoryname':factory,
-                                              'args':args,
-                                              'kwargs':kwargs,
-                                              'mandatory':mandatory
-                                              }
-
-        #check also for string. should change it to make it consistent between parameter and facility
-        if mandatory is True or mandatory == 'True':
-            mand = 'mandatory'
-            self.mandatoryVariables.append(public_name)
-        elif mandatory is False or mandatory == 'False':
+        elif (mandatory is False or mandatory == 'False') and private is False:
             mand = 'optional'
             self.optionalVariables.append(public_name)
         #need to add this case. optional means that is needed by if the user does not set it then a default result is used.
         #None means that if not given then it is not used. For instance for the ImageAPI the Caster might not be needed when no casting is required
-        elif mandatory == None or mandatory == 'None':
+        elif (mandatory is None or mandatory == 'None') or (mandatory is False and private is True):
             mand = 'None'
+        elif (mandatory is True and private is True):
+            mand = 'private'
+        self.dictionaryOfVariables[public_name] = {'attrname':attrname,
+                                              'mandatory':mandatory,
+                                              'private':private,
+                                              'container':container,
+                                              'type':type,
+                                              'intent':intent
+                                              }
+        return default
 
-        self.dictionaryOfVariables[public_name] = [attrname,'component',mand]
 
+    def facility(self, attrname, public_name=None, module=None, factory=None,
+                 doc=None, args=(), kwargs={}, mandatory=False, private=False):
+                
+        public_name = DU.renormalizeKey(public_name)
+
+        #Enter the facility in the dictionaryOfFacilities
+        self._dictionaryOfFacilities[public_name] = {'attrname':attrname,
+                                                     'factorymodule':module,
+                                                     'factoryname':factory,
+                                                     'args':args,
+                                                     'kwargs':kwargs,
+                                                     'mandatory':mandatory,
+                                                     'private':private
+                                                     }
+
+        #check also for string. should change it to make it consistent between
+        #parameter and facility
+        if (mandatory is True or mandatory == 'True') and private is False:
+            mand = 'mandatory'
+            self.mandatoryVariables.append(public_name)
+        elif (mandatory is False or mandatory == 'False') and private is False:
+            mand = 'optional'
+            self.optionalVariables.append(public_name)
+
+        #need to add this case. optional means that is needed by if the user
+        #does not set it then a default result is used.
+        #None means that if not given then it is not used. For instance for the
+        #ImageAPI the Cater might not be needed when no casting is required
+        elif ((mandatory is None or mandatory == 'None') or
+              (mandatory is False and private is True)):
+            mand = 'None'
+        elif (mandatory is True and private is True):
+            mand = 'private'
+
+        #Add to dictionaryOfVariables
+        self.dictionaryOfVariables[public_name] = {'attrname':attrname,
+                                                   'mandatory':mandatory,
+                                                   'private':private,
+                                                   'type':'component'
+                                                    }
+        #Add doc string if given
         if doc:
             self._dictionaryOfFacilities[public_name].update({'doc':doc})
-        #Delay creating the instance until we parse the command line and check for alternate factory
+
+        #Delay creating the instance until we parse the command line and check
+        #for alternate factory
         return EmptyFacility()
 
 
     def _instanceInit(self):
-         # each class has to call this method after calling the super __init__ in case of many level of
-        # inheritance
+        # each class has to call this method after calling the super __init__
+        # in case of many level of inheritance
         self._parameters()
         self._facilities()
-        #init with what we have so far. other callers might overwrite some parameters
+
+        #init with what we have so far. other callers might overwrite some
+        #parameters.
         #note self.catalog is empty. any empty dict would do it
-
-        self.init(self.catalog,self._dictionaryOfFacilities,self.descriptionOfVariables,self.unitsOfVariables)
+        self.init(self.catalog, self._dictionaryOfFacilities,
+                  self.descriptionOfVariables, self.unitsOfVariables)
         self.initOptionalAndMandatoryLists()
+        
+    ## Given an application the we expose only the "mandatory" attribute which could be True or False.
+    # In order to take care of the fact that mandatory = False consists of two cases, i.e. private = False
+    # or private = True, we convine that if private is False than the attributes only appears in the
+    # application file. If private is True than a parameter with the same name appears also in
+    # the private file which is a file with the same name as the application but preceeded by the underscores (like Foo and __Foo)
+    # If mandatory = True and private = False it only needs to appear in the appication file
+    # without specifying the private attribute since is False by default.
+    # Finally for  the case mandatory = True and private = True the attribute only appears in the
+    # private file (like __Foo) and it's not exposed to the user
 
+    def updatePrivate(self):
+        #Not all instances need to call this, so try
+        try:
+            import importlib
+            module = '.'.join(self.__module__.split('.')[0:-1])
+            imp = importlib.import_module(module + '.__' + self.__class__.__name__)
+            #truth table for mandatary, private attributes
+            #False,False = attribute could be set by user and if not the system must sets it
+            #True,False = attribute must be set by user
+            #False,True = attribute could be set by user, if not no one sets it because not needed (like Caster)
+            #True,True = attribute must be set and the system and not the user i responsible for that
+
+            #if a parameter appears in both lists then sets private = True otherwise add it to the
+            # object parameter_list
+            toAdd = []
+            #NOTE: the import is not a class so no imp.__class__.parameter_list
+            for ppar in imp.parameter_list:
+                found = False
+                for par in self.__class__.parameter_list:
+                    if par.attrname == ppar.attrname:
+                        par.private = True
+                        found = True
+                        break
+
+                if not found:
+                    toAdd.append(ppar)
+            self.__class__.parameter_list += tuple(toAdd)
+            #same for facilities
+            toAdd = []
+            for ppar in imp.facility_list:
+                found = False
+                for par in self.__class__.facility_list:
+                    if par.attrname == ppar.attrname:
+                        par.private = True
+                        found = True
+                        break
+
+                if not found:
+                    toAdd.append(ppar)
+            self.__class__.facility_list += tuple(toAdd)
+        except Exception:
+            pass
 ##
 # This method sets self.warning = True. All the warnings are enabled.
 #@see unsetWarnings()
@@ -886,13 +1240,15 @@ class Configurable(object):
         self.warnings = False
 
     def initOptionalAndMandatoryLists(self):
+
+        self.reformatDictionaryOfVariables()
         for key, val in self.dictionaryOfVariables.items():
-            if val[self.Variable.typePos] == 'mandatory' or val[self.Variable.typePos] is True:
+            if val['mandatory'] is True:
                 self.mandatoryVariables.append(key)
-            elif val[self.Variable.typePos] == 'optional' or val[self.Variable.typePos] is False:
+            elif val['mandatory'] is False and val['private'] is False:
                 self.optionalVariables.append(key)
-            elif val[self.Variable.typePos] == 'None' or val[self.Variable.typePos] is None:
-                pass
+            elif val['private'] is True:
+                continue
             else:
                 if self.logger:
                     self.logger.error('Error. Variable can only be optional or mandatory or None')
@@ -1004,8 +1360,69 @@ class Configurable(object):
 
         """
 
+    def dump(self,filename='',dumper='xml'):
+        #if not provided use self.name and if not
+        if not filename:
+            if not self.name:
+                if not self.family:
+                    message = "Configurable.py:dump(). The filename is not specified"
+                    if self.logger:
+                        self.logger.error(message)
+                    else:
+                        print(message)
+                    raise Exception
 
+        from iscesys.Dumpers.DumperFactory import createFileDumper
+        from isceobj.XmlUtil import xmlUtils as xml
+        odProp = xml.OrderedDict()
+        odFact = xml.OrderedDict()
+        odMisc = xml.OrderedDict()
+        dump = createFileDumper(dumper)
+        self.renderToDictionary(self, odProp,odFact,odMisc)
+        # remove key,value parir with empty value (except if value is zero)
+        DU.cleanDictionary(odProp)
+        DU.cleanDictionary(odFact)
+        DU.cleanDictionary(odMisc)
+        firstTag = self.name if self.name else self.family
+        dump.dump(filename, odProp, odFact, odMisc, firstTag)
 
+    def load(self,filename,parser='xml'):
+        if not filename:
+            if not self.name:
+                if not self.family:
+                    message = "Configurable.py:load(). The filename is not specified"
+                    if self.logger:
+                        self.logger.error(message)
+                    else:
+                        print(message)
+                    raise Exception
+
+        from iscesys.Parsers.FileParserFactory import createFileParser
+        FP = createFileParser(parser)
+        tmpProp, tmpFact, tmpMisc = FP.parse(filename)
+        docDict = DU.extractDict(tmpMisc, 'doc')
+        #extract units from miscDict
+        unitsDict = DU.extractDict(tmpMisc, 'units')
+        self._parameters()
+        self._updateFromDicts([self.catalog],[tmpProp],[True])
+        #just to be sure that the facilities, even if default ones,
+        #are defined so we can check against the dictionaryOfFacilities
+        #to make sure that a property is indeed a property and
+        #not a facility (used in initProperties to validate
+        #the property)
+        self._facilitiesEmpty()
+        self.initProperties(self.catalog)
+
+        self._init()
+
+        self._facilities()
+        self._dictionaryOfFacilities = DU.renormalizeKeys(self._dictionaryOfFacilities)
+        self._updateFromDicts([self._dictionaryOfFacilities],[tmpFact],[True])
+        self.init(self.catalog,self._dictionaryOfFacilities,docDict,unitsDict)
+
+        # Run the user's _configure to transfer user-configured facilities to
+        # the instance variables
+        self._configure()
 
     def _extractFromDicts(self,listIn,name):
         listOut = []
@@ -1018,8 +1435,21 @@ class Configurable(object):
             replace = [False]*len(toUpgrade)
         for dictT,dictU,rep in zip(toUpgrade,upgrade,replace):
             DU.updateDictionary(dictT,dictU, replace=rep)
+    ##Method called by sub class to update the parameter_list
+    ##@param supclass the super class
+    def updateParameters(self):
+        unique = {}
+        for par in self.__class__.parameter_list:
+            if par.attrname in  unique:
+                continue
+            unique[par.attrname] = par
 
-
+        self.__class__.parameter_list = tuple(unique.values())
+    def extendParameterList(self,sup,sub):
+        if self.__class__ == sub:
+            self.__class__.parameter_list = self.__class__.parameter_list + sup.parameter_list
+        else:
+            self.__class__.parameter_list = self.__class__.parameter_list + sub.parameter_list + sup.parameter_list
     ## Call this function after creating the instance to initialize it
     def configure(self):
         """ Public alias to _configureThis"""
@@ -1105,18 +1535,25 @@ class Configurable(object):
             self._parameters()
 
             propDict,factDict,miscDict, unitsDict,docDict = self._selectFromDicts(dblist)
-
+            propDict = DU.renormalizeKeys(propDict)
+            factDict = DU.renormalizeKeys(factDict)
+            miscDict = DU.renormalizeKeys(miscDict)
+            unitsDict = DU.renormalizeKeys(unitsDict)
+            docDict = DU.renormalizeKeys(docDict)            
+            self.catalog = DU.renormalizeKeys(self.catalog)
             self._updateFromDicts([self.catalog],[propDict],[True])
             #just to be sure that the facilities, even if default ones,
             #are defined so we can check against the dictionaryOfFacilities
             #to make sure that a property is indeed a property and
             #not a facilities (used in initProperties to validate
             #the property)
-            self._facilities()
+            self._facilitiesEmpty()
             self.initProperties(self.catalog)
+            self.dictionaryOfVariables = DU.renormalizeKeys(self.dictionaryOfVariables)
 
             self._init()
             self._facilities()
+
             self._dictionaryOfFacilities = DU.renormalizeKeys(self._dictionaryOfFacilities)
             self._updateFromDicts([self._dictionaryOfFacilities],[factDict],[True])
             self.init(self.catalog,self._dictionaryOfFacilities,unitsDict,docDict)
@@ -1124,82 +1561,37 @@ class Configurable(object):
             # Run the user's _configure to transfer user-configured facilities to
             # the instance variables
             self._configure()
-            '''
-            #Create the configurable's dictionaryOfVariables and initialize
-            #its parameters with code defaults: the lowest priority.
-            self._parameters()
-
-    # should use self.name, but not quite ready for that yet
-
-
-            this will not work recursively. it has to look down the full dictionary to see if the key
-            appears.
-            The assumption will be that here we only update "global" attributes, so it's fine if the same
-            normname is used more than once since all those instances are meant to be initialiazed with the
-            same values.
-            it also need to do the same thing for the other dictionaries.
-            #Configure the parameters from the propDict dictionary
-            #that was created from the dblist
-            if propDict.keys():
-                if DU.renormalizeKey(self.normfamily) in propDict.keys():
-                    self.catalog = propDict[DU.renormalizeKey(self.normfamily)]
-
-                if DU.renormalizeKey(self.normname) in propDict.keys():
-                    DU.updateDictionary(self.catalog,
-                        propDict[DU.renormalizeKey(self.normname)], replace=True)
-            else:
-                self.catalog = {}
-            # based on the local inputs and application inputs select the highest priority
-            # properties and factories. Note self.catalog has already the first key stripped
-            self.catalog,factDict,miscDict, unitsDict,docDict = self._selectFromDicts(dblist)
-            self.initProperties(self.catalog)
-
-            self._init()
-
-            #Initialize the configurable's facilities
-            #with code defaults: the lowest priority
-            self._facilities()
-
-            #Configure the facilities with the factDict dictionary
-            #that was created from the dblist
-            if factDict.keys() or docDict.keys() or unitsDict.keys():
-                self._cmdLineDict = (factDict, docDict, unitsDict)
-            else:
-                self._cmdLineDict = ({}, {}, {})
-
-            # Note that is something was in the global dictionary it would have been picked
-            # here and no need to initialize in the initRecursive, so set self._initAlready
-            # catalog and factDict enough to know that there was something to initialize
-            if self.catalog or factDict:
-                self._initAlready = True
-                self._processFacilities(self._cmdLineDict)
-            '''
-        return
-
-## "Virtual" Usage method
-    def Usage(self):
-        """
-        Please provide a helpful Usage method
-        """
-        print("Please provide a Usage method for component, ",
-            self.__class__.__name__)
         return
 
 
+
+    def isAskingHelp(self):
+        import inspect
+        return (os.path.basename(inspect.getfile(self.__class__)) == os.path.basename(sys.argv[0]))
 ## Constructor
 
     def __init__(self, family = None, name = None):
 
+
         # bool variable set to True if the user wants to ignore warning for key specified in
         # the xml that are not present in the dictionaryOfVariables. Default False
         self._ignoreMissing = False
+        #Some parameters might not be defined in the class yet so if it does not exist, ignore it
+        self._parametersExceptions = ['metadata_location','delta_latitude','delta_longitude',
+                                      'first_latitude','first_longitude','width','length']
+
 
         ##
         # bool variable set True by default. If True all warnings are enabled.
         self.warnings = True
         ##
         #
+        if not family:
+            family = '_family'
         self.family = self.normfamily = self.keyfamily =  family
+        #provide a non empty default  otherwise the checkInitialization will complain
+        if not name:
+            name = family + '_name'
         self.name = self.normname = self.keyname = name
         from iscesys.Parsers.Parser import Parser
         from iscesys.DictUtils.DictUtils import DictUtils
@@ -1226,12 +1618,27 @@ class Configurable(object):
         self.typeOfVariables = {}
         self.unitsOfVariables = {}
         self.dictionaryOfOutputVariables = {}
-        self.dictionaryOfVariables = {}
+        if not hasattr(self, 'dictionaryOfVariables'):
+            self.dictionaryOfVariables = {}
         self.mandatoryVariables = []
         self.optionalVariables = []
 
-        import sys
-        if "--help" in sys.argv or "-h" in sys.argv:
+        self.updatePrivate()
+
+        #Add the parameters and facilities to the instance
+        self._parameters()
+        #First pass add empty facilities
+        self._facilitiesEmpty()
+
+        self.initOptionalAndMandatoryLists()
+        #add the family and name as parameters so they get registered into the
+        #dictionaryOfVariables
+        self.family = self.parameter('family',public_name='family',default=self.family,
+                                     type=str,mandatory=False,doc='Instance family name')
+        self.name = self.parameter('name',public_name='name',default=self.name,
+                                       type=str,mandatory=False,doc='Instance name')
+
+        if (("--help" in sys.argv or "-h" in sys.argv) and  self.isAskingHelp()):
             #assume that the factory for which we want to get the help
             # is after the keyword --help or -h
             from iscehelp import Helper
@@ -1240,14 +1647,7 @@ class Configurable(object):
                 help.askHelp(self, steps=True)
             else:
                 help.askHelp(self, steps=False)
-            '''
-            self._parameters()
-            self.initProperties({})
-            self._init()
-            self._facilities()
-            self.helper()
-            sys.exit(0)
-            '''
+
 #Parameter = Configurable.Parameter
 
 #if __name__ == "__main__":

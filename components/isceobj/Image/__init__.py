@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,8 @@ from contextlib import contextmanager
 
 __all__ = ("createCoordinate", 
            "createImage", 
-           "createRawImage", 
+           "createRawImage",
+           "createRawIQImage", 
            "createStreamImage", 
            "createSlcImage", 
            "createRgImage", 
@@ -81,46 +82,116 @@ def image_context(factory):
     return context_factory
 
 
-def createCoordinate():
+def createCoordinate(name=''):
     from .Image import ImageCoordinate
-    return ImageCoordinate()
+    inst = ImageCoordinate(name=name)
+    inst.configure()
+    return inst
+
 def createImage(name=''):
     from .Image import Image
-    return Image(name)
+    inst = Image(name=name)
+    return inst
 
-def createRawImage():
+def createRawImage(name=''):
     from .RawImage import RawImage
-    return RawImage()
+    inst = RawImage(name=name)
+    return inst
 
-def createStreamImage():
+def createRawIQImage(name=''):
+    from .RawIQImage import RawIQImage
+    inst = RawIQImage(name=name)
+    return inst
+def createStreamImage(name=''):
     from .StreamImage import StreamImage
-    return StreamImage()
+    inst = StreamImage(name=name)
+    return inst
 
-def createSlcImage():
+def createSlcImage(name=''):
     from .SlcImage import SlcImage
-    return SlcImage()
+    inst = SlcImage(name=name)
+    return inst
 
-def createRgImage():
+def createRgImage(name=''):
     from .RgImage import RgImage
-    return RgImage()
+    inst = RgImage(name=name)
+    return inst
 
-def createIntImage():
+def createIntImage(name=''):
     from .IntImage import IntImage
-    return IntImage()
+    inst = IntImage(name=name)
+    return inst
 
-def createAmpImage():
+def createAmpImage(name=''):
     from .AmpImage import AmpImage
-    return AmpImage()
-def createOffsetImage():
+    inst = AmpImage(name=name)
+    return inst
+
+def createOffsetImage(name=''):
     from .OffsetImage import OffsetImage
-    return OffsetImage()
+    inst = OffsetImage(name=name)
+    return inst
+
 def createDemImage(name=''):
     from .DemImage import DemImage
-    return DemImage(name)
-def createUnwImage():
-    from .UnwImage import UnwImage
-    return UnwImage()
+    inst = DemImage(name=name)
+    return inst
 
+def createUnwImage(name=''):
+    from .UnwImage import UnwImage
+    inst = UnwImage(name=name)
+    return inst
+
+def getFactoriesInfo():
+    return  {'ImageCoordinate':
+                     {
+                     'factory':'createCoordinate'                     
+                     },
+             'Image':
+                     {
+                     'factory':'createImage'                     
+                     },
+             'RawImage':
+                     {
+                     'factory':'createRawImage'                     
+                     },
+             'RawIQImage':
+                     {
+                     'factory':'createRawIQImage'                     
+                     },
+             'StreamImage':
+                     {
+                     'factory':'createStreamImage'                     
+                     },
+             'SlcImage':
+                     {
+                     'factory':'createSlcImage'                     
+                     },
+             'RgImage':
+                     {
+                     'factory':'createRgImage'                     
+                     },
+             'IntImage':
+                     {
+                     'factory':'createIntImage'                     
+                     },
+             'AmpImage':
+                     {
+                     'factory':'createAmpImage'                     
+                     },
+             'OffsetImage':
+                     {
+                     'factory':'createOffsetImage'                     
+                     },
+             'DemImage':
+                     {
+                     'factory':'createDemImage'                     
+                     },
+             'UnwImage':
+                     {
+                     'factory':'createUnwImage'                     
+                     }
+              }
 ## This is the IntImage factory's contect manager
 contextIntImage = image_context(createIntImage)
 contextRawImage = image_context(createRawImage)

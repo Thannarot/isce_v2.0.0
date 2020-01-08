@@ -2,7 +2,10 @@
 #include <fstream>
 #include "BSQAccessor.h"
 
-
+void BSQAccessor::init(void * poly)
+{
+  return;
+}
 void BSQAccessor::setData(char * buf, int row, int col, int numEl)
 {
     char * dataLine = new char[numEl*Bands*SizeV];
@@ -19,7 +22,7 @@ void BSQAccessor::setData(char * buf, int row, int col, int numEl)
     }
     for(int i = 0; i < Bands; ++i)
     {
-        streampos posNow = ((streampos)NumberOfLines*LineWidth*SizeV*i) +  ((streampos)row*LineWidth*SizeV + col*SizeV);
+      streampos posNow = (streampos) NumberOfLines*LineWidth*SizeV*i +  (streampos) row*LineWidth*SizeV + (streampos) col*SizeV;
         FileObject.seekp(posNow);
         FileObject.write(&dataLine[i*numEl*SizeV],numEl*SizeV);
         //the good flag gets set but not the eof for some reason, so assume eof when good is set false
@@ -52,7 +55,7 @@ void BSQAccessor::getData(char * buf, int row, int col, int & numEl)
     int actualRead = 0;
     for(int i = 0; i < Bands; ++i)
     {
-        streampos posNow = ((streampos)NumberOfLines*LineWidth*SizeV*i) +  ((streampos)row*LineWidth*SizeV + col*SizeV);
+      streampos posNow = ((streampos)NumberOfLines*LineWidth*SizeV*i) +  ((streampos)row*LineWidth*SizeV + (streampos) col*SizeV);
         FileObject.seekg(posNow);
         FileObject.read(&dataLine[i*numEl*SizeV],numEl*SizeV);
         actualRead = FileObject.gcount()/(SizeV);

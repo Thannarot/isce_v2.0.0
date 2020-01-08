@@ -25,11 +25,11 @@
       parameter(i_sinc_window=2)
 
       integer MAXDECFACTOR      ! maximum lags in interpolation kernels
-      parameter(MAXDECFACTOR=4096)                        
-      
+      parameter(MAXDECFACTOR=4096)
+
       integer MAXINTKERLGH      ! maximum interpolation kernel length
       parameter (MAXINTKERLGH=256)
-      
+
       integer MAXINTLGH         ! maximum interpolation kernel array size
       parameter (MAXINTLGH=MAXINTKERLGH*MAXDECFACTOR)
 
@@ -61,7 +61,7 @@
 
       real r_snr,r_outside
       integer i_xlu, i_ylu
-
+      integer i_mag1, i_mag2
 
       integer*8 :: imgAccessor1, imgAccessor2
 
@@ -106,7 +106,7 @@
       integer i_intplength      ! Range migration interpolation kernel length
       real*4  r_fdelay          ! Range migration filter delay
       real*4 r_fintp(0:MAXINTLGH) ! interpolation kernel values
-      real*8 r_relfiltlen,r_pedestal,r_beta      
+      real*8 r_relfiltlen,r_pedestal,r_beta
 
       integer*4 ii, jj
 !c      logical ll
@@ -135,10 +135,10 @@
       i_datatype(1) = i_complex   !will be changed according to user input
       i_datatype(2) = i_complex
       i_input_style = i_old
-!c Begin 
+!c Begin
 !c Modified by Giangi. These  values are set before function call ampcor from python module, but then were changed 
 !c to i_covs=32, i_cw = 16  and a_datatype(1,2) = complex which were the default values (before were read 
-!c from in file at this point). I commented out those lines    
+!c from in file at this point). I commented out those lines
 
 
 !c     sinc interploation kernel
@@ -156,11 +156,15 @@
          call cfft1d_jpl(k,c_osref,0)
       end do
 
-      !c Change input types based on user input 
+      !c Change input types based on user input
       if(index(a_datatype(1),'complex') .ne. 0)then
          i_datatype(1) = i_complex
+         i_mag1 = 0
       elseif(index(a_datatype(1),'real') .ne. 0)then
          i_datatype(1) = i_real
+      elseif(index(a_datatype(1),'mag') .ne. 0)then
+          i_datatype(1) = i_complex
+          i_mag1 = 1
       else
          write(i_log,'(a)') 'WARNING - did not understand reference image data type'
          write(i_log,'(a)') 'Expecting complex or real'
@@ -170,22 +174,26 @@
 
       if(index(a_datatype(2),'complex') .ne. 0)then
          i_datatype(2) = i_complex
+         i_mag2 = 0
       elseif(index(a_datatype(2),'real') .ne. 0)then
          i_datatype(2) = i_real
+      elseif(index(a_datatype(1),'mag') .ne. 0)then
+          i_datatype(2) = i_complex
+          i_mag2 = 1
       else
          write(i_log,'(a)') 'WARNING - did not understand search image data type'
          write(i_log,'(a)') 'Expecting complex or real'
          write(i_log,'(a)') 'Your input was '//a_datatype(2)
          write(i_log,'(a)') ' '
       endif
-      
+
       i_srchx = max(i_srchx,1)
       i_srchy = max(i_srchy,1)
 
       i_wsxj = i_wsxi+2*i_srchx
       i_wsyj = i_wsyi+2*i_srchy
 
-      i_srchp = min(i_srchy,i_srchx,i_srchpp) 
+      i_srchp = min(i_srchy,i_srchx,i_srchpp)
 
       i_wsxjp = i_wsxi + 2*i_srchp
       i_wsyjp = i_wsyi + 2*i_srchp
@@ -198,11 +206,11 @@
 
 
       !c Set max width to largest of the width
-      i_maxsamp = max(i_samples(1), i_samples(2)) 
-       
-      allocate( c_refimg(i_maxsamp,i_wsyi) )     
+      i_maxsamp = max(i_samples(1), i_samples(2))
+
+      allocate( c_refimg(i_maxsamp,i_wsyi) )
       allocate( c_srchimg(i_maxsamp,i_wsyj) )
-      allocate( r_refimg(i_maxsamp,i_wsyi) )     
+      allocate( r_refimg(i_maxsamp,i_wsyi) )
       allocate( r_srchimg(i_maxsamp,i_wsyj) )
       allocate( r_corr(i_covs*i_cw,i_covs*i_cw) )
       allocate( c_corr(i_covs*i_cw*i_covs*i_cw) )
@@ -248,9 +256,9 @@
            write(i_log,'(a)') 'ERROR - Requesting processing of too wide a file'
            write(i_log,'(a,1x,i10,a)') '             Image 1 width is ',i_samples(1),' pixels'
            write(i_log,'(a,1x,i10,a)') 'Maximum allowed file width is ',i_maxsamp   ,' pixels'
-            deallocate( c_refimg )     
+            deallocate( c_refimg )
             deallocate( c_srchimg )
-            deallocate( r_refimg )     
+            deallocate( r_refimg )
             deallocate( r_srchimg )
            return  ! EMG
          endif
@@ -258,9 +266,9 @@
            write(i_log,'(a)') 'ERROR - Requesting processing of too wide a file'
            write(i_log,'(a,1x,i10,a)') 'Image 2 width is ',i_samples(2),' pixels'
            write(i_log,'(a,1x,i10,a)') 'Maximum allowed file width is ',i_maxsamp   ,' pixels'
-           deallocate( c_refimg )     
+           deallocate( c_refimg )
            deallocate( c_srchimg )
-           deallocate( r_refimg )     
+           deallocate( r_refimg )
            deallocate( r_srchimg )
            return  ! EMG
          endif
@@ -361,7 +369,7 @@
 
       count = 0
 !c loop over data begins. initialize number of rows in output table
-      numRowTable = 0      
+      numRowTable = 0
       do i_y=i_strtline+i_srchy,i_endline+i_srchy,i_skipline
 
 !c ----------------------------------------------------------------
@@ -389,7 +397,17 @@
                i_xx = band1
                i_lineno = i_y+i_yy-2
 !               call getLine(imgAccessor1, c_refimg(:,i_yy), i_y+i_yy-2)
-               call getLineBand(imgAccessor1, c_refimg(:,i_yy), i_xx, i_lineno)
+               if ((i_lineno .lt. 1).or.(i_lineno .gt. i_lines(1))) then
+                    c_refimg(:,i_yy) = cmplx(0.,0.)
+               else
+                    call getLineBand(imgAccessor1, c_refimg(:,i_yy), i_xx, i_lineno)
+               endif
+
+               if(i_mag1 .ne. 0) then
+                   do i_xx=1,i_samples(1)
+                    c_refimg(i_xx,i_yy) = cmplx(cabs(c_refimg(i_xx,i_yy)),0.0)
+                   enddo
+               endif
             end do
             t3 = seconds(t0)           ! start timer
 
@@ -399,7 +417,11 @@
                i_xx = band1
                i_lineno = i_y+i_yy-2
 !               call getLine(imgAccessor1, r_refimg(:,i_yy), i_y+i_yy-2)
-               call getLineBand(imgAccessor1, r_refimg(:,i_yy), i_xx, i_lineno)
+               if ((i_lineno .lt. 1).or.(i_lineno .gt. i_lines(1))) then
+                    r_refimg(:,i_yy) = 0.0
+               else
+                   call getLineBand(imgAccessor1, r_refimg(:,i_yy), i_xx, i_lineno)
+               endif
 
                do i_xx=1,i_samples(1)
                   c_refimg(i_xx,i_yy) = cmplx(r_refimg(i_xx,i_yy),0.0)
@@ -407,7 +429,7 @@
             end do
 
          endif
-         
+
 
          if(i_datatype(2) .eq. i_complex)then
 
@@ -416,7 +438,19 @@
                i_xx = band2
                i_lineno = i_ylu+i_yy-2-i_srchy+i_grossy
 !               call getLine(imgAccessor2, c_srchimg(:,i_yy), i_ylu+i_yy-2-i_srchy+i_grossy)
-                call getLineBand(imgAccessor2, c_srchimg(:,i_yy), i_xx, i_lineno)
+
+               if ((i_lineno .lt. 1).or.(i_lineno .gt. i_lines(2))) then
+                    c_srchimg(:,i_yy) = cmplx(0.,0.)
+               else
+                    call getLineBand(imgAccessor2, c_srchimg(:,i_yy), i_xx, i_lineno)
+               endif
+
+                if(i_mag2 .ne. 0) then
+                   do i_xx=1,i_samples(2)
+                    c_srchimg(i_xx,i_yy) = cmplx(cabs(c_srchimg(i_xx,i_yy)),0.0)
+                   enddo
+               endif
+
             end do
             t3 = seconds(t0)           ! start timer
 
@@ -426,7 +460,12 @@
                i_xx = band2
                i_lineno = i_ylu+i_yy-2-i_srchy+i_grossy
 !               call getLine(imgAccessor2, c_srchimg(:,i_yy), i_ylu+i_yy-2-i_srchy+i_grossy)
-               call getLineBand(imgAccessor2, r_srchimg(:,i_yy), i_xx, i_lineno)
+
+               if ((i_lineno .lt. 1).or.(i_lineno .gt. i_lines(2))) then
+                    r_srchimg(:,i_yy) = 0.0
+               else
+                   call getLineBand(imgAccessor2, r_srchimg(:,i_yy), i_xx, i_lineno)
+               endif
 
                do i_xx=1,i_samples(2)
                   c_srchimg(i_xx,i_yy) = cmplx(r_srchimg(i_xx,i_yy),0.0)
@@ -434,7 +473,7 @@
             end do
 
          endif
-         
+
          t4 = seconds(t0)           ! start timer
 
          do i_x=i_strtsamp+i_srchx,i_endsamp+i_srchx,i_skipsamp
@@ -442,7 +481,7 @@
             i_centerxi = i_x+(i_wsxi-1)/2.
             i_xlu = nint(r_scalex*i_x)
 
-!c     get the reference image and search images 
+!c     get the reference image and search images
 
             do i_yy = 1,i_wsyi
                do i_xx = 1,i_wsxi
@@ -507,14 +546,14 @@
 
                r_snr = r_peak**2/max(r_outside,1.e-10)
 !ccccc               write(6,'(a,1x,2(f20.10,1x))') 'Peak/SNR = ',r_peak,r_snr
-               
+
                if(r_snr .gt. r_snrth .and. r_cov(1) .lt. r_covth .and. r_cov(2) .lt. r_covth)then
 
-!c     oversample the region around the peak 2 to 1 to estimate the fractional offset 
+!c     oversample the region around the peak 2 to 1 to estimate the fractional offset
 
 !c     write the reference image and search image around the peak into arrays
 
-                  do i_yy=1,i_wsyi                        
+                  do i_yy=1,i_wsyi
                      do i_xx=1,i_wsxi
                         i_index = (i_yy-1)*i_n2wsxi + i_xx
                         if(i_x+i_xx-1 .ge. 1 .and. i_x+i_xx-1 .le. i_samples(1))then
@@ -524,29 +563,29 @@
                         endif
                      enddo
                   enddo
-                  
+
                   do i_yy=1,i_wsyi
                      do i_xx=i_wsxi+1,i_n2wsxi
                         i_index = (i_yy-1)*i_n2wsxi + i_xx
                         c_chipref(i_index) = cmplx(0.0,0.0)
                      enddo
                   enddo
-                  
+
                   do i_yy=i_wsyi+1,i_n2wsyi
                      do i_xx=1,i_n2wsxi
                         i_index = (i_yy-1)*i_n2wsxi + i_xx
                         c_chipref(i_index) = cmplx(0.0,0.0)
                      enddo
                   enddo
-                  
+
 !c     now the search image
 
                   do i_yy=1,i_wsyjp
                      do i_xx=1,i_wsxjp
                         i_index = (i_yy-1)*i_n2wsxj + i_xx
-                        if(i_xlu+i_xx+i_shiftx*i_avgx-i_srchp+i_grossx - i_srchx .gt. 1 .and. 
-     &                       i_xlu+i_xx+i_shiftx*i_avgx-i_srchp+i_grossx - i_srchx .le. i_samples(2) .and. 
-     &                       i_yy+i_avgy*i_shifty-i_srchy+(i_srchy-i_srchp) .ge. 1 .and. 
+                        if(i_xlu+i_xx+i_shiftx*i_avgx-i_srchp+i_grossx - i_srchx .gt. 1 .and.
+     &                       i_xlu+i_xx+i_shiftx*i_avgx-i_srchp+i_grossx - i_srchx .le. i_samples(2) .and.
+     &                       i_yy+i_avgy*i_shifty-i_srchy+(i_srchy-i_srchp) .ge. 1 .and.
      &                       i_yy+i_avgy*i_shifty-i_srchy+(i_srchy-i_srchp) .le. i_wsyj)then
                            c_chipsch(i_index) = c_srchimg(i_xlu+i_xx+i_shiftx*i_avgx-i_srchp+i_grossx-i_srchx-1,
      &                          i_yy+i_shifty*i_avgy-i_srchy+(i_srchy-i_srchp))
@@ -555,15 +594,15 @@
                         endif
                      enddo
                   enddo
-                  
+
                   do i_yy=1,i_wsyjp
                      do i_xx=i_wsxjp+1,i_n2wsxj
                         i_index = (i_yy-1)*i_n2wsxj + i_xx
                         c_chipsch(i_index) = cmplx(0.0,0.0)
                      enddo
                   enddo
-                  
-                  do i_yy=i_wsyjp+1,i_n2wsyj                        
+
+                  do i_yy=i_wsyjp+1,i_n2wsyj
                      do i_xx=1,i_n2wsxj
                         i_index = (i_yy-1)*i_n2wsxj + i_xx
                         c_chipsch(i_index) = cmplx(0.0,0.0)
@@ -580,22 +619,22 @@
                   endif
 
 !c     Deramp data prior to FFT
-                  
+
                   call derampc(c_chipref,i_n2wsxi,i_n2wsyi)
                   call derampc(c_chipsch,i_n2wsxj,i_n2wsyj)
-                  
+
 !c     forward fft the data
-                  
+
                   i_nn(1) = i_n2wsxj
                   i_nn(2) = i_n2wsyj
-                  
+
                   i_dir = 1
-                  
+
                   call fourn2d(c_chipsch,i_nn,i_dir)
-                  
+
                   i_nn(1) = i_n2wsxi
                   i_nn(2) = i_n2wsyi
-                  
+
                   call fourn2d(c_chipref,i_nn,i_dir)
 
 !c     dump forward FFT of data
@@ -606,22 +645,22 @@
                      a_debugfile = 'forwardfft_srch.dat'
                      call dump_chip_c8(a_debugfile,c_chipsch,1,i_n2wsxj,1,i_n2wsyj,i_n2wsxj,i_n2wsyj)
                   endif
-                  
+
 !c     spread the spectral data out for inverse transforms
-                  
+
                   i_nn(1) = i_n2wsxi*i_ovs
                   i_nn(2) = i_n2wsyi*i_ovs
-                  
+
                   i_dir = -1
-                  
-                  do k=1,i_nn(2)                        
+
+                  do k=1,i_nn(2)
                      do l=1,i_nn(1)
                         i_index = l + (k-1)*i_nn(1)
                         c_osref(i_index) = cmplx(0.0,0.0)
                      enddo
                   enddo
-                  
-                  do k=1,i_n2wsyi/2                  
+
+                  do k=1,i_n2wsyi/2
                      do l=1,i_n2wsxi/2
                         i_index = (k-1)*i_nn(1) + l
                         i_indexi = (k-1)*i_n2wsxi + l
@@ -644,21 +683,21 @@
                      a_debugfile = 'osfreqdomain_ref.dat'
                      call dump_chip_c8(a_debugfile,c_osref,1,i_n2wsxi*i_ovs,1,i_n2wsyi*i_ovs,i_n2wsxi*i_ovs,i_n2wsyi*i_ovs)
                   endif
-                  
+
                   call fourn2d(c_osref,i_nn,i_dir)
-                  
+
                   i_nn(1) = i_n2wsxj*i_ovs
                   i_nn(2) = i_n2wsyj*i_ovs
                   i_dir = -1
-                  
+
                   do l=1,i_nn(1)
                      do k=1,i_nn(2)
                         i_index = l + (k-1)*i_nn(1)
                         c_ossch(i_index) = cmplx(0.0,0.0)
                      enddo
                   enddo
-                  
-                  do k=1,i_n2wsyj/2                  
+
+                  do k=1,i_n2wsyj/2
                      do l=1,i_n2wsxj/2
                         i_index = (k-1)*i_nn(1) + l
                         i_indexi = (k-1)*i_n2wsxj + l
@@ -683,35 +722,35 @@
                   endif
 
 !c     inverse transform
-                  
+
                   call fourn2d(c_ossch,i_nn,i_dir)
 
 !c     dump the oversampled complex image data
-                  
+
                   if(i_dump_images .eq. 1)then
                      a_debugfile = 'cmplx_os_ref.dat'
                      call dump_chip_c8(a_debugfile,c_osref,1,i_n2wsxi*i_ovs,1,i_n2wsyi*i_ovs,i_n2wsxi*i_ovs,i_n2wsyi*i_ovs)
                      a_debugfile = 'cmplx_os_srch.dat'
                      call dump_chip_c8(a_debugfile,c_ossch,1,i_n2wsxj*i_ovs,1,i_n2wsyj*i_ovs,i_n2wsxj*i_ovs,i_n2wsyj*i_ovs)
                   endif
-                  
+
 !c     detect images and put into correlation arrays
-                  
+
                   do i_yy=1,i_wsyi*i_ovs
                      do i_xx=1,i_wsxi*i_ovs
                         i_index = i_xx + (i_yy-1)*i_n2wsxi*i_ovs
                         r_imgios(i_xx,i_yy) = cabs(c_osref(i_index)/(i_n2wsxi*i_n2wsyi))
                      enddo
                   enddo
-                  
-                  do i_yy=1,i_wsyjp*i_ovs                        
+
+                  do i_yy=1,i_wsyjp*i_ovs
                      do i_xx=1,i_wsxjp*i_ovs
                         i_index = i_xx + (i_yy-1)*i_n2wsxj*i_ovs
                         r_imgjos(i_xx,i_yy) = cabs(c_ossch(i_index))/(i_n2wsxj*i_n2wsyj)
                      enddo
                   enddo
 
-!c     dump the detected image chips used for cross correlation 
+!c     dump the detected image chips used for cross correlation
 
                   if(i_dump_images .eq. 1)then
                      a_debugfile = 'detected_os_ref.dat'
@@ -719,24 +758,24 @@
                      a_debugfile = 'detected_os_srch.dat'
                      call dump_chip_r4(a_debugfile,r_imgjos,1,i_n2wsxj*i_ovs,1,i_n2wsyj*i_ovs,i_n2wsxj*i_ovs,i_n2wsyj*i_ovs)
                   endif
-                  
+
 !c     correlate the oversampled chips
-                  
+
                   i_wsxios = i_wsxi*i_ovs
                   i_wsyios = i_wsyi*i_ovs
-                  i_wsxjos = i_wsxjp*i_ovs 
-                  i_wsyjos = i_wsyjp*i_ovs 
+                  i_wsxjos = i_wsxjp*i_ovs
+                  i_wsyjos = i_wsyjp*i_ovs
                   i_wsox = i_wsxjos - (i_wsxios-1)
                   i_wsoy = i_wsyjos - (i_wsyios-1)
 
                   i_ovss = 1
-                  
+
                   call correlate(r_imgios,r_imgjos,i_wsxios,i_wsyios,
      &                 i_wsxjos,i_wsyjos,1,1,i_ovss,r_meani,r_stdvi,
      &                 r_meanj,r_stdvj,r_peakos,
      &                 r_noise,r_covos,r_eval1,r_eval2,r_evec1,r_evec2,
      &                 r_imgcos,i_shiftxos,i_shiftyos,i_edge,i_flag,l_debug)
-                  
+
                   r_shftxos = float(i_shiftxos)/i_ovs - float((i_wsox-1)/2)/i_ovs + r_shftx
                   r_shftyos = float(i_shiftyos)/i_ovs - float((i_wsoy-1)/2)/i_ovs + r_shfty
 
@@ -768,10 +807,10 @@
                   r_outside = r_outside - r_peakos**2
                   r_outside = r_outside/(i_cnta-1)
                   r_snros = r_peakos**2/min(r_outside,1.e10)
-                  
+
                   r_snros = 10.
-                  r_covos(1) = 0. 
-                  r_covos(2) = 0. 
+                  r_covos(1) = 0.
+                  r_covos(2) = 0.
 
                   if(r_snros .gt. r_snrth .and. r_covos(1) .lt. r_covth .and. r_covos(2) .lt. r_covth)then
 
@@ -784,11 +823,11 @@
                      i_py = i_shiftyos+1
 
                      do i_yy=-i_cw/2,i_cw/2-1
-                        
+
                         do i_xx=-i_cw/2,i_cw/2-1
-                           
+
                            i_index = (i_yy+i_cw/2)*i_cw + i_xx + i_cw/2 + 1
-                           
+
                            if (i_xx+i_px .ge. 1 .and. i_xx+i_px .le. (2*i_srchp+1)*i_ovs .and.
      &                          i_yy+i_py .ge. 1 .and. i_yy+i_py .le. (2*i_srchp+1)*i_ovs )then
                               c_corrt(i_index) = cmplx(abs(r_imgcos(i_xx+i_px,i_yy+i_py)/r_peakos),0.)
@@ -797,15 +836,15 @@
                            else
                               c_corrt(i_index) = cmplx(0.0, 0.0)
                            endif
-                           
+
                            if(cabs(c_corrt(i_index)) .gt. r_max)then
                               r_max = cabs(c_corrt(i_index))
                               i_p1 = i_xx
                               i_p2 = i_yy
                            endif
-                           
+
                         enddo
-                        
+
                      enddo
 
 !c     substract off the mean
@@ -825,11 +864,11 @@
                         a_debugfile = 'corrsurf_peak.dat'
                         call dump_chip_c8(a_debugfile,c_corrt,1,i_cw,1,i_cw,i_cw,i_cw)
                      endif
-                     
+
 !c     oversample the correlation surface
-                     
+
                      if(i_sinc_fourier .eq. i_sinc)then
-                        
+
 !c     Use SINC interpolation to oversample the correlation surface. Note will cheat and
 !c     and do a series of 1-d interpolations. Assume correlation function is periodic and
 !c     do a circular convolution.
@@ -841,153 +880,153 @@
                               i_index2 = (i_yy + i_cw/2)*i_covs*i_cw + i_xx + i_cw*i_covs/2 + 1
 
                               c_dataout(i_index2) = 0.
-                              
+
                               r_jout = float(i_xx + i_cw*i_covs/2 + i_covs)/i_covs + r_fdelay
                               i_jout = int(r_jout)
-                              
-                              r_frac = r_jout - i_jout 
+
+                              r_frac = r_jout - i_jout
                               i_frac = int(r_frac*i_decfactor)
                               r_sincwgt = 0.0
 
                               do k=0,i_intplength-1
                                  if(i_jout-k .lt. 1)then
-                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k+i_cw) 
+                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k+i_cw)
                                  elseif(i_jout-k .gt. i_cw)then
-                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k-i_cw) 
+                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k-i_cw)
                                  else
-                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k) 
+                                    i_index = (i_yy+i_cw/2)*i_cw + (i_jout-k)
                                  endif
                                  c_dataout(i_index2) = c_dataout(i_index2) +
      +                                c_corrt(i_index)*r_fintp(k + i_frac*i_intplength)
-                                 r_sincwgt = r_sincwgt + r_fintp(k + i_frac*i_intplength) 
+                                 r_sincwgt = r_sincwgt + r_fintp(k + i_frac*i_intplength)
                               enddo
                               c_dataout(i_index2) = c_dataout(i_index2)/r_sincwgt
                            enddo
-                           
+
                         enddo
 
                         if(i_dump_images .eq. 1)then
                            a_debugfile = 'sinc_stagext.dat'
                            call dump_chip_c8(a_debugfile,c_dataout,1,i_cw*i_covs,1,i_cw,i_cw*i_covs,i_cw)
-                        endif                        
+                        endif
 
 !c     along track resample
-                        
+
 !c                        do i_yy=(-i_cw/2)*i_covs,i_cw/2*i_covs-1
-                           
+
 !c                           do i_xx=(-i_cw/2)*i_covs,i_cw/2*i_covs-1
 
                         do i_yy=-i_sinc_window*i_covs,i_sinc_window*i_covs
-                           
+
                            do i_xx=-i_sinc_window*i_covs,i_sinc_window*i_covs
-                              
+
                               i_index2 = (i_yy + i_cw*i_covs/2)*i_cw*i_covs + i_xx + i_cw*i_covs/2 + 1
 
                               c_dataout2(i_index2) = 0.
-                              
+
                               r_iout = float(i_yy +i_cw*i_covs/2 + i_covs)/i_covs + r_fdelay
                               i_iout = int(r_iout)
-                              
+
                               r_frac = r_iout - i_iout
                               i_frac = int(r_frac*i_decfactor)
                               r_sincwgt = 0.0
 
                               do k=0,i_intplength-1
                                  if(i_iout-k .lt. 1)then
-                                    i_index = i_iout - k + i_cw 
+                                    i_index = i_iout - k + i_cw
                                  elseif(i_iout-k .gt. i_cw)then
-                                    i_index = i_iout - k - i_cw 
+                                    i_index = i_iout - k - i_cw
                                  else
-                                    i_index = i_iout - k 
+                                    i_index = i_iout - k
                                  endif
                                  i_index3 = (i_index-1)*i_cw*i_covs + i_xx + i_cw*i_covs/2 + 1
                                  c_dataout2(i_index2) = c_dataout2(i_index2) +
      +                                c_dataout(i_index3)*r_fintp(k + i_frac*i_intplength)
-                                 r_sincwgt = r_sincwgt + r_fintp(k + i_frac*i_intplength) 
+                                 r_sincwgt = r_sincwgt + r_fintp(k + i_frac*i_intplength)
                               enddo
                               c_dataout2(i_index2) = c_dataout2(i_index2)/r_sincwgt
                               c_corr(i_index2) = c_dataout2(i_index2)
-                              
+
                            enddo
-                           
+
                         enddo
 
                         if(i_dump_images .eq. 1)then
                            a_debugfile = 'sinc_stageat.dat'
                            call dump_chip_c8(a_debugfile,c_dataout2,1,i_cw*i_covs,1,i_cw*i_covs,i_cw*i_covs,i_cw*i_covs)
-                        endif                        
-                        
+                        endif
+
                      elseif(i_sinc_fourier .eq. i_fourier)then
 
 !c     oversample via Fourier transforms
-                        
+
 !c     forward fft the data
-                        
+
                         i_nn(1) = i_cw
                         i_nn(2) = i_cw
                         i_dir = 1
-                        
+
                         call fourn2d(c_corrt,i_nn,i_dir)
-                        
+
 !c     dump the correlation around peak used for oversampling
-                        
+
                         if(i_dump_images .eq. 1)then
                            a_debugfile = 'fowfft_corrsurf_peak.dat'
                            call dump_chip_c8(a_debugfile,c_corrt,1,i_cw,1,i_cw,i_cw,i_cw)
                         endif
-                        
+
 !c     spread the spectral data out for inverse transforms
-                        
+
                         i_nn(1) = i_cw*i_covs
                         i_nn(2) = i_cw*i_covs
                         i_dir = -1
-                        
-                        do k=1,i_nn(2)                           
+
+                        do k=1,i_nn(2)
                            do l=1,i_nn(1)
                               i_index = (k-1)*i_nn(1) + l
                               c_corr(i_index) = 0.0
                            enddo
                         enddo
-                        
+
                         do l=1,i_cw/2
                            do k=1,i_cw/2
                               i_index = (k-1)*i_nn(1) + l
                               i_indexi = (k-1)*i_cw + l
-                              c_corr(i_index) = c_corrt(i_indexi) 
+                              c_corr(i_index) = c_corrt(i_indexi)
                               i_index = l + (i_nn(2)-i_cw/2+k-1)*i_nn(1)
                               i_indexi = l + (k+i_cw/2-1)*i_cw
-                              c_corr(i_index) = c_corrt(i_indexi) 
+                              c_corr(i_index) = c_corrt(i_indexi)
                               i_index = i_nn(1)-i_cw/2+l + (k-1)*i_nn(2)
                               i_indexi = l+i_cw/2 + (k-1)*i_cw
-                              c_corr(i_index) = c_corrt(i_indexi) 
+                              c_corr(i_index) = c_corrt(i_indexi)
                               i_index = i_nn(1)-i_cw/2+l + (i_nn(2)-i_cw/2+k-1)*i_nn(1)
                               i_indexi = l+i_cw/2 + (k+i_cw/2-1)*i_cw
-                              c_corr(i_index) = c_corrt(i_indexi) 
+                              c_corr(i_index) = c_corrt(i_indexi)
                            enddo
                         enddo
-                        
+
 !c     dump the zero-padded correlation surface
-                        
+
                         if(i_dump_images .eq. 1)then
                            a_debugfile = 'zpadded_corrsurf_peak.dat'
                            call dump_chip_c8(a_debugfile,c_corr,1,i_cw*i_covs,1,i_cw*i_covs,i_cw*i_covs,i_cw*i_covs)
                         endif
-                        
+
 !c     inverse transform
-                        
+
                         call fourn2d(c_corr,i_nn,i_dir)
-                        
+
 !c     dump the detected oversampled correlation surface
-                        
+
                         if(i_dump_images .eq. 1)then
                            a_debugfile = 'corrsurf_os.dat'
                            call dump_chip_c8(a_debugfile,c_corr,1,i_cw*i_covs,1,i_cw*i_covs,i_cw*i_covs,i_cw*i_covs)
                         endif
-                        
+
                      endif      !sinc vs fourier oversample
-                     
+
 !c     detect the peak
-                     
+
                      r_max=0.
                      do i_yy=1,i_cw*i_covs
                         do i_xx=1,i_cw*i_covs
@@ -1007,25 +1046,25 @@
                            endif
                         enddo
                      enddo
-                     
+
 !c     dump the detected oversampled correlation surface
-                     
+
                      if(i_dump_images .eq. 1)then
                         a_debugfile = 'detected_corrsurf.dat'
                         call dump_chip_r4(a_debugfile,r_corr,1,i_cw*i_covs,1,i_cw*i_covs,i_cw*i_covs,i_cw*i_covs)
                      endif
-                     
-                     r_oscoroff(1) = float(i_cpeak(1)-1)/float(i_covs) 
+
+                     r_oscoroff(1) = float(i_cpeak(1)-1)/float(i_covs)
                      r_oscoroff(2) = float(i_cpeak(2)-1)/float(i_covs)
-                     
+
                      r_shftxosc = r_oscoroff(1)/i_ovs + r_shftxos + i_xlu - i_x
-                     r_shftyosc = r_oscoroff(2)/i_ovs + r_shftyos + i_ylu - i_y 
+                     r_shftyosc = r_oscoroff(2)/i_ovs + r_shftyos + i_ylu - i_y
                      r_snr = min(r_snr,9999.99999)
-                     
-!cc -- write to outfile ch 15. 
+
+!cc -- write to outfile ch 15.
 !cc                     t2 = seconds(t0)           ! start timer
-                    
-                     numRowTable = numRowTable + 1   
+
+                     numRowTable = numRowTable + 1
                      i_centerxiArr(numRowTable) = i_centerxi
                      i_centeryiArr(numRowTable) = i_centeryi
                      r_shftxoscArr(numRowTable) = r_shftxosc
@@ -1042,47 +1081,47 @@
 ! 150                 format(1x,i7,1x,f9.3,1x,f9.3,1x,f9.3,1x,i7,1x,f9.3,1x,f9.3,1x,f9.3,1x,
 !     &                    f10.5,1x,f10.3,1x,f10.3,1x,f10.3)
 
-                  else 
-                     
+                  else
+
                      write(6,*) 'Bad match at level 2'
-                     
+
                   endif         !thresholds second pass
-                  
-               else 
-                  
+
+               else
+
                   write(6,*) 'Bad match at level 1'
-                  
+
                endif            !thresholds
-               
+
             endif               !not edge point or no data point
-            
+
             if(i_dump_images .eq. 1)then
-!c               stop  ! EMG 
+!c               stop  ! EMG
                 go to 999   ! to close open files and return.
             endif
-            
+
          enddo                  !samples loop (j)
 
          t5 = seconds(t0)           ! start timer
          write(6,*) 'XXX time for inner loop ', t5-t4
-         
+
       enddo                     !line loop (i)
-      
+
  489  continue
-      
+
       t1=seconds(t0)
       write(6,*) 'Elapsed time. ', t1
 
 
 !c Close files before exiting
-!c If we reach this point from the go to 999 line above, then something 
-!c different probably needs to be done to handle closing unit 115.  What I 
+!c If we reach this point from the go to 999 line above, then something
+!c different probably needs to be done to handle closing unit 115.  What I
 !c am doing here treats unit 115 the same as what was done before; this only
 !c fixes the units that are not specifically in the MPI branch.
  999  continue
-         deallocate( c_refimg )     
+         deallocate( c_refimg )
          deallocate( c_srchimg )
-         deallocate( r_refimg )     
+         deallocate( r_refimg )
          deallocate( r_srchimg )
          deallocate( r_corr)
          deallocate( c_corr)
@@ -1112,34 +1151,34 @@ c****************************************************************
      &     r_peak,r_noise,r_cov,r_eval1,r_eval2,
      &     r_evec1,r_evec2,r_imgc,i_shftx,i_shfty,i_edge,i_flag,
      &     l_debug)
-      
+
 c****************************************************************
-c**   
+c**
 c**   FILE NAME: correlate.f
-c**   
+c**
 c**   DATE WRITTEN: /10/10/92
-c**   
+c**
 c**   PROGRAMMER:Scott Hensley / Scott Shaffer
-c**   
+c**
 c**   FUNCTIONAL DESCRIPTION: This routine will do amplitude correlation
-c     
+c
 c**   on two specified input files.
-c**   
+c**
 c**   ROUTINES CALLED:none
-c**   
+c**
 c**   NOTES: none
-c**   
+c**
 c**   UPDATE LOG:
-c**   
+c**
 c**   Date      Description                              Person
 c**   ----      -----------                              ------
 c**   /12/12/94   Modified to work with real data.         SH
 c**   /02/22/95   Modified to work oversampled data.      SS/SH
-c**   
+c**
 c*****************************************************************
-      
+
       implicit none
-      
+
 c     INPUT VARIABLES:
 
       integer i_wsyi,i_wsxi,i_wsyj,i_wsxj,i_ovs
@@ -1150,13 +1189,13 @@ c     INPUT VARIABLES:
       real r_imgc(i_wsxj,i_wsyj)
       real r_imj(i_wsxj,i_wsyj)
       real r_imgi(i_wsxi,i_wsxi)
-      real r_imgj(i_wsxj,i_wsxj)      
+      real r_imgj(i_wsxj,i_wsxj)
 
 c     OUTPUT VARIABLES:
       real*4 r_shfty,r_shftx,r_peak,r_shrp,r_meani,r_meanj
       real*4 r_stdvi,r_stdvj,r_noise,r_cov(3),r_eval1,r_sum
       real*4 r_eval2,r_evec1(2),r_evec2(2)
-      
+
 c     LOCAL VARIABLES:
       integer i,j,m,n,ix,iy,ixx,iyy,i_shfty,i_shftx,io
       integer i_cnti,i_cntj,i_cntai,i_cntaj,i_edge(2),i_flag
@@ -1170,12 +1209,12 @@ c     LOCAL VARIABLES:
       real*4 r_dxx,r_dyy,r_dxy,r_n2,r_n4,r_u,r_u2
 
       logical l_init,l_debug
-      
+
 c     DATA STATEMENTS:
       data l_init /.false./
-      
+
 C     FUNCTION STATEMENTS:
-      
+
 c     PROCESSING STEPS:
 
       if(l_debug)then
@@ -1183,9 +1222,9 @@ c     PROCESSING STEPS:
          write(6,*) ' Debug Statements ** Inputs ** '
          write(6,*) 'r_imgi(1,1),r_imgj(1,1) = ',
      &        r_imgi(1,1),r_imgj(1,1)
-         write(6,*) 
+         write(6,*)
      &        ' r_imgi(i_wsxi,i_wsyi),r_imgj(i_wsxj,i_wsyj) = ',
-     &        r_imgi(i_wsxi,i_wsyi),r_imgj(i_wsxj,i_wsyj) 
+     &        r_imgi(i_wsxi,i_wsyi),r_imgj(i_wsxj,i_wsyj)
          write(6,*) 'i_wsxi and i_wsyi = ',i_wsxi,i_wsyi
          write(6,*) 'i_wsxj and i_wsyj = ',i_wsxj,i_wsyj
          write(6,*) 'i_avgx and i_avgy = ',i_avgx,i_avgy
@@ -1216,9 +1255,9 @@ c     PROCESSING STEPS:
 
       r_cov(1)=0.
       r_cov(2)=0.
-      r_cov(3)=0. 
+      r_cov(3)=0.
 
-c     compute mean and standard deviations on blocks 
+c     compute mean and standard deviations on blocks
 
       i_cntai = 0
       i_cntaj = 0
@@ -1268,7 +1307,7 @@ c     compute mean and standard deviations on blocks
                endif
                if(r_imj(ix,iy) .ne. 0)then
                   i_cntaj = i_cntaj+1
-               endif   
+               endif
             endif               !no averaging
          enddo
       enddo
@@ -1281,7 +1320,7 @@ c     compute mean and standard deviations on blocks
          r_meani = 0.
       endif
 
-      if (i_cntai .ge. 0.9*i_wsaxyi .and. 
+      if (i_cntai .ge. 0.9*i_wsaxyi .and.
      &     i_cntaj .ge. 0.9*i_wsaxyj ) then !have enough real estate
 
          do iy=0,i_wsayj-1
@@ -1516,7 +1555,7 @@ c     goodness of the match
             r_eval2=(r_cov(1)+r_cov(2)-r_u)/2.
             if ( r_eval1 .le. 0 .or. r_eval2 .le. 0 ) then
             endif
-            
+
             if ( r_cov(3) .eq. 0 ) then
                if ( r_cov(1) .ge. r_cov(2) ) then
                   r_evec1(1)=1.
@@ -1553,10 +1592,10 @@ c     goodness of the match
                r_evec2(2)=r_evec2(2)/r_u
             endif
 
-            r_evec1(1)=r_evec1(1)*sqrt(abs(r_eval1)) 
-            r_evec1(2)=r_evec1(2)*sqrt(abs(r_eval1)) 
-            r_evec2(1)=r_evec2(1)*sqrt(abs(r_eval2)) 
-            r_evec2(2)=r_evec2(2)*sqrt(abs(r_eval2)) 
+            r_evec1(1)=r_evec1(1)*sqrt(abs(r_eval1))
+            r_evec1(2)=r_evec1(2)*sqrt(abs(r_eval1))
+            r_evec2(1)=r_evec2(1)*sqrt(abs(r_eval2))
+            r_evec2(2)=r_evec2(2)*sqrt(abs(r_eval2))
 
          else
 
@@ -1577,7 +1616,7 @@ c     goodness of the match
 
       endif
 
-      
+
       deallocate(r_sumj)
       deallocate(r_smqj)
       deallocate(r_crpd)
@@ -1600,7 +1639,7 @@ c     goodness of the match
          write(6,*) 'r_shftx and r_shfty = ',r_shftx,r_shfty
          write(6,*) 'i_edge and i_flag = ',i_edge(1),i_edge(2),i_flag
       endif
-      
+
       return
 
       end
@@ -1608,50 +1647,50 @@ c     goodness of the match
 cc--------------------------------------------------
 
       subroutine derampc(c_img,i_dimx,i_dimy)
- 
+
       implicit none
       integer i_dimx,i_dimy,i,j
       complex c_img(i_dimx,i_dimy),c_phdn,c_phac
       real r_phac,r_phdn
- 
+
       c_phdn = cmplx(0.,0.)
       c_phac = cmplx(0.,0.)
- 
+
       do i=1,i_dimx-1
          do j=1,i_dimy
             c_phac = c_phac + c_img(i,j)*conjg(c_img(i+1,j))
          enddo
       enddo
- 
+
       do i=1,i_dimx
          do j=1,i_dimy-1
             c_phdn = c_phdn + c_img(i,j)*conjg(c_img(i,j+1))
          enddo
       enddo
- 
+
       if(cabs(c_phdn) .eq. 0)then
          r_phdn = 0.0
       else
          r_phdn = atan2(aimag(c_phdn),real(c_phdn))
       endif
- 
+
       if(cabs(c_phac) .eq. 0)then
          r_phac = 0.0
       else
          r_phac = atan2(aimag(c_phac),real(c_phac))
       endif
- 
+
 c       write(6,*) 'Phase across, down = ',r_phac,r_phdn
-      
+
       do i=1,i_dimx
          do j=1,i_dimy
             c_img(i,j) = c_img(i,j)*cmplx(cos(r_phac*i+r_phdn*j),
      &           sin(r_phac*i+r_phdn*j))
          enddo
       enddo
- 
+
       end
-            
+
 cc--------------------------------------------------
 
       subroutine fourn2d(data,nn,isign)
@@ -1690,26 +1729,26 @@ c****************************************************************
             integer function nextpower(i_num)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: nextpower.f
-c**     
+c**
 c**   DATE WRITTEN: 6/1/97
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
-c**   FUNCTIONAL DESCRIPTION: Computes the closest number which is a 
-c**   power of two and returns the exponent of two for the number that 
+c**
+c**   FUNCTIONAL DESCRIPTION: Computes the closest number which is a
+c**   power of two and returns the exponent of two for the number that
 c**   is the first power of two exceeding the input number.
-c**     
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -1721,7 +1760,7 @@ c     PARAMETER STATEMENTS:
 c     INPUT VARIABLES:
 
       integer i_num
-        
+
 c     OUTPUT VARIABLES:
 
 c     LOCAL VARIABLES:
@@ -1750,8 +1789,8 @@ c     PROCESSING STEPS:
       r_log2numm1 = dlog10(r_num - .5d0)/r_log2
 
       nextpower = int(r_log2numm1)+1
-        
-      end  
+
+      end
 
 c****************************************************************
 
@@ -1760,25 +1799,25 @@ c****************************************************************
      +     i_physical_lines)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: dump_chip_c8.f
-c**     
+c**
 c**   DATE WRITTEN: 7/3/2002
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
+c**
 c**   FUNCTIONAL DESCRIPTION: This routine will take data
-c**   in a 2-D array and output into a direct access file. 
-c**     
+c**   in a 2-D array and output into a direct access file.
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -1797,7 +1836,7 @@ c     INPUT VARIABLES:
       complex*8 c_data(i_physical_samps,i_physical_lines)
       integer i_startline,i_endline
       integer i_startsamp,i_endsamp
-        
+
 c     OUTPUT VARIABLES:
 
 c     LOCAL VARIABLES:
@@ -1816,7 +1855,7 @@ c     SAVE STATEMENTS:
 
 c     PROCESSING STEPS:
 
-c     open file 
+c     open file
 
       i_samples = i_endsamp - i_startsamp + 1
       i_sl = index(a_filename,' ') - 1
@@ -1832,8 +1871,8 @@ c     open file
       enddo
 
       close(i_unit)
-        
-      end  
+
+      end
 
 c****************************************************************
 
@@ -1842,25 +1881,25 @@ c****************************************************************
      +     i_physical_lines)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: dump_chip_r4.f
-c**     
+c**
 c**   DATE WRITTEN: 7/3/2002
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
+c**
 c**   FUNCTIONAL DESCRIPTION: This routine will take data
-c**   in a 2-D array and output into a direct access file. 
-c**     
+c**   in a 2-D array and output into a direct access file.
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -1879,7 +1918,7 @@ c     INPUT VARIABLES:
       real*4 r_data(i_physical_samps,i_physical_lines)
       integer i_startline,i_endline
       integer i_startsamp,i_endsamp
-        
+
 c     OUTPUT VARIABLES:
 
 c     LOCAL VARIABLES:
@@ -1898,7 +1937,7 @@ c     SAVE STATEMENTS:
 
 c     PROCESSING STEPS:
 
-c     open file 
+c     open file
 
       i_samples = i_endsamp - i_startsamp + 1
       i_sl = index(a_filename,' ') - 1
@@ -1914,8 +1953,8 @@ c     open file
       enddo
 
       close(i_unit)
-        
-      end  
+
+      end
 
 c****************************************************************
 
@@ -1923,26 +1962,26 @@ c****************************************************************
      +     r_pedestal,i_intplength,r_fdelay,r_fintp)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: fill_sinc.f
-c**     
+c**
 c**   DATE WRITTEN: 2/2/98
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
+c**
 c**   FUNCTIONAL DESCRIPTION: This routine computes the sinc interpolation
 c**   coefficients needed by the processor for various range and azimuth
 c**   interpolations.
-c**     
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -1950,13 +1989,13 @@ c*****************************************************************
 c     INCLUDE FILES:
 
 c     PARAMETER STATEMENTS:
-      
+
       integer MAXDECFACTOR      ! maximum lags in interpolation kernels
-      parameter(MAXDECFACTOR=4096)                        
-      
+      parameter(MAXDECFACTOR=4096)
+
       integer MAXINTKERLGH      ! maximum interpolation kernel length
       parameter (MAXINTKERLGH=256)
-      
+
       integer MAXINTLGH         ! maximum interpolation kernel array size
       parameter (MAXINTLGH=MAXINTKERLGH*MAXDECFACTOR)
 
@@ -1964,7 +2003,7 @@ c     INPUT VARIABLES:
 
       integer i_decfactor,i_weight
       real*8 r_beta,r_relfiltlen,r_pedestal
-        
+
 c     OUTPUT VARIABLES:
 
       integer i_intplength      ! Range migration interpolation kernel length
@@ -1988,20 +2027,20 @@ c     SAVE STATEMENTS:
 
 c     PROCESSING STEPS:
 
-c     get sinc 
-      
+c     get sinc
+
       call sinc_coef(r_beta,r_relfiltlen,i_decfactor,r_pedestal,
      +     i_weight,i_intplength,i_filtercoef,r_filter(0))
-       
+
       r_fdelay = i_intplength/2.d0
-      
+
       do i = 0 , i_intplength - 1
          do j = 0 , i_decfactor - 1
             r_fintp(i+j*i_intplength) = r_filter(j+i*i_decfactor)
          enddo
       enddo
-      
-      end  
+
+      end
 
 c****************************************************************
 
@@ -2009,26 +2048,26 @@ c****************************************************************
      +     i_weight,i_intplength,i_filtercoef,r_filter)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: sinc_coef.f
-c**     
+c**
 c**   DATE WRITTEN: 10/15/97
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
-c**   FUNCTIONAL DESCRIPTION: The number of data values in the array 
-c**   will always be the interpolation length * the decimation factor, 
+c**
+c**   FUNCTIONAL DESCRIPTION: The number of data values in the array
+c**   will always be the interpolation length * the decimation factor,
 c**   so this is not returned separately by the function.
-c**     
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -2040,12 +2079,12 @@ c     INPUT VARIABLES:
       integer i_decfactor       !the decimation factor
       real*8 r_pedestal         !pedestal height
       integer i_weight          !0 = no weight , 1=weight
-        
+
 c     OUTPUT VARIABLES:
-      
+
       integer i_intplength      !the interpolation length
       integer i_filtercoef      !number of coefficients
-      real*8 r_filter(*)        !an array of data values 
+      real*8 r_filter(*)        !an array of data values
 
 c     LOCAL VARIABLES:
 
@@ -2070,7 +2109,7 @@ c     number of coefficients
       i_filtercoef = i_intplength*i_decfactor
       r_wgthgt = (1.d0 - r_pedestal)/2.d0
       r_soff = (i_filtercoef - 1.d0)/2.d0
-      
+
       do i=0,i_filtercoef-1
          r_wa = i - r_soff
          r_wgt = (1.d0 - r_wgthgt) + r_wgthgt*cos((pi*r_wa)/r_soff)
@@ -2086,7 +2125,7 @@ c     number of coefficients
             r_filter(i+1) = r_fct
          endif
       enddo
-      
+
       end
 
 c****************************************************************
@@ -2094,24 +2133,24 @@ c****************************************************************
       subroutine write_template(i_unit)
 
 c****************************************************************
-c**     
+c**
 c**   FILE NAME: ampcor.f
-c**     
+c**
 c**   DATE WRITTEN: 8/15/02
-c**     
+c**
 c**   PROGRAMMER: Scott Hensley
-c**     
+c**
 c**   FUNCTIONAL DESCRIPTION: Write a template file for user.
-c**     
+c**
 c**   ROUTINES CALLED:
-c**     
-c**   NOTES: 
-c**     
+c**
+c**   NOTES:
+c**
 c**   UPDATE LOG:
 c**
 c**   Date Changed        Reason Changed                  CR # and Version #
 c**   ------------       ----------------                 -----------------
-c**     
+c**
 c*****************************************************************
 
       implicit none
@@ -2122,8 +2161,8 @@ c     PARAMETER STATEMENTS:
 
 c     INPUT VARIABLES:
 
-      integer i_unit 
-	
+      integer i_unit
+
 c     OUTPUT VARIABLES:
 
 c     LOCAL VARIABLES:
@@ -2150,7 +2189,7 @@ c     PROCESSING STEPS:
       write(i_unit,'(a)') '                                                                          !If file is a line '//
      +     'interleaved (i.e. RMG)'
       write(i_unit,'(a)') '                                                                          !file then RMG1 one '//
-     +     'uses the first data' 
+     +     'uses the first data'
       write(i_unit,'(a)') '                                                                          !layer and RMG2 uses '//
      +     'the secoond data layer'
       write(i_unit,*) ' '
@@ -2170,9 +2209,9 @@ c     PROCESSING STEPS:
       write(i_unit,'(a)') '                                                                          !Provides location of '//
      +     'match windows in'
       write(i_unit,'(a)') '                                                                          !imagery. Note it is '//
-     +     'possible to match with' 
+     +     'possible to match with'
       write(i_unit,'(a)') '                                                                          !skip setting less '//
-     +     'than the window size, of' 
+     +     'than the window size, of'
       write(i_unit,'(a)') '                                                                          !course the matches '//
      +     'will NOT be independent.'
       write(i_unit,*) ' '
@@ -2217,13 +2256,13 @@ c     PROCESSING STEPS:
      +     'CORRELATION SURFACE to oversample. Best'
       write(i_unit,'(a)') '                                                                          !results '//
      +     'should have number > 8.'
-      write(i_unit,*) ' '                                                      
+      write(i_unit,*) ' '
       write(i_unit,'(a)') 'Mean Offset Between Reference and Search Images Samples/Lines   (-)    =  iX0 iY0'
       write(i_unit,*) ' '
       write(i_unit,'(a)') '                                                                          !Convention used '//
      +     'that position in ref image plus'
       write(i_unit,'(a)') '                                                                          !offset is equal '//
-     +     'to position in image 2.'  
+     +     'to position in image 2.'
       write(i_unit,*) ' '
       write(i_unit,'(a)') 'MATCH THRESHOLDS AND DEBUG DATA'
       write(i_unit,*) ' '
@@ -2238,13 +2277,13 @@ c     PROCESSING STEPS:
       write(i_unit,'(a)') '                                                                          !than this '//
      +     'threshold in PIXELS. Typical values depend'
       write(i_unit,'(a)') '                                                                          !on type of '//
-     +     'imagery being matched.' 
-      write(i_unit,*) ' '                     
+     +     'imagery being matched.'
+      write(i_unit,*) ' '
       write(i_unit,'(a)') 'Debug and Display Flags T/F                                     (-)    =  f t'
 
       close(i_unit)
-	
-      end  
+
+      end
 
 cc-------------------------------------------
 
@@ -2256,6 +2295,3 @@ cc-------------------------------------------
 
       return
       end
-
-
-

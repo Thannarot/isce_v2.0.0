@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,124 +23,246 @@
 
 
 
-from __future__ import print_function
 import sys
 import os
 import math
+import numpy as np
 import logging
 from iscesys.Component.Component import Component,Port
-from iscesys.Compatibility import Compatibility
-Compatibility.checkPythonVersion()
 from stdproc.stdproc.resamp_slc import resamp_slc
+from isceobj.Util import combinedlibmodule as CL
+import isceobj
+from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
+from isceobj.Util import Poly2D
 
 class Resamp_slc(Component):
 
-    def resamp_slc(self,imageIn,imageOut):
-        for port in self._inputPorts:
-            method = port.getMethod()
-            method()                                
-        if not (imageIn == None):
+    interpolationMethods = { 'SINC' : 0,
+                             'BILINEAR' : 1,
+                             'BICUBIC'  : 2,
+                             'NEAREST'  : 3,
+                             'AKIMA'    : 4,
+                             'BIQUINTIC': 5}
+
+    def resamp_slc(self, imageIn=None, imageOut=None):
+        for port in self.inputPorts:
+            port()
+
+        if imageIn is not None:
             self.imageIn = imageIn
         
-        if (self.imageIn == None):
+        if self.imageIn is None:
             self.logger.error("Input slc image not set.")
             raise Exception
-        if not (imageOut == None):
+
+
+        if imageOut is not None:
             self.imageOut = imageOut
-        if (self.imageOut == None):
+
+
+        if self.imageOut is None:
             self.logger.error("Output slc image not set.")
             raise Exception
         
         self.setDefaults()
-        #preallocate the two arrays that are returned
-        self.azimuthCarrier = [0]*self.numberRangeBin
-        self.rangeCarrier = [0]*self.numberRangeBin
+        self.createImages()
+        self.setState()
+        resamp_slc.setRangeCarrier_Py(self.rangeCarrierAccessor)
+        resamp_slc.setAzimuthCarrier_Py(self.azimuthCarrierAccessor)
+        resamp_slc.setRangeOffsetsPoly_Py(self.rangeOffsetsAccessor)
+        resamp_slc.setAzimuthOffsetsPoly_Py(self.azimuthOffsetsAccessor)
+        resamp_slc.setDopplerPoly_Py(self.dopplerAccessor)
+        resamp_slc.resamp_slc_Py(self.imageInAccessor,self.imageOutAccessor,self.residualAzimuthAccessor, self.residualRangeAccessor)
+        self.destroyImages()
+
+        return
+
+    def createImages(self):
+        if self.imageIn._accessor is None:
+            self.imageIn.createImage()
 
         self.imageInAccessor = self.imageIn.getImagePointer()
+
+        if self.imageOut._accessor is None:
+            self.imageOut.createImage()
+
         self.imageOutAccessor = self.imageOut.getImagePointer()
-        self.computeSecondLocation()    
-        self.allocateArrays()
-        self.setState()
-        resamp_slc.resamp_slc_Py(self.imageInAccessor,self.imageOutAccessor)
-        self.getState()
-        self.deallocateArrays()
+
+        if self.rangeCarrierPoly is not None:
+            self.rangeCarrierAccessor = self.rangeCarrierPoly.exportToC()
+        else:
+            print('No Range Carrier provided.')
+            print('Assuming zero range carrier.')
+            poly = Poly2D.Poly2D()
+            poly.initPoly(rangeOrder=0, azimuthOrder=0, coeffs=[[0.]])
+            self.rangeCarrierAccessor = poly.exportToC()
+
+        if self.azimuthCarrierPoly is not None:
+            self.azimuthCarrierAccessor = self.azimuthCarrierPoly.exportToC()
+        else:
+            poly = Poly2D.Poly2D()
+            poly.initPoly(rangeOrder=0, azimuthOrder=0, coeffs=[[0.]])
+            self.azimuthCarrierAccessor = poly.exportToC()
+
+            print('No Azimuth Carrier provided.')
+            print('Assuming zero azimuth carrier.')
+
+        if self.rangeOffsetsPoly is not None:
+            self.rangeOffsetsAccessor = self.rangeOffsetsPoly.exportToC()
+        else:
+            print('No range offset polynomial provided')
+            poly = Poly2D.Poly2D()
+            poly.initPoly(rangeOrder=0, azimuthOrder=0, coeffs=[[0.]])
+            self.rangeOffsetsAccessor = poly.exportToC()
+
+        if self.azimuthOffsetsPoly is not None:
+            self.azimuthOffsetsAccessor  = self.azimuthOffsetsPoly.exportToC()
+        else:
+            print('No azimuth offset polynomial provided')
+            poly = Poly2D.Poly2D()
+            poly.initPoly(rangeOrder=0, azimuthOrder=0, coeffs = [[0.]])
+            self.azimuthOffsetsAccessor = poly.exportToC()
+
+        if self.residualRangeImage is not None:
+            if self.residualRangeImage._accessor is None:
+                self.residualRangeImage.setCaster('read', 'DOUBLE')
+                self.residualRangeImage.createImage()
+
+            self.residualRangeAccessor = self.residualRangeImage.getImagePointer()
+        else:
+            self.residualRangeAccessor = 0
+
+        if self.residualAzimuthImage is not None:
+            if self.residualAzimuthImage._accessor is None:
+                self.residualAzimuthImage.setCaster('read', 'DOUBLE')
+                self.residualAzimuthImage.createImage()
+
+            self.residualAzimuthAccessor = self.residualAzimuthImage.getImagePointer()
+        else:
+            self.residualAzimuthAccessor = 0
+
+        if self.dopplerPoly is not None:
+            self.dopplerAccessor = self.dopplerPoly.exportToC()
+        else:
+            print('No doppler polynomial provided')
+            print('Assuming zero doppler centroid')
+            poly = Poly2D.Poly2D()
+            poly.initPoly(rangeOrder=0, azimuthOrder=0, coeffs=[[0.]])
+            self.dopplerAccessor = poly.exportToC()
+
+
+    def destroyImages(self):
+        CL.freeCPoly2D(self.rangeCarrierAccessor)
+        CL.freeCPoly2D(self.azimuthCarrierAccessor)
+        CL.freeCPoly2D(self.rangeOffsetsAccessor)
+        CL.freeCPoly2D(self.azimuthOffsetsAccessor)
+        CL.freeCPoly2D(self.dopplerAccessor)
+        if self.residualRangeImage is not None:
+            self.residualRangeImage.finalizeImage()
+
+        if self.residualAzimuthImage is not None:
+            self.residualAzimuthImage.finalizeImage()
+
+        self.imageIn.finalizeImage()
+        self.imageOut.finalizeImage()
 
         return
 
     def setDefaults(self):
-        if (self.numberLines == None):
-            self.numberLines = self.imageIn.getLength()
-            self.logger.warning('The variable NUMBER_LINES has been set to the default value %d which is the number of lines in the slc image.' % (self.numberLines)) 
+        if self.inputLines is None:
+            self.inputLines = self.imageIn.getLength()
+            self.logger.warning('The variable INPUT_LINES has been set to the default value %d which is the number of lines in the slc image.' % (self.inputLines)) 
        
-        if (self.numberRangeBin == None):
-            self.numberRangeBin = self.imageIn.getWidth()
-            self.logger.warning('The variable NUMBER_RANGE_BIN has been set to the default value %d which is the width of the slc image.' % (self.numberRangeBin))
+        if self.inputWidth is None:
+            self.inputWidth = self.imageIn.getWidth()
+            self.logger.warning('The variable INPUT_WIDTH has been set to the default value %d which is the width of the slc image.' % (self.inputWidth))
 
-        if (self.numberFitCoefficients == None):
-            self.numberFitCoefficients = 6
-            self.logger.warning('The variable NUMBER_FIT_COEFFICIENTS has been set to the default value %s' % (self.numberFitCoefficients)) 
-        
-        if (self.firstLineOffset == None):
-            self.firstLineOffset = 1
-            self.logger.warning('The variable FIRST_LINE_OFFSET has been set to the default value %s' % (self.firstLineOffset)) 
-        
+        if self.inputWidth != self.imageIn.getWidth():
+            raise Exception('Width of input image {0} does not match specified width {1}'.format(self.imageIn.getWidth(), self.inputWidth))
 
-    def computeSecondLocation(self):
-#this part was previously done in the fortran code
-        self.locationAcross2 = [0]*len(self.locationAcross1)
-        self.locationAcrossOffset2 = [0]*len(self.locationAcross1)
-        self.locationDown2 = [0]*len(self.locationAcross1)
-        self.locationDownOffset2 = [0]*len(self.locationAcross1)
-        self.snr2 = [0]*len(self.locationAcross1)
-        for i in range(len(self.locationAcross1)):
-            self.locationAcross2[i] = self.locationAcross1[i] + self.locationAcrossOffset1[i]
-            self.locationAcrossOffset2[i] = self.locationAcrossOffset1[i]
-            self.locationDown2[i] = self.locationDown1[i] + self.locationDownOffset1[i]
-            self.locationDownOffset2[i] = self.locationDownOffset1[i]
-            self.snr2[i] = self.snr1[i]
+        if self.startingRange is None:
+            self.startingRange = 0.0
+
+        if self.referenceStartingRange is None:
+            self.referenceStartingRange = self.startingRange
+
+        if self.referenceSlantRangePixelSpacing is None:
+            self.referenceSlantRangePixelSpacing = self.slantRangePixelSpacing
+
+        if self.referenceWavelength is None:
+            self.referenceWavelength = self.radarWavelength
+        
+        if self.outputLines is None:
+            self.outputLines = self.imageOut.getLength()
+            self.logger.warning('The variable OUTPUT_LINES has been set to the default value %d which is the number of lines in the slc image.'%(self.outputLines))
+
+        if self.outputWidth is None:
+            self.outputWidth = self.imageOut.getWidth()
+            self.logger.warning('The variable OUTPUT_WIDTH has been set to the default value %d which is the width of the slc image.'%(self.outputWidth))
+
+
+        if (self.outputWidth != self.imageOut.getWidth()):
+            raise Exception('Width of output image {0} does not match specified width {1}'.format(self.imageOut.getWidth(), self.outputWidth))
+
+        if self.imageIn.dataType.upper().startswith('C'):
+            self.isComplex = True
+        else:
+            self.isComplex = False
+
+        
+        if self.imageIn.getBands() > 1:
+            raise Exception('The code currently is setup to resample single band images only')
+
+        
+        if self.method is None:
+            if self.isComplex:
+                self.method = 'SINC'
+            else:
+                self.method = 'BILINEAR'
+
+        if self.flatten is None:
+            self.logger.warning('No flattening requested')
+            self.flatten = False
+
+        return
+
 
     def setState(self):
-        resamp_slc.setStdWriter_Py(int(self._stdWriter.getWriter()))
-        resamp_slc.setNumberFitCoefficients_Py(int(self.numberFitCoefficients))
-        resamp_slc.setNumberRangeBin_Py(int(self.numberRangeBin))
-        resamp_slc.setNumberLines_Py(int(self.numberLines))
-        resamp_slc.setFirstLineOffset_Py(int(self.firstLineOffset))
+        resamp_slc.setInputWidth_Py(int(self.inputWidth))
+        resamp_slc.setInputLines_Py(int(self.inputLines))
+        resamp_slc.setOutputWidth_Py(int(self.outputWidth))
+        resamp_slc.setOutputLines_Py(int(self.outputLines))
         resamp_slc.setRadarWavelength_Py(float(self.radarWavelength))
         resamp_slc.setSlantRangePixelSpacing_Py(float(self.slantRangePixelSpacing))
-        resamp_slc.setDopplerCentroidCoefficients_Py(self.dopplerCentroidCoefficients, self.dim1_dopplerCentroidCoefficients)
-        resamp_slc.setLocationAcross1_Py(self.locationAcross1, self.dim1_locationAcross1)
-        resamp_slc.setLocationAcrossOffset1_Py(self.locationAcrossOffset1, self.dim1_locationAcrossOffset1)
-        resamp_slc.setLocationDown1_Py(self.locationDown1, self.dim1_locationDown1)
-        resamp_slc.setLocationDownOffset1_Py(self.locationDownOffset1, self.dim1_locationDownOffset1)
-        resamp_slc.setSNR1_Py(self.snr1, self.dim1_snr1)
-        resamp_slc.setLocationAcross2_Py(self.locationAcross2, self.dim1_locationAcross2)
-        resamp_slc.setLocationAcrossOffset2_Py(self.locationAcrossOffset2, self.dim1_locationAcrossOffset2)
-        resamp_slc.setLocationDown2_Py(self.locationDown2, self.dim1_locationDown2)
-        resamp_slc.setLocationDownOffset2_Py(self.locationDownOffset2, self.dim1_locationDownOffset2)
-        resamp_slc.setSNR2_Py(self.snr2, self.dim1_snr2)
+
+        ###Introduced for dealing with data with different range sampling frequencies
+        resamp_slc.setReferenceWavelength_Py(float(self.referenceWavelength))
+        resamp_slc.setStartingRange_Py(float(self.startingRange))
+        resamp_slc.setReferenceStartingRange_Py(float(self.referenceStartingRange))
+        resamp_slc.setReferenceSlantRangePixelSpacing_Py(float(self.referenceSlantRangePixelSpacing))
+
+        intpKey = self.interpolationMethods[self.method.upper()]
+        resamp_slc.setMethod_Py(int(intpKey))
+        resamp_slc.setIsComplex_Py(int(self.isComplex))
+        resamp_slc.setFlatten_Py(int(self.flatten))
 
         return
 
 
-
-
-    def setStdWriter(self,writer):
-        self._stdWriter = writer
-
-    def setNumberFitCoefficients(self,var):
-        self.numberFitCoefficients = int(var)
+    def setInputWidth(self,var):
+        self.inputWidth = int(var)
         return
 
-    def setNumberRangeBin(self,var):
-        self.numberRangeBin = int(var)
+    def setInputLines(self, var):
+        self.inputLines = int(var)
+        return
+    
+    def setOutputWidth(self, var):
+        self.outputWidth = int(var)
         return
 
-    def setNumberLines(self,var):
-        self.numberLines = int(var)
-        return
-
-    def setFirstLineOffset(self,var):
-        self.firstLineOffset = int(var)
+    def setOutputLines(self,var):
+        self.outputLines = int(var)
         return
 
     def setRadarWavelength(self,var):
@@ -150,262 +272,6 @@ class Resamp_slc(Component):
     def setSlantRangePixelSpacing(self,var):
         self.slantRangePixelSpacing = float(var)
         return
-
-    def setDopplerCentroidCoefficients(self,var):
-        self.dopplerCentroidCoefficients = var
-        return
-
-    def setLocationAcross1(self,var):
-        self.locationAcross1 = var
-        return
-
-    def setLocationAcrossOffset1(self,var):
-        self.locationAcrossOffset1 = var
-        return
-
-    def setLocationDown1(self,var):
-        self.locationDown1 = var
-        return
-
-    def setLocationDownOffset1(self,var):
-        self.locationDownOffset1 = var
-        return
-
-    def setSNR1(self,var):
-        self.snr1 = var
-        return
-
-    def setLocationAcross2(self,var):
-        self.locationAcross2 = var
-        return
-
-    def setLocationAcrossOffset2(self,var):
-        self.locationAcrossOffset2 = var
-        return
-
-    def setLocationDown2(self,var):
-        self.locationDown2 = var
-        return
-
-    def setLocationDownOffset2(self,var):
-        self.locationDownOffset2 = var
-        return
-
-    def setSNR2(self,var):
-        self.snr2 = var
-        return
-
-
-
-
-
-
-    def getState(self):
-        self.azimuthCarrier = resamp_slc.getAzimuthCarrier_Py(self.dim1_azimuthCarrier)
-        self.rangeCarrier = resamp_slc.getRangeCarrier_Py(self.dim1_rangeCarrier)
-
-        return
-
-
-
-
-
-    def getAzimuthCarrier(self):
-        return self.azimuthCarrier
-
-    def getRangeCarrier(self):
-        return self.rangeCarrier
-
-
-
-
-
-
-    def allocateArrays(self):
-        if (self.dim1_dopplerCentroidCoefficients == None):
-            self.dim1_dopplerCentroidCoefficients = len(self.dopplerCentroidCoefficients)
-
-        if (not self.dim1_dopplerCentroidCoefficients):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_dopplerCoefficients_Py(self.dim1_dopplerCentroidCoefficients)
-
-        if (self.dim1_locationAcross1 == None):
-            self.dim1_locationAcross1 = len(self.locationAcross1)
-
-        if (not self.dim1_locationAcross1):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_ranpos_Py(self.dim1_locationAcross1)
-
-        if (self.dim1_locationAcrossOffset1 == None):
-            self.dim1_locationAcrossOffset1 = len(self.locationAcrossOffset1)
-
-        if (not self.dim1_locationAcrossOffset1):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_ranoff_Py(self.dim1_locationAcrossOffset1)
-
-        if (self.dim1_locationDown1 == None):
-            self.dim1_locationDown1 = len(self.locationDown1)
-
-        if (not self.dim1_locationDown1):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_azpos_Py(self.dim1_locationDown1)
-
-        if (self.dim1_locationDownOffset1 == None):
-            self.dim1_locationDownOffset1 = len(self.locationDownOffset1)
-
-        if (not self.dim1_locationDownOffset1):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_azoff_Py(self.dim1_locationDownOffset1)
-
-        if (self.dim1_snr1 == None):
-            self.dim1_snr1 = len(self.snr1)
-
-        if (not self.dim1_snr1):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_sig_Py(self.dim1_snr1)
-
-        if (self.dim1_locationAcross2 == None):
-            self.dim1_locationAcross2 = len(self.locationAcross2)
-
-        if (not self.dim1_locationAcross2):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_ranpos2_Py(self.dim1_locationAcross2)
-
-        if (self.dim1_locationAcrossOffset2 == None):
-            self.dim1_locationAcrossOffset2 = len(self.locationAcrossOffset2)
-
-        if (not self.dim1_locationAcrossOffset2):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_ranoff2_Py(self.dim1_locationAcrossOffset2)
-
-        if (self.dim1_locationDown2 == None):
-            self.dim1_locationDown2 = len(self.locationDown2)
-
-        if (not self.dim1_locationDown2):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_azpos2_Py(self.dim1_locationDown2)
-
-        if (self.dim1_locationDownOffset2 == None):
-            self.dim1_locationDownOffset2 = len(self.locationDownOffset2)
-
-        if (not self.dim1_locationDownOffset2):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_azoff2_Py(self.dim1_locationDownOffset2)
-
-        if (self.dim1_snr2 == None):
-            self.dim1_snr2 = len(self.snr2)
-
-        if (not self.dim1_snr2):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_r_sig2_Py(self.dim1_snr2)
-
-        if (self.dim1_azimuthCarrier == None):
-            self.dim1_azimuthCarrier = len(self.azimuthCarrier)
-
-        if (not self.dim1_azimuthCarrier):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_azimuthCarrier_Py(self.dim1_azimuthCarrier)
-
-        if (self.dim1_rangeCarrier == None):
-            self.dim1_rangeCarrier = len(self.rangeCarrier)
-
-        if (not self.dim1_rangeCarrier):
-            print("Error. Trying to allocate zero size array")
-
-            raise Exception
-
-        resamp_slc.allocate_rangeCarrier_Py(self.dim1_rangeCarrier)
-
-
-        return
-
-
-
-
-
-    def deallocateArrays(self):
-        resamp_slc.deallocate_dopplerCoefficients_Py()
-        resamp_slc.deallocate_r_ranpos_Py()
-        resamp_slc.deallocate_r_ranoff_Py()
-        resamp_slc.deallocate_r_azpos_Py()
-        resamp_slc.deallocate_r_azoff_Py()
-        resamp_slc.deallocate_r_sig_Py()
-        resamp_slc.deallocate_r_ranpos2_Py()
-        resamp_slc.deallocate_r_ranoff2_Py()
-        resamp_slc.deallocate_r_azpos2_Py()
-        resamp_slc.deallocate_r_azoff2_Py()
-        resamp_slc.deallocate_r_sig2_Py()
-        resamp_slc.deallocate_azimuthCarrier_Py()
-        resamp_slc.deallocate_rangeCarrier_Py()
-
-        return
-
-    def addInstrument(self):
-        instrument = self._inputPorts.getPort('instrument').getObject()
-        if(instrument):
-            try:
-                self.radarWavelength = instrument.getRadarWavelength()
-            except AttributeError as strerr:
-                self.logger.error(strerr)
-                raise AttributeError("Unable to wire instrument port")
-
-
-
-
-    def addOffsets(self):
-        offsets = self._inputPorts.getPort('offsets').getObject()
-        if(offsets):
-            try:
-                for offset in offsets:
-                    (across,down) = offset.getCoordinate()
-                    (acrossOffset,downOffset) = offset.getOffset()
-                    snr = offset.getSignalToNoise()
-                    self.locationAcross1.append(across)
-                    self.locationDown1.append(down)                
-                    self.locationAcrossOffset1.append(acrossOffset)
-                    self.locationDownOffset1.append(downOffset)
-                    self.snr1.append(snr)
-            except AttributeError as strerr:
-                self.logger.error(strerr)
-                raise AttributeError("Unable to wire Offset port")
-
-
 
     def __getstate__(self):
         d = dict(self.__dict__)
@@ -417,86 +283,100 @@ class Resamp_slc(Component):
         self.logger = logging.getLogger('isce.stdproc.resamp_slc')
         return
 
+    def addOffsets(self):
+        from isceobj.Util.Poly2D import Poly2D
+        offsets = self._inputPorts['offsets']
+        if offsets:
+            polys = offsets.getFitPolynomials()
+            self.azimuthOffsetsPoly = polys[0]
+            self.rangeOffsetsPoly = polys[1]
+
+    def addSlc(self):
+        from isceobj.Util import Poly2D
+        from isceobj.Constants import SPEED_OF_LIGHT
+
+        formslc = self._inputPorts['slc']
+        if (formslc):
+
+            ####Set up azimuth carrier information
+            coeffs = []
+            coeffs.append([2*np.pi*val for val in formslc.dopplerCentroidCoefficients])
+
+            self.dopplerPoly = Poly2D.Poly2D()
+            self.dopplerPoly.initPoly(rangeOrder=len(formslc.dopplerCentroidCoefficients)-1, azimuthOrder=0, coeffs=coeffs)
+       
+            ######Setup range carrier information
+            delr = 0.5*SPEED_OF_LIGHT / formslc.rangeSamplingRate
+            self.slantRangePixelSpacing = delr
+
+            self.radarWavelength = formslc.radarWavelength
+
+#            coeffs = [[0.0, -4 * np.pi * delr/self.radarWavelength]]
+#            self.rangeCarrierPoly = Poly2D.Poly2D()
+#            self.rangeCarrierPoly.initPoly(rangeOrder=1, azimuthOrder=0, coeffs=coeffs)
+        
+            img = isceobj.createImage()
+            IU.copyAttributes(formslc.slcImage, img)
+            img.setAccessMode('read')
+            self.imageIn = img
+
+    def addReferenceImage(self):
+        refImg = self._inputPorts['reference']
+        if (refImg):
+            self.outputWidth = refImg.getWidth()
+            self.outputLines = refImg.getLength()
 
     def __init__(self):
         Component.__init__(self)
-        self._stdWriter = None
-        self.numberFitCoefficients = None
-        self.numberRangeBin = None
-        self.numberLines = None
-        self.firstLineOffset = None
+        self.inputWidth = None
+        self.inputLines = None
+        self.outputWidth = None
+        self.outputLines = None
         self.radarWavelength = None
         self.slantRangePixelSpacing = None
-        self.dopplerCentroidCoefficients = []
-        self.dim1_dopplerCentroidCoefficients = None
-        self.locationAcross1 = []
-        self.dim1_locationAcross1 = None
-        self.locationAcrossOffset1 = []
-        self.dim1_locationAcrossOffset1 = None
-        self.locationDown1 = []
-        self.dim1_locationDown1 = None
-        self.locationDownOffset1 = []
-        self.dim1_locationDownOffset1 = None
-        self.snr1 = []
-        self.dim1_snr1 = None
-        self.locationAcross2 = []
-        self.dim1_locationAcross2 = None
-        self.locationAcrossOffset2 = []
-        self.dim1_locationAcrossOffset2 = None
-        self.locationDown2 = []
-        self.dim1_locationDown2 = None
-        self.locationDownOffset2 = []
-        self.dim1_locationDownOffset2 = None
-        self.snr2 = []
-        self.dim1_snr2 = None
-        self.azimuthCarrier = []
-        self.dim1_azimuthCarrier = None
-        self.rangeCarrier = []
-        self.dim1_rangeCarrier = None
+        self.azimuthOffsetsPoly = None
+        self.azimuthOffsetsAccessor = None
+        self.rangeOffsetsPoly = None
+        self.rangeOffsetsAccessor = None
+        self.rangeCarrierPoly = None
+        self.rangeCarrierAccessor = None
+        self.azimuthCarrierPoly = None
+        self.azimuthCarrierAccessor = None
+        self.residualRangeImage = None
+        self.residualAzimuthImage = None
+        self.residualRangeAccessor = None
+        self.residualAzimuthAccessor = None
+        self.dopplerPoly = None
+        self.dopplerAccessor = None
+        self.isComplex = None
+        self.method = None
+        self.flatten = None
+        self.startingRange = None
+        self.referenceWavelength = None
+        self.referenceStartingRange = None
+        self.referenceSlantRangePixelSpacing = None
+
         self.logger = logging.getLogger('isce.stdproc.resamp_slc')
-        
-        offsetPort = Port(name='offsets',method=self.addOffsets)
-        instrumentPort = Port(name='instrument',method=self.addInstrument)
+       
+        offsetPort = Port(name='offsets', method=self.addOffsets)
+        slcPort = Port(name='slc', method=self.addSlc)
+        referencePort = Port(name='reference', method=self.addReferenceImage)
+
         self._inputPorts.add(offsetPort)
-        self._inputPorts.add(instrumentPort)
-        
+        self._inputPorts.add(slcPort)
+        self._inputPorts.add(referencePort)
+
         self.dictionaryOfVariables = { \
-                                      'NUMBER_FIT_COEFFICIENTS' : ['self.numberFitCoefficients', 'int','optional'], \
-                                      'NUMBER_RANGE_BIN' : ['self.numberRangeBin', 'int','mandatory'], \
-                                      'NUMBER_LINES' : ['self.numberLines', 'int','optional'], \
-                                      'FIRST_LINE_OFFSET' : ['self.firstLineOffset', 'int','optional'], \
+                                      'INPUT_WIDTH' : ['self.inputWidth', 'int','mandatory'], \
+                                      'INPUT_LINES' : ['self.inputLines', 'int','optional'], \
+                                      'OUTPUT_LINES' : ['self.outputLines', 'int', 'optional'], \
+                                      'OUTPUT_WIDTH' : ['self.outputWidth', 'int', 'optional'], \
                                       'RADAR_WAVELENGTH' : ['self.radarWavelength', 'float','mandatory'], \
                                       'SLANT_RANGE_PIXEL_SPACING' : ['self.slantRangePixelSpacing', 'float','mandatory'], \
-                                      'DOPPLER_CENTROID_COEFFICIENTS' : ['self.dopplerCentroidCoefficients', 'float','mandatory'], \
-                                      'LOCATION_ACROSS1' : ['self.locationAcross1', 'float','mandatory'], \
-                                      'LOCATION_ACROSS_OFFSET1' : ['self.locationAcrossOffset1', 'float','mandatory'], \
-                                      'LOCATION_DOWN1' : ['self.locationDown1', 'float','mandatory'], \
-                                      'LOCATION_DOWN_OFFSET1' : ['self.locationDownOffset1', 'float','mandatory'], \
-                                      'SNR1' : ['self.snr1', 'float','mandatory'], \
-                                      'LOCATION_ACROSS2' : ['self.locationAcross2', 'float','mandatory'], \
-                                      'LOCATION_ACROSS_OFFSET2' : ['self.locationAcrossOffset2', 'float','mandatory'], \
-                                      'LOCATION_DOWN2' : ['self.locationDown2', 'float','mandatory'], \
-                                      'LOCATION_DOWN_OFFSET2' : ['self.locationDownOffset2', 'float','mandatory'], \
-                                      'SNR2' : ['self.snr2', 'float','mandatory'] \
                                       }
         
-        self.dictionaryOfOutputVariables = { \
-                                      'AZIMUTH_CARRIER' : 'self.azimuthCarrier',\
-                                      'RANGE_CARRIER' : 'self.rangeCarrier' \
-                                     }
+        self.dictionaryOfOutputVariables = { }
 
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
         return
 
 

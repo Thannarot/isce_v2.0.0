@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Authors: Walter Szeliga, Eric Gurrola
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -34,8 +34,7 @@ def getFactoriesInfo():
     return  {'Sensor':
                      {'args':
                            {
-                            'sensor':{'value':SENSORS.keys(),'type':'str'},
-                            'name':{'value':'','type':'str'}
+                            'sensor':{'value':list(SENSORS.keys()),'type':'str','optional':False}
                             },
                      'factory':'createSensor'
                      }
@@ -77,18 +76,36 @@ createGeneric = partial(factory_template,'Generic')
 createCOSMO_SkyMed_SLC = partial(factory_template, 'COSMO_SkyMed_SLC')
 createROI_PAC = partial(factory_template, 'ROI_PAC')
 createKOMPSAT5 = partial(factory_template, 'KOMPSAT5')
-
+createRisat1_SLC = partial(factory_template, 'Risat1_SLC')
+createRisat1 = partial(factory_template, 'Risat1')
+createUAVSAR_RPI = partial(factory_template, 'UAVSAR_RPI')
+createUAVSAR_Stack = partial(factory_template, 'UAVSAR_Stack')
+createUAVSAR_Polsar = partial(factory_template, 'UAVSAR_Polsar')
+createALOS2 = partial(factory_template, 'ALOS2')
+createERS_SLC = partial(factory_template, 'ERS_SLC')
+createALOS_SLC = partial(factory_template, 'ALOS_SLC')
+createEnviSAT_SLC = partial(factory_template, 'EnviSAT_SLC')
 
 SENSORS = {'ALOS' : createALOS,
+           'ALOS_SLC' : createALOS_SLC,
+           'ALOS2' : createALOS2,
            'COSMO_SKYMED' : createCOSMO_SkyMed,
            'COSMO_SKYMED_SLC' : createCOSMO_SkyMed_SLC,
            'ENVISAT' : createEnviSAT,
            'ERS' : createERS,
+           'ERS_SLC' : createERS_SLC,
            'KOMPSAT5' : createKOMPSAT5,
            'RADARSAT1' : createRadarsat1,
            'RADARSAT2' : createRadarsat2,
            'ROI_PAC' : createROI_PAC,
-           'TERRASARX' : createTerraSARX}
+           'TERRASARX' : createTerraSARX,
+           'RISAT1' : createRisat1,
+           'RISAT1_SLC' : createRisat1_SLC,
+           'UAVSAR_RPI' : createUAVSAR_RPI,
+           'UAVSAR_STACK' : createUAVSAR_Stack,
+           'UAVSAR_POLSAR' : createUAVSAR_Polsar,
+           'SENTINEL1A' : createSentinel1A,
+           'ENVISAT_SLC': createEnviSAT_SLC}
 
 #These are experimental and can be added in as they become ready
 #           'JERS': createJERS,
@@ -96,6 +113,24 @@ SENSORS = {'ALOS' : createALOS,
 #           'TANDEMX' : createTanDEMX,
 
 
+sfmt = '\n'.join('{}' for _ in range(len(SENSORS.keys())))
+__doc__ = (
+"""
+Sensor contains the class definitions of the available Sensors.
+The 'sensor names' are the following:
+"""+
+sfmt.format(*(sorted(SENSORS.keys())))+
+"""
+
+A convenience method, createXXX, where XXX is one of the above 'sensor names'
+can be use to create an instance of one of the Sensors as follows, using ALOS:
+
+x = Sensor.createALOS('master')
+
+where 'master' is the instance name in this case that can be used in
+configuring this instance.
+"""
+)
 
 def createSensor(sensor='', name=None):
     try:

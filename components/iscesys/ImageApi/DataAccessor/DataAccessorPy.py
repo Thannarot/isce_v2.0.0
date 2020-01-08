@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -26,7 +26,11 @@ import os
 ERROR_CHECK_FINALIZE = False
 
 class DataAccessor(object):
+    _accessorType = ''
 
+    @staticmethod
+    def getTypeSizeS(type_):
+        return DA.getTypeSize(type_)
     def __init__(self):
         self._accessor = None
         self._factory = None
@@ -39,13 +43,18 @@ class DataAccessor(object):
         self.filename = ''
         self.dataType = ''
         self._size = None
+        #instead of creating a new function for each type of Accessor to be created
+        #in the c bindings, pass a dictionary which contains the key 'type' to know the accessor that
+        #needs to be instanciated
+        self._extraInfo = {}
+        self._extra_reader = 'vrt'
         return None
 
     ## Experimental
     def __int__(self):
         return self.getAccessor()
 
-    def initAccessor(self, filename, filemode, width, 
+    def initAccessor(self, filename, filemode, width,
                      type=None, bands=None, scheme=None, caster=None):
         self.filename = filename
         self.accessMode = filemode
@@ -59,14 +68,97 @@ class DataAccessor(object):
         if caster:
             self.caster = caster
         return None
+    def getGDALDataTypeId(self,type_):
+        #from GDALDataType enum
+        map = {'byte':1,'ciqbyte':1,'short':3,'int':4,'float':6,'double':7,
+               'cshort':8,'cint':9,'cfloat':10,'cdouble':11}
+        try:
+            return map[type_.lower()]
+        except:
+            print('Unsupported  datatype',type_)
+            raise Exception
+
+    def checkLocation(self):
+        from iscesys.Parsers.FileParserFactory import createFileParser
+        parser = createFileParser('xml')
+        #get the properties from the file
+        prop, fac, misc = parser.parse(self.metadatalocation)
+        #first check if it exists as it is
+        filename = ''
+
+        if not (os.path.exists(prop['file_name'])):
+            name = os.path.basename(prop['file_name'])
+            #check the path relative to the xml file
+            filename = os.path.join(os.path.split(self.metadatalocation)[0],name)
+            #check if relative to cwd
+            if not (os.path.exists(filename)):
+                filename = os.path.join(os.getcwd(),name)
+                if not (os.path.exists(filename)):
+                    filename = ''
+        else:
+            filename = prop['file_name']
+        if not filename:
+            paths = self.uniquePath([os.path.split(prop['file_name'])[0],os.path.split(self.metadatalocation)[0],
+                  os.getcwd()])
+            toptr = '\n'.join(paths)
+            print('The image file',name,'specified in the metadata file',self.metadatalocation,
+                  'cannot be found in', 'any of the following default locations:' if len(paths) > 1 else 'in the following location:' ,
+                  toptr)
+            raise Exception
+
+        return filename
+    def uniquePath(self,paths):
+        ret = []
+        for pth in paths:
+            if not pth in ret:
+                ret.append(pth)
+        return ret
+
+    def methodSelector(self):
+        selection = ''
+        if self._accessorType.lower() == 'api':
+            selection = 'api'
+        elif self._accessorType.lower() == self._extra_reader:
+            selection = self._extra_reader
+        elif self.accessMode.lower() == 'write':
+            selection='api'
+        elif self.accessMode.lower() == 'read':
+            selection = self._extra_reader
+
+        return selection
 
     def createAccessor(self):
-        if self._accessor is None:#to avoid to creating duplicates
-            size = DA.getTypeSize(self.dataType)
-            caster = '' or self.caster
+        if(not self.filename and hasattr(self,'metadatalocation') and self.metadatalocation and not self.accessMode.lower().count('write')):
+            #it will only keep going if all ok
+            self.filename = self.checkLocation()
+        caster = '' or self.caster
+        filename = self.filename
+        scheme = self.scheme
+        self.extraFilename = self.filename + '.' + self._extra_reader
+
+        if self._accessor is None:#to avoid creating duplicates
+            selection = self.methodSelector()
+            if selection == 'api':
+                size = DA.getTypeSize(self.dataType)
+                #to optimize bip access per band we read in memory all bands and then
+                #set the right band and write the content back leaving the other bands untouched
+                #this requires a read and write which only works if the file is opened in
+                #writeread (or readwrite) mode and not just write
+                if(self.accessMode.lower() == 'write'):
+                #if(self.scheme.lower() == 'bip' and self.accessMode.lower() == 'write'):
+                    self.accessMode = 'writeread'
+            elif selection == self._extra_reader:
+                size = self.getGDALDataTypeId(self.dataType)
+                filename = self._extraFilename
+                #GDALAccessor handles all the different scheme in the same way since it reads
+                #always in BSQ scheme regardless of the under laying scheme
+                scheme = 'GDAL'
+            else:
+                print('Cannot select appropruiate image API')
+                raise Exception
             self._accessor, self._factory = DA.createAccessor(
-                self.filename, self.accessMode, size, self.bands, 
-                self.width, self.scheme,caster
+                filename, self.accessMode, size, self.bands,
+                self.width,scheme,caster,self._extraInfo
                 )
         return None
 
@@ -74,7 +166,7 @@ class DataAccessor(object):
         try:
             DA.finalizeAccessor(self._accessor, self._factory)
         except TypeError:
-            message = "Image %s is already finalized" % str(self) 
+            message = "Image %s is already finalized" % str(self)
             if ERROR_CHECK_FINALIZE:
                 raise RuntimeError(message)
             else:
@@ -91,7 +183,7 @@ class DataAccessor(object):
 
     def createFile(self, lines):
         DA.createFile(self._accessor, lines)
-    
+
     def getFileLength(self):
         openedHere = False
 
@@ -109,16 +201,16 @@ class DataAccessor(object):
 
     def getAccessor(self):
         return self._accessor
-    
+
     def getFilename(self):
         return self.filename
-    
+
     def getAccessMode(self):
         return self.accessMode
-    
+
     def getSize(self):
         return self.size
-    
+
     def getBands(self):
         return self.bands
 
@@ -126,36 +218,37 @@ class DataAccessor(object):
     #@return \c int width of the DataAccessor.DataAccessor object.
     def getWidth(self):
         return self.width
-    
+
     def getInterleavedScheme(self):
         return self.scheme
-    
+
     def getCaster(self):
         return self.caster
-    
+
     def getDataType(self):
         return self.dataType
-    
+
     def setFilename(self, val):
         self.filename = str(val)
-    
+
     def setAccessMode(self, val):
         self.accessMode = str(val)
-    
+
     def setBands(self, val):
         self.bands = int(val)
-    
+
     def setWidth(self, val):
         self.width = int(val)
-    
+
     def setInterleavedScheme(self, val):
         self.scheme = str(val)
-    
+
     def setCaster(self, val):
         self.caster = val
-    
+
     def setDataType(self, val):
         self.dataType = val
-    
-    pass
 
+    def setExtraInfo(self,ei):
+        self._extraInfo = ei
+    pass

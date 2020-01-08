@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
 
 
 
@@ -65,7 +69,7 @@ class DemDirParser(HTMLParser):
         for filt in self.filterList:
             isOk = True
             #check that the data is not one that needs to be removed
-            for rm in self._removeList:
+            for rm in self.removeList:
                 if data.count(rm):
                     isOk = False
                     break
@@ -79,16 +83,16 @@ URL = Component.Parameter('_url',
     public_name = 'URL',default = 'http://dds.cr.usgs.gov',
     type = str,
     mandatory = False,
-    doc = "Top part of the url where the DEMs are stored  (default: http://dds.cr.usgs.gov)")
+    doc = "Top part of the url where the DEMs are stored. Used for SRTM version2")
 USERNAME = Component.Parameter('_un',
     public_name='username',
-    default = '',
+    default = None,
     type = str,
     mandatory = False,
     doc = "Username in case the url is password protected")
 PASSWORD = Component.Parameter('_pw',
     public_name='password',
-    default = '',
+    default = None,
     type = str,
     mandatory = False,
     doc = "Password in case the url is password protected")
@@ -102,7 +106,7 @@ KEEP_AFTER_FAILED = Component.Parameter('_keepAfterFailed',
       "accidental deletion of files (default: False)")
 DIRECTORY = Component.Parameter('_downloadDir',
     public_name='directory',
-    default = os.getcwd(),
+    default = './',
     type = str,
     mandatory = False,
     doc = "If useLocalDirectory is False,it is used to download\n" + \
@@ -214,7 +218,7 @@ class DemStitcher(Component):
     # @param lon \c int longitude in the range [-180,180) or [0,360).
     # @return \c string the filename for that location
 
-    def createFilename(self,lat,lon):
+    def createFilename(self,lat,lon,source = None):
 
         if lon > 180:
             lon = -(360 - lon)
@@ -230,7 +234,7 @@ class DemStitcher(Component):
     # @return \c tuple (\list strings the list of filenames covering the specified area, \c int the number of frames found along the longitude direction,
     # \c int the number of frames found along the latitude direction)
 
-    def createNameList(self,lats,lons):
+    def createNameList(self,lats,lons,source = None):
         self._inputFileList = []
         if lons[0] > 180:
             lons[0] = -(360 - lons[0])
@@ -265,7 +269,7 @@ class DemStitcher(Component):
         self._latLonList = []
         for lat in latList:
             for lon in lonList:
-                name = self.createFilename(lat,lon)
+                name = self.createFilename(lat,lon,source)
                 self._inputFileList.append(name)
                 self._latLonList.append([lat,lon])
         return self._inputFileList,len(latList),len(lonList)
@@ -289,7 +293,7 @@ class DemStitcher(Component):
     # the list of possible region for a given source. Set region only if sure that all the
     # requested file are contained in it.
     def getDemsInBox(self,lats,lons,source,downloadDir = None,region = None):
-        nameList,numLat,numLon, = self.createNameList(lats,lons)
+        nameList,numLat,numLon, = self.createNameList(lats,lons,source)
 
         if downloadDir is None:
             downloadDir = self._downloadDir
@@ -368,27 +372,32 @@ class DemStitcher(Component):
             for i in range(len(fullList)):
                 if fileNow == fullList[i]:
                     regionNow = regionMapping[i]
-                    url = self._http + str(source) + '/' + regionNow + '/'
+                    url = self.getFullHttp(source,regionNow)
                     break
             if not  (url == ''):
-                opener = urllib.request.URLopener()
                 try:
                     if not os.path.exists(os.path.join(downloadDir,fileNow)):
                         if(self._un is None or self._pw is None):
-                            opener.retrieve(url + fileNow,os.path.join(downloadDir,fileNow))
+                            if os.path.exists(os.path.join(os.environ['HOME'],'.netrc')):
+                                command = 'curl -n  -L -c $HOME/.earthdatacookie -b $HOME/.earthdatacookie -k -f -O ' + os.path.join(url,fileNow)
+                            else:
+                                self.logger.error('Please create a .netrc file in your home directory containing\nmachine urs.earthdata.nasa.gov\n\tlogin yourusername\n\tpassword yourpassword')
+                                sys.exit(1)
                         else:
-                            # curl with -O download in working dir, so save current, move to donwloadDir
-                            # nd get back once download is finished
-                            cwd = os.getcwd()
-                            os.chdir(downloadDir)
-                            command = 'curl -k -u ' + self._un + ':' + self._pw + ' -O ' + os.path.join(url,fileNow)
-                            if os.system(command):
-                                raise Exception
+                            command = 'curl -k -f -u ' + self._un + ':' + self._pw + ' -O ' + os.path.join(url,fileNow)
+                        # curl with -O download in working dir, so save current, move to donwloadDir
+                        # nd get back once download is finished
+                        cwd = os.getcwd()
+                        os.chdir(downloadDir)
+                        if os.system(command):
                             os.chdir(cwd)
+                            raise Exception
+                        os.chdir(cwd)
                     self._downloadReport[fileNow] = self._succeded
                 except Exception as e:
                     self.logger.warning('There was a problem in retrieving the file  %s. Exception %s'%(os.path.join(url,fileNow),str(e)))
                     self._downloadReport[fileNow] = self._failed
+
             else:
                 self._downloadReport[fileNow] = self._failed
     ##
@@ -429,7 +438,7 @@ class DemStitcher(Component):
 
         inputFileList = []
         for lat,lon in zip(lats,lons):
-            name = self.createFilename(lat,lon)
+            name = self.createFilename(lat,lon,source)
             inputFileList.append(name)
         self.getDems(source,inputFileList,downloadDir,region)
     ##
@@ -441,7 +450,7 @@ class DemStitcher(Component):
     # @param downloadDir \c string the directory where the DEMs are downloaded. If the directory does not exists it will be created. If the argument is not provided then the files are downloaded in the location defined by the self._downloadDir that is defaulted to the current directory.
     # @param region \c  list \c strings regions where to look for the files. It must have the same length of \c listFile. If not provided the files are searched by scanning the content of each region. Use method getRagionList to get the list of possible regions for a given source. Set region only if sure that all the requested file are contained in it.
     def downloadFile(self,lat,lon,source,downloadDir = None,region = None):
-        name = self.createFilename(lat,lon)
+        name = self.createFilename(lat,lon,source)
         inputFileList =  [name]
         regionList = [region]
         self.getDems(source,inputFileList,downloadDir,regionList)
@@ -473,7 +482,7 @@ class DemStitcher(Component):
     # @param region \c  list \c strings regions where to look for the files.
     # @return \c list \c string list containing the the filenames found for the specific source and region.
     def getFileListPerRegion(self,source,region):
-        url = self._http + str(source) + '/' + region
+        url = self.getFullHttp(source,region)
         return self.getUrlList(url,self._filters['fileExtension'], self._remove)
 
 
@@ -484,7 +493,7 @@ class DemStitcher(Component):
     def getRegionList(self,source):
         # check first if it has been computed before
         if self._regionList[str(source)] == []:
-            url = self._http + str(source)
+            url = self.http + str(source)
             self._regionList[str(source)] = self.getUrlList(url,self._filters['region'+str(source)], self._remove)
         return self._regionList[str(source)]
 
@@ -629,7 +638,7 @@ class DemStitcher(Component):
         width = self.getDemWidth(lon,source)
         demImage.initImage(outname,'read',width)
         length = demImage.getLength()
-        dictProp = {'REFERENCE':self._reference,'Coordinate1':{'size':width,'startingValue':min(lon[0],lon[1]),'delta':delta},'Coordinate2':{'size':length,'startingValue':max(lat[0],lat[1]),'delta':-delta},'FILE_NAME':outname}
+        dictProp = {'METADATA_LOCATION':outname+'.xml','REFERENCE':self._reference,'Coordinate1':{'size':width,'startingValue':min(lon[0],lon[1]),'delta':delta},'Coordinate2':{'size':length,'startingValue':max(lat[0],lat[1]),'delta':-delta},'FILE_NAME':outname}
         #no need to pass the dictionaryOfFacilities since init will use the default one
         demImage.init(dictProp)
         self._image = demImage
@@ -692,7 +701,7 @@ class DemStitcher(Component):
             #dir already exists
             pass
         extension = '.rsc'
-        outfile = os.path.join(self._downloadDir,outname + extension)
+        outfile = outname + extension
         fp = open(outfile,'w')
         for k,v in dict.items():
             fp.write(str(k) + '\t' + str(v) + '\n')
@@ -755,8 +764,10 @@ class DemStitcher(Component):
         fp.close()
 
 
+    #allow to overwrite from subclasses the nameing convention of the unzipped
+    def getUnzippedName(self,name,source = None):
+        return name.replace(self._zip,'')
     def stitchDems(self,lat,lon,source, outname, downloadDir = None,region = None, keep = None, swap = None):
-
         if downloadDir is None:
             downloadDir = self._downloadDir
         else:
@@ -799,18 +810,19 @@ class DemStitcher(Component):
                         syntTileCreated = True
 
                     syntheticTiles.append(k)
-                    demName = os.path.join(downloadDir,k).replace(self._zip,'')#remove di zip extension
+                    demName = os.path.join(downloadDir,self.getUnzippedName(k,source))
                     #check for lexists so it returns also broken links, just in case something went wrong before
                     if os.path.lexists(demName):#clean up to make sure that old names are not there. will cause problem if use old one and the resolution od the dem is changed
                         os.remove(demName)
                     os.symlink(tileName,demName)
+
         if unzip:
             decompressedList = []
             for name in listNames:
                 if not name in syntheticTiles:#synthetic tiles don't need to be decompressed
                     self.decompress(name,downloadDir,keep)
 
-                newName = name.replace(self._zip,'')
+                newName = self.getUnzippedName(name,source)
                 if downloadDir:
                     newName = os.path.join(downloadDir,newName)
 
@@ -842,18 +854,17 @@ class DemStitcher(Component):
 
     ## Corrects the self._image from EGM96 to WGS84 and viceversa.
     #@param image \c Image if provided is used instead of the instance attribute self._image
-    #@param xmlfile \c string not used at the moment
     #@param conversionType \c int -1 converts from  EGM96 to WGS84, 1 converts from  WGS84 to EGM96
     #@return \c Image instance the converted Image
-    def correct(self,image = None,xmlfile = None,conversionType=-1):
+    def correct(self,image = None,conversionType=-1):
         '''Corrects the self._image from EGM96 to WGS84 and viceversa.'''
         from contrib.demUtils.Correct_geoid_i2_srtm import (
             Correct_geoid_i2_srtm
             )
         cg = Correct_geoid_i2_srtm()
-        return cg(image) if image else cg(self._image)
+        return cg(image,conversionType) if image else cg(self._image,conversionType)
 
-    #still need to call it since the inisitalization calls the _url so the setter of
+    #still need to call it since the initialization calls the _url so the setter of
     #url does not get called
     def _configure(self):
         #after the url has been set generate the full path
@@ -900,8 +911,7 @@ class DemStitcher(Component):
                 else:
                     if(self._correct):
                         width = self.getDemWidth(lon,self._source)
-                        self.correct(os.path.join(self._dir,self._outputFile), \
-                                     self._source,width,min(lat[0],lat[1]),min(lon[0],lon[1]))
+                        self.correct()
                         #self.correct(self._output,self._source,width,min(lat[0],lat[1]),min(lon[0],lon[1]))
             else:
                 print('Error. The "bbox" attribute must be specified when the action is "stitch"')
@@ -926,8 +936,17 @@ class DemStitcher(Component):
             for k,v in self._downloadReport.items():
                 print(k,'=',v)
 
-    #just for testing
 
+    def _facilities(self):
+        super(DemStitcher,self)._facilities()
+    def getFullHttp(self,source, region = None):
+        toAppend = ''
+        if region:
+            toAppend = ('/' + region + '/')
+        return self._http  + str(source)  + toAppend
+    @property
+    def http(self):
+        return self._http
     family = 'demstitcher'
     parameter_list = (
                       URL,

@@ -141,7 +141,8 @@ PlanetsData = ConstantClass(
     rotationPeriod = ConstantClass(
         Mercury=   58.65   * day,
         Venus=    243.01   * day,
-        Earth=     23.9345 * hour,
+        Earth=     23.934472399 * hour,  #Based on mean angular velocity,
+                                         #http://hpiers.obspm.fr/eop-pc/models/constants.html
         Mars=      24.6299 * hour,
         Jupiter=    9.841  * hour,
         Saturn=    10.233  * hour,

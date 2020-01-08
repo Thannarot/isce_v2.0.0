@@ -37,6 +37,15 @@ typedef struct cOrbit
     int basis ;         //Integer for basis
 } cOrbit;
 
+
+typedef struct cStateVector
+{
+    double time;            //UTC time in seconds
+    double position[3];     //Position in meters
+    double velocity[3];     //Velocity in meters / sec
+} cStateVector;
+
+
 //Create and Delete
 cOrbit* createOrbit(int nvec, int basis);
 void initOrbit(cOrbit* orb, int nvec, int basis);
@@ -49,8 +58,10 @@ void getStateVector(cOrbit* orb, int index, double *t, double* pos, double *vel)
 void setStateVector(cOrbit* orb, int index, double t, double* pos, double* vel);
 
 //Interpolation for differnt types of orbits
-void interpolateWGS84Orbit(cOrbit* orb, double tintp, double *pos, double* vel);
-void interpolateSCHOrbit(cOrbit* orb, double tintp, double *pos, double* vel);
+int interpolateWGS84Orbit(cOrbit* orb, double tintp, double *pos, double* vel);
+int interpolateLegendreOrbit(cOrbit* orb, double tintp, double *pos, double *vel);
+int interpolateSCHOrbit(cOrbit* orb, double tintp, double *pos, double* vel);
+int computeAcceleration(cOrbit* orb, double tintp, double *acc);
 
 //Print for debugging
 void printOrbit(cOrbit* orb);

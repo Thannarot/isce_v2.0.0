@@ -21,7 +21,7 @@
 #include <stdint.h>
 using namespace std;
 
-static char * const __doc__ = "Python extension for enu2los";
+static const char * const __doc__ = "Python extension for enu2los";
 
 PyModuleDef moduledef = {
     // header
@@ -169,4 +169,3 @@ PyObject* enu2los_C(PyObject* self, PyObject* args)
     ((enu2los*)(ptr))->process(model,lat,lon,los,out);
     return Py_BuildValue("i",0);
 }
-

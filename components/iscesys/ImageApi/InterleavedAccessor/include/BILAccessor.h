@@ -18,6 +18,7 @@ class BILAccessor: public InterleavedAccessor
     public:
         BILAccessor():InterleavedAccessor(){}
         virtual ~BILAccessor(){}
+        void init(void * poly);
         void getData(char * buf,int row, int col, int & numEl);
         void getDataBand(char * buf,int row, int col, int & numEl, int band);
         void setData(char * buf,int row, int col, int numEl);

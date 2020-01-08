@@ -13,7 +13,7 @@ import os
 
 Import('envformslc')
 install = envformslc['PRJ_LIB_DIR'] 
-listFiles = ['formslc.F','formslcAllocateDeallocate.F','formslcSetState.F','formslcState.F']
+listFiles = ['formslc.F','formslcSetState.F','formslcGetState.F','formslcState.F']
 lib = envformslc.Library(target = 'formslcRoi', source = listFiles)
 envformslc.Install(install,lib)
 envformslc.Alias('install',install)

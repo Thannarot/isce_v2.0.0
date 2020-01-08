@@ -21,35 +21,35 @@ using namespace std;
 
 /**
     \brief
-    * Writer class to write on screen. 
-    * Derived from BaseWriter() 
+    * Writer class to write on screen.
+    * Derived from BaseWriter()
 
 **/
 class FileWriter : public BaseWriter
 {
     public:
-	/// Consrtuctor
-	 
+        /// Consrtuctor
+
     FileWriter()
-	{	
-	}
-	/// Destructor
-	virtual ~FileWriter()
-	{	
+        {
+        }
+        /// Destructor
+        virtual ~FileWriter()
+        {
         if(FileStream.is_open())
         {
             FileStream.close();
         }
-	}
+        }
 
-    virtual void write(string message);    
+    virtual void write(string message);
     virtual void initWriter();
     virtual void finalizeWriter();
 
     private:
-   
+
     ofstream FileStream;
-	//variables
+        //variables
     //Filename is defined in the base class
 };
-#endif FileWriter_h
+#endif //FileWriter_h

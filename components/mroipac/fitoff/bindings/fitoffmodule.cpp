@@ -7,7 +7,7 @@
 #include <vector>
 using namespace std;
 
-static char * const __doc__ = "Python extension for fitoff.F";
+static const char * const __doc__ = "Python extension for fitoff.F";
 
 PyModuleDef moduledef = {
     // header
@@ -41,8 +41,8 @@ PyInit_fitoff()
 
 PyObject * fitoff_C(PyObject * self, PyObject * args)
 {
-	fitoff_f();
-	return Py_BuildValue("i", 0);
+        fitoff_f();
+        return Py_BuildValue("i", 0);
 
 }
 PyObject * setStdWriter_C(PyObject* self, PyObject* args)
@@ -55,35 +55,35 @@ PyObject * setStdWriter_C(PyObject* self, PyObject* args)
     setStdWriter_f(&var);
     return Py_BuildValue("i",0);
 }
-PyObject * setMinPoint_C(PyObject* self, PyObject* args) 
+PyObject * setMinPoint_C(PyObject* self, PyObject* args)
 {
-	int varInt;
-	if(!PyArg_ParseTuple(args, "i", &varInt)) 
-	{
-		return NULL;  
-	}  
-	setMinPoint_f(&varInt);
-	return Py_BuildValue("i", 0);
+        int varInt;
+        if(!PyArg_ParseTuple(args, "i", &varInt))
+        {
+                return NULL;
+        }
+        setMinPoint_f(&varInt);
+        return Py_BuildValue("i", 0);
 }
-PyObject * setNSig_C(PyObject* self, PyObject* args) 
+PyObject * setNSig_C(PyObject* self, PyObject* args)
 {
-	double varDouble;
-	if(!PyArg_ParseTuple(args, "d", &varDouble)) 
-	{
-		return NULL;  
-	}  
-	setNSig_f(&varDouble);
-	return Py_BuildValue("i", 0);
+        double varDouble;
+        if(!PyArg_ParseTuple(args, "d", &varDouble))
+        {
+                return NULL;
+        }
+        setNSig_f(&varDouble);
+        return Py_BuildValue("i", 0);
 }
-PyObject * setMaxRms_C(PyObject* self, PyObject* args) 
+PyObject * setMaxRms_C(PyObject* self, PyObject* args)
 {
-	double varDouble;
-	if(!PyArg_ParseTuple(args, "d", &varDouble)) 
-	{
-		return NULL;  
-	}  
-	setMaxRms_f(&varDouble);
-	return Py_BuildValue("i", 0);
+        double varDouble;
+        if(!PyArg_ParseTuple(args, "d", &varDouble))
+        {
+                return NULL;
+        }
+        setMaxRms_f(&varDouble);
+        return Py_BuildValue("i", 0);
 }
 PyObject * setNumberLines_C(PyObject* self, PyObject* args)
 {
@@ -394,23 +394,23 @@ PyObject * setCovCross_C(PyObject* self, PyObject* args)
 
 }
 
-PyObject * getAffineVector_C(PyObject* self, PyObject* args) 
+PyObject * getAffineVector_C(PyObject* self, PyObject* args)
 {
-	int numElements = 6;
-	vector<double> affineVec(numElements,0);
-	  
-	getAffineVector_f(&affineVec[0]);
-	PyObject * pyList = PyList_New(numElements);
-	if(!pyList)
+        int numElements = 6;
+        vector<double> affineVec(numElements,0);
+
+        getAffineVector_f(&affineVec[0]);
+        PyObject * pyList = PyList_New(numElements);
+        if(!pyList)
         {
             cout << "Error at line " << __LINE__ << " in file " << __FILE__ ". Exiting ..."<< endl;
             exit(1);
         }
-	for(int i = 0; i < numElements; ++i)
-	{
-	    PyList_SetItem(pyList,i, PyFloat_FromDouble(affineVec[i]));
-	}
-	return Py_BuildValue("O", pyList);
+        for(int i = 0; i < numElements; ++i)
+        {
+            PyList_SetItem(pyList,i, PyFloat_FromDouble(affineVec[i]));
+        }
+        return Py_BuildValue("O", pyList);
 
 }
 

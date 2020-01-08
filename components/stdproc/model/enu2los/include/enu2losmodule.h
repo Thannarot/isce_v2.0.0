@@ -31,7 +31,7 @@ extern "C"
     PyObject* setLongitudeInfo_C(PyObject *, PyObject *);
 }
 
-static PyMethodDef enu2los_methods[] = 
+static PyMethodDef enu2los_methods[] =
 {
     {"createENU2LOS", createENU2LOS_C, METH_VARARGS, " "},
     {"destroyENU2LOS", destroyENU2LOS_C, METH_VARARGS, " "},
@@ -44,4 +44,4 @@ static PyMethodDef enu2los_methods[] =
     {"setLongitudeInfo", setLongitudeInfo_C, METH_VARARGS, " "},
     {NULL, NULL, 0 , NULL}
 };
-#endif enu2losmodule_h
+#endif //enu2losmodule_h

@@ -19,7 +19,7 @@
 #include "ImageAccessor.h"
 using namespace std;
 
-static char * const __doc__ = "Python extension for cpxlooks.F";
+static const char * const __doc__ = "Python extension for cpxlooks.F";
 
 PyModuleDef moduledef = {
     // header
@@ -51,7 +51,7 @@ PyInit_cpxlooks()
 }
 
 
-PyObject * cpxlooks_C(PyObject* self, PyObject* args) 
+PyObject * cpxlooks_C(PyObject* self, PyObject* args)
 {
     char * inputImage;
     char * outputImage;
@@ -59,8 +59,6 @@ PyObject * cpxlooks_C(PyObject* self, PyObject* args)
     int lenOut = 0;
     char enIn = 'n';
     char enOut = 'n';
-    int lenEnIn = 0;
-    int lenEnOut = 0;
     string inmode = "read";
     string typeIn = "CFLOAT";
     string typeOut = "CFLOAT";
@@ -73,100 +71,100 @@ PyObject * cpxlooks_C(PyObject* self, PyObject* args)
     float pd = 0;
     PyObject * dictionary = NULL;
     //put explicity the mandatory args and in a dictionary the optionals
-    if(!PyArg_ParseTuple(args, "s#s#iii|O", &inputImage,&lenIn,&outputImage,&lenOut,&na,&la,&ld,&dictionary)) 
+    if(!PyArg_ParseTuple(args, "s#s#iii|O", &inputImage,&lenIn,&outputImage,&lenOut,&na,&la,&ld,&dictionary))
     {
-	return NULL;  
+        return NULL;
     }
     if((dictionary != NULL))
     {
-	PyObject * lengthPy = PyDict_GetItemString(dictionary,"LENGTH");
-	if(lengthPy != NULL)
-	{
-	    nd = (int) PyLong_AsLong(lengthPy);
-	}
-	PyObject * paPy = PyDict_GetItemString(dictionary,"PHASE_RANGE");
-	if(paPy != NULL)
-	{
-	    pa = (float) PyFloat_AsDouble(paPy);
-	}
-	PyObject * pdPy = PyDict_GetItemString(dictionary,"PHASE_AZIMUTH");
-	if(pdPy != NULL)
-	{
-	    pd = (float) PyFloat_AsDouble(pdPy);
-	}
-	PyObject * enInPy = PyDict_GetItemString(dictionary,"INPUT_ENDIANNESS");
-	if(enInPy != NULL)
-	{
-	    char * inEndian = PyBytes_AsString(enInPy);
-	    enIn = inEndian[0];
-	}
-	PyObject * enOutPy = PyDict_GetItemString(dictionary,"OUTPUT_ENDIANNESS");
-	if(enOutPy != NULL)
-	{
-	    char * outEndian = PyBytes_AsString(enOutPy);
-	    enOut = outEndian[0];
-	}
-	 
+        PyObject * lengthPy = PyDict_GetItemString(dictionary,"LENGTH");
+        if(lengthPy != NULL)
+        {
+            nd = (int) PyLong_AsLong(lengthPy);
+        }
+        PyObject * paPy = PyDict_GetItemString(dictionary,"PHASE_RANGE");
+        if(paPy != NULL)
+        {
+            pa = (float) PyFloat_AsDouble(paPy);
+        }
+        PyObject * pdPy = PyDict_GetItemString(dictionary,"PHASE_AZIMUTH");
+        if(pdPy != NULL)
+        {
+            pd = (float) PyFloat_AsDouble(pdPy);
+        }
+        PyObject * enInPy = PyDict_GetItemString(dictionary,"INPUT_ENDIANNESS");
+        if(enInPy != NULL)
+        {
+            char * inEndian = PyBytes_AsString(enInPy);
+            enIn = inEndian[0];
+        }
+        PyObject * enOutPy = PyDict_GetItemString(dictionary,"OUTPUT_ENDIANNESS");
+        if(enOutPy != NULL)
+        {
+            char * outEndian = PyBytes_AsString(enOutPy);
+            enOut = outEndian[0];
+        }
+
     }
     int sizeC = na/la;
     string infile = inputImage;
     string outfile = outputImage;
-    ImageAccessor IAIn;    
-    ImageAccessor IAOut;    
-    if( enIn == 'n')//use as default the machine endianness 
+    ImageAccessor IAIn;
+    ImageAccessor IAOut;
+    if( enIn == 'n')//use as default the machine endianness
     {
-	enIn = IAIn.getMachineEndianness();	
+        enIn = IAIn.getMachineEndianness();
     }
-    if( enOut == 'n')//use as default the machine endianness 
+    if( enOut == 'n')//use as default the machine endianness
     {
-	enOut = IAOut.getMachineEndianness();	
+        enOut = IAOut.getMachineEndianness();
     }
     IAIn.initImageAccessor(infile,inmode,enIn,typeIn,na);
     IAOut.initImageAccessor(outfile,outmode,enOut,typeOut,sizeC);
     if(nd == -1)//use as default the whole file
     {
-	nd = IAIn.getFileLength();
+        nd = IAIn.getFileLength();
     }
-    complex<float> pha(cos(pa),sin(pa)); 
-    complex<float> phd(cos(pd),sin(pd)); 
+    complex<float> pha(cos(pa),sin(pa));
+    complex<float> phd(cos(pd),sin(pd));
     vector<complex<float> > b(na,0);
     vector<complex<float> > b1(sizeC,0);
     vector<complex<float> > a(na,0);
     bool eofReached = false;
     for(int line = 0; line < nd; line += ld)
     {
-	for(int i = 0; i < ld; ++i)
-	{
-	    int lineToGet = (line + i + 1);
-	    IAIn.getLine((char *) &a[0], lineToGet);
+        for(int i = 0; i < ld; ++i)
+        {
+            int lineToGet = (line + i + 1);
+            IAIn.getLine((char *) &a[0], lineToGet);
 
-	    if(lineToGet == -1)
-	    {
-		eofReached = true;
-		break;
-	    }
-	    for(int j = 0; j < na; ++j)
-	    {
-		b[j] = b[j] + a[j]*pow(pha,j+1)*pow(phd,lineToGet);
-	    }
-	}
-	if(eofReached)
-	{
-	    break;
-	}
-	int jpix = 0;
-	for(int j = 0; j < na; j += la)
-	{
-	    complex<float> sum(0,0);
-	    for(int k = 0; k < la; ++k)
-	    {
-		sum = sum + b[j+k];
-	    }
-	    b1[jpix] = sum;
-	    ++jpix;
-	}
-	IAOut.setLineSequential((char *) &b1[0]);
-	b.assign(na,complex<float>(0,0));
+            if(lineToGet == -1)
+            {
+                eofReached = true;
+                break;
+            }
+            for(int j = 0; j < na; ++j)
+            {
+                b[j] = b[j] + a[j]*pow(pha,j+1)*pow(phd,lineToGet);
+            }
+        }
+        if(eofReached)
+        {
+            break;
+        }
+        int jpix = 0;
+        for(int j = 0; j < na; j += la)
+        {
+            complex<float> sum(0,0);
+            for(int k = 0; k < la; ++k)
+            {
+                sum = sum + b[j+k];
+            }
+            b1[jpix] = sum;
+            ++jpix;
+        }
+        IAOut.setLineSequential((char *) &b1[0]);
+        b.assign(na,complex<float>(0,0));
     }
     IAIn.finalizeImageAccessor();
     IAOut.finalizeImageAccessor();

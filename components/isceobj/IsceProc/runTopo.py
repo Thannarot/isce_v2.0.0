@@ -1,20 +1,20 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
-# Author: Kosal Khun
+# Authors: Kosal Khun, Marco Lavalle
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -34,7 +34,7 @@ def runTopo(self):
         self._isce.is_mocomp = self._isce.get_is_mocomp()
 
     infos = {}
-    for attribute in ['dopplerCentroid', 'peg', 'demImage', 'numberRangeLooks', 'numberAzimuthLooks', 'topophaseIterations', 'is_mocomp', 'heightSchFilename', 'heightFilename', 'latFilename', 'lonFilename', 'losFilename']:
+    for attribute in ['dopplerCentroid', 'peg', 'demImage', 'numberRangeLooks', 'numberAzimuthLooks', 'topophaseIterations', 'is_mocomp', 'heightSchFilename', 'heightFilename', 'latFilename', 'lonFilename', 'losFilename', 'lookSide']:
         infos[attribute] = getattr(self._isce, attribute)
 
     stdWriter = self._stdWriter
@@ -49,12 +49,19 @@ def runTopo(self):
     infos['outputPath'] = os.path.join(self.getoutputdir(refScene), refScene)
     catalog = isceobj.Catalog.createCatalog(self._isce.procDoc.name)
     sid = self._isce.formatname(refScene)
-    objTopo = run(objFormSlc1, frame1, v, h, infos, stdWriter, catalog=catalog, sceneid=sid)
+
+    refPair = self._isce.selectedPairs[0]#ML 2014-09-26
+    topoIntImage = self._isce.topoIntImages[refPair][refPol]
+    intImage = isceobj.createIntImage()
+    IU.copyAttributes(topoIntImage, intImage)
+    intImage.setAccessMode('read')
+
+    objTopo = run(objFormSlc1, intImage, frame1, v, h, infos, stdWriter, catalog=catalog, sceneid=sid)
     self._isce.topo = objTopo
 
 
 
-def run(objFormSlc1, frame1, velocity, height, infos, stdWriter, catalog=None, sceneid='NO_ID'):
+def run(objFormSlc1, intImage, frame1, velocity, height, infos, stdWriter, catalog=None, sceneid='NO_ID'):
     logger.info("Running Topo: %s" % sceneid)
 
     demImage = infos['demImage']
@@ -64,16 +71,17 @@ def run(objFormSlc1, frame1, velocity, height, infos, stdWriter, catalog=None, s
     posIndx = 1
     mocompPosition1 = objFormSlc1.getMocompPosition()
 
-    centroid = infos['dopplerCentroid'].getDopplerCoefficients(inHz=False)[0]
-
     planet = frame1.getInstrument().getPlatform().getPlanet()
     prf1 = frame1.getInstrument().getPulseRepetitionFrequency()
+
+    centroid = infos['dopplerCentroid'].getDopplerCoefficients(inHz=False)[0]
 
     objTopo = stdproc.createTopo()
     objTopo.wireInputPort(name='peg', object=infos['peg'])
     objTopo.wireInputPort(name='frame', object=frame1)
     objTopo.wireInputPort(name='planet', object=planet)
     objTopo.wireInputPort(name='dem', object=objDem)
+    objTopo.wireInputPort(name='interferogram', object=intImage) #ML 2014-09-26
     objTopo.wireInputPort(name='masterslc', object=objFormSlc1) #Piyush
     objTopo.setDopplerCentroidConstantTerm(centroid)
 
@@ -82,8 +90,8 @@ def run(objFormSlc1, frame1, velocity, height, infos, stdWriter, catalog=None, s
 
     objTopo.setReferenceOrbit(mocompPosition1[posIndx])
 
-    objTopo.setWidth(infos['intWidth'])
-    objTopo.setLength(infos['intLength'])
+    #objTopo.setWidth(infos['intWidth']) #ML 2014-09-26
+    #objTopo.setLength(infos['intLength']) #ML 2014-09-26
 
     # Options
     objTopo.setNumberRangeLooks(infos['numberRangeLooks'])
@@ -98,6 +106,7 @@ def run(objFormSlc1, frame1, velocity, height, infos, stdWriter, catalog=None, s
     # KK
 
     objTopo.setISMocomp(infos['is_mocomp'])
+    objTopo.setLookSide(infos['lookSide'])
     #set the tag used in the outfile. each message is precided by this tag
     #is the writer is not of "file" type the call has no effect
     objTopo.stdWriter = stdWriter.set_file_tags("topo",
@@ -112,6 +121,5 @@ def run(objFormSlc1, frame1, velocity, height, infos, stdWriter, catalog=None, s
                                                "runTopo.%s" % sceneid,
                                                logger,
                                                "runTopo.%s" % sceneid)
-
 
     return objTopo

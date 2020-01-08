@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,6 +22,7 @@
 from __future__ import print_function
 import logging
 from .Image import Image
+from iscesys.Component.Component import Component
 
 ##
 # This class allows the creation of a RawImage object. The parameters that need to be set are
@@ -38,30 +39,46 @@ from .Image import Image
 #Moreover each parameter can be set with the corresponding accessor method setParameter() (see the class member methods).
 #@see DataAccessor.Image.
 #@see Component.Component.
+DATA_TYPE = Component.Parameter('dataType',
+                      public_name='DATA_TYPE',
+                      default='byte',
+                      type=str,
+                      mandatory=True,
+                      doc='Image data type.')
+IMAGE_TYPE = Component.Parameter('imageType',
+                       public_name='IMAGE_TYPE',
+                       default='raw',
+                       type=str,
+                       mandatory=False,
+                       private=True,
+                       doc='Image type used for displaying.')
+NUMBER_GOOD_BYTES = Component.Parameter('numberGoodBytes',
+                       public_name='NUMBER_GOOD_BYTES',
+                       default=0,
+                       type=int,
+                       mandatory=False,
+                       private=True,
+                       doc='Number of bytes used for the image width')
 class RawImage(Image):
+    
+    parameter_list = (
+                  DATA_TYPE,
+                  IMAGE_TYPE,
+                  NUMBER_GOOD_BYTES
+                  ) 
+    def updateParameters(self):
+        self.extendParameterList(Image,RawImage)
+        super(RawImage,self).updateParameters()
+    
+    family ='rawimage'
+    def __init__(self,family = '', name = ''):
 
-    def __init__(self):
+        self.updateParameters()
+        super(RawImage, self).__init__(family if family else  self.__class__.family, name=name)
 
-      Image.__init__(self)
-      self.imageType = 'raw'
-      self.dictionaryOfVariables.update({'NUMBER_GOOD_BYTES':['self.numberGoodBytes','int','optional']})
-
-      self.mandatoryVariables = []
-      self.optionalVariables = []
-      self.initOptionalAndMandatoryLists()
-        #optional variables
-      self.numberGoodBytes = None
-      self.dataType = 'BYTE'
-      self.bands = 1
-      self.scheme = 'BIP'
-
-        #mandatory variables
-      self.width = None
-      self.filename = ''
-      self.accessMode = ''
-
-      self.logger = logging.getLogger('isce.Image.RawImageBase')
-      return None
+        self.initOptionalAndMandatoryLists()
+        self.logger = logging.getLogger('isce.Image.RawImage')
+        return None
 
 
     def __getstate__(self):
@@ -70,11 +87,11 @@ class RawImage(Image):
         return d
     def __setstate__(self,d):
         self.__dict__.update(d)
-        self.logger = logging.getLogger('isce.Image.RawImageBase')
+        self.logger = logging.getLogger('isce.Image.RawImage')
         return
 
 ##
-# This method creates a LineAccessor.LineAccessor instance. The method also runs Component.InitComponent.checkIntialization().
+# This method creates a DataAccessor instance. The method also runs Component.InitComponent.checkIntialization().
 # If the parameters tagged as mandatory are not set, an exception is thrown.
     def createImage(self):
 

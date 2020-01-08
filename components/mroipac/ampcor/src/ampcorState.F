@@ -3,6 +3,7 @@
                                     !Data Type for Search Image Real or Complex
                                     !WARNING ampcor uses rdflower()
         integer i_samples(2)        !Number of Samples in Reference/Search Images
+        integer i_lines(2)          !Number of lines in Reference/Search Images
         integer i_strtline, i_endline, i_skipline
                                     !Start, End and Skip Lines in Reference Image
         integer i_strtsamp,i_endsamp,i_skipsamp

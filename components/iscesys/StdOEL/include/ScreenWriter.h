@@ -21,27 +21,27 @@ using namespace std;
 
 /**
     \brief
-    * Writer class to write on screen. 
-    * Derived from BaseWriter() 
+    * Writer class to write on screen.
+    * Derived from BaseWriter()
 
 **/
 class ScreenWriter : public BaseWriter
 {
     public:
-	/// Consrtuctor
-	 
-    ScreenWriter()
-	{	
-	}
-	/// Destructor
-	virtual ~ScreenWriter()
-	{	
-	}
+        /// Consrtuctor
 
-    virtual void write(string message);    
+    ScreenWriter()
+        {
+        }
+        /// Destructor
+        virtual ~ScreenWriter()
+        {
+        }
+
+    virtual void write(string message);
     private:
 
-	//variables
+        //variables
 
 };
-#endif ScreenWriter_h
+#endif //ScreenWriter_h

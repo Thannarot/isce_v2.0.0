@@ -21,32 +21,32 @@ using namespace std;
 
 /**
     \brief
-    * Base abstract class for the writer types. 
+    * Base abstract class for the writer types.
 
 **/
 class BaseWriter
 {
     public:
-	/// Consrtuctor
-	 
+        /// Consrtuctor
+
     BaseWriter()
-	{	
+        {
         IncludeTimeStamp = false;
         FileTag = "";
-	}
-	/// Destructor
-	virtual ~BaseWriter()
-	{	
-	}
+        }
+        /// Destructor
+        virtual ~BaseWriter()
+        {
+        }
 
-    virtual void write(string message) = 0;    
+    virtual void write(string message) = 0;
     virtual void initWriter()
     {
-    
+
     }
     virtual void finalizeWriter()
     {
-    
+
     }
 
     void setTimeStampFlag(bool flag)
@@ -63,10 +63,10 @@ class BaseWriter
     }
     protected:
 
-	//variables
-	string FileTag;
+        //variables
+        string FileTag;
     string Filename;
     bool IncludeTimeStamp;
 
 };
-#endif BaseWriter_h
+#endif //BaseWriter_h

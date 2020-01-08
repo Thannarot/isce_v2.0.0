@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2012 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2012 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Brett George
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,6 +22,8 @@
 import logging
 import stdproc
 import isceobj
+import pickle
+from isceobj.Util.decorators import use_api
 
 logger = logging.getLogger('isce.insar.runFormSLC')
 
@@ -30,9 +32,13 @@ def master(self, deltaf=None):
     from isceobj.Catalog import recordInputsAndOutputs
     from iscesys.ImageUtil.ImageUtil import ImageUtil as IU
 
-    v,h = self.insar.vh()
 
-    objRaw = self.insar.masterRawImage.copy(access_mode='read')
+
+
+    v,h = self.insar.vh()
+   
+    objRaw = self.insar.rawMasterIQImage.clone()
+    objRaw.accessMode = 'read'
     objFormSlc = stdproc.createFormSLC(name='insarapp_formslc_master')
     objFormSlc.setBodyFixedVelocity(v)
     objFormSlc.setSpacecraftHeight(h)
@@ -49,12 +55,16 @@ def master(self, deltaf=None):
         prf = ins.getPulseRepetitionFrequency()
         res = ins.getPlatform().getAntennaLength() / 2.0
         azbw = min(v/res, prf)
+        res = v/azbw 
+
         factor = 1.0 - (abs(deltaf)/azbw)
         logger.info('MASTER AZIMUTH BANDWIDTH FACTOR = %f'%(factor))
         azres = res / factor
-        objFormSlc.setAzimuthResolution(azres)
-    
-
+        #jng This is a temporary solution seems it looks that same banding problem
+        #can be resolved by doubling the azres. The default azResFactor  is still one.
+        objFormSlc.setAzimuthResolution(azres*self.insar.azResFactor)
+   
+    ####newInputs
     objSlc = objFormSlc(rawImage=objRaw,
                 orbit=self.insar.masterOrbit,
                 frame=self.insar.masterFrame,
@@ -82,7 +92,8 @@ def slave(self, deltaf=None):
 
     v,h = self.insar.vh()
 
-    objRaw = self.insar.slaveRawImage.copy(access_mode='read')
+    objRaw = self.insar.rawSlaveIQImage.clone()
+    objRaw.accessMode = 'read'
     objFormSlc = stdproc.createFormSLC(name='insarapp_formslc_slave')
     objFormSlc.setBodyFixedVelocity(v)
     objFormSlc.setSpacecraftHeight(h)
@@ -99,6 +110,7 @@ def slave(self, deltaf=None):
         prf = ins.getPulseRepetitionFrequency()
         res = ins.getPlatform().getAntennaLength()/2.0
         azbw = min(v / res, prf)
+        res = v / azbw
         factor = 1.0 - (abs(deltaf) / azbw)
         logger.info('SLAVE AZIMUTH BANDWIDTH FACTOR = %f'%(factor))
         azres = res/factor
@@ -124,6 +136,7 @@ def slave(self, deltaf=None):
     self.insar.formSLC2 = objFormSlc
     return objFormSlc.numberPatches
 
+@use_api
 def runFormSLC(self):
 
     mDoppler = self.insar.masterDoppler.getDopplerCoefficients(inHz=True)
@@ -142,3 +155,22 @@ def runFormSLC(self):
     logger.info('Number of Valid Pulses = %d'%(self.insar.numberValidPulses))
 
     return None
+
+
+
+###PSA - for testing
+def wgs84_to_sch(orbit, peg, pegHavg, planet):
+    '''
+    Convert WGS84 orbits to SCH orbits and return it.
+    '''
+    import stdproc
+    from iscesys.StdOEL.StdOELPy import create_writer
+    import copy
+
+    stdWriter = create_writer("log","",True,filename='orb.log')
+    orbSch = stdproc.createOrbit2sch(averageHeight=pegHavg)
+    orbSch.setStdWriter(stdWriter)
+    orbSch(planet=planet, orbit=orbit, peg=peg)
+    schOrigOrbit = copy.copy(orbSch.orbit)
+
+    return schOrigOrbit

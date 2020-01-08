@@ -116,7 +116,7 @@ void getStateVector(cOrbit* orb, int index, double *t, double *pos, double *vel)
 
 }
 
-void interpolateSCHOrbit(cOrbit* orb, double tintp, double *opos, double *ovel)
+int interpolateSCHOrbit(cOrbit* orb, double tintp, double *opos, double *ovel)
 {
 
     int i, j, k;
@@ -129,13 +129,13 @@ void interpolateSCHOrbit(cOrbit* orb, double tintp, double *opos, double *ovel)
     if( orb->nVectors < 2)
     {
         printf("Need atleast 2 state vectors for SCH orbit interpolation. \n");
-        exit(1);
+        return 1;
     }
 
-    if((tintp <= orb->UTCtime[0]) || (tintp >= orb->UTCtime[orb->nVectors - 1]))
+    if((tintp < orb->UTCtime[0]) || (tintp > orb->UTCtime[orb->nVectors - 1]))
     {
         printf("Requested epoch outside orbit state vector span. \n");
-        exit(1);
+        return 1;
     }
 
     opos[0] = 0.0;
@@ -167,10 +167,12 @@ void interpolateSCHOrbit(cOrbit* orb, double tintp, double *opos, double *ovel)
         }
     }
 
+    return 0;
+
 }
 
 
-void interpolateWGS84Orbit(cOrbit* orb, double tintp, double *opos, double *ovel)
+int interpolateWGS84Orbit(cOrbit* orb, double tintp, double *opos, double *ovel)
 {
 
     int i,j;
@@ -181,27 +183,35 @@ void interpolateWGS84Orbit(cOrbit* orb, double tintp, double *opos, double *ovel
 
     if(orb->nVectors < 4)
     {
-        printf("Need atleast 4 state vectors for Hermite polynomial orbit interpolation. \n");
-        exit(1);
+//        printf("Need atleast 4 state vectors for Hermite polynomial orbit interpolation. \n");
+        return 1;
     }
 
-    if((tintp <= orb->UTCtime[0]) || (tintp >= orb->UTCtime[orb->nVectors - 1]))
-    {
-        printf("Requested epoch outside the state vector span. \n");
-        exit(1);
+    // i=0;
+    // while(orb->UTCtime[i] < tintp)
+    //     i++;
+
+    // i--;
+    // if (i >= (orb->nVectors-3))
+    //     i = orb->nVectors-4;
+
+    // if (i < 2)
+    //     i = 0;
+
+//////////////////////////////////////////////////////////////////////////////
+
+    for(i = 0; i < orb->nVectors; i++){
+        if(orb->UTCtime[i] >= tintp)
+            break;
     }
-
-    i=0;
-    while(orb->UTCtime[i] < tintp)
-        i++;
-
-    i--;
-    if (i >= (orb->nVectors-3))
-        i = orb->nVectors-4;
-
-    if (i < 2)
+    i -= 2;
+    if(i < 0)
         i = 0;
+    if(i > orb->nVectors - 4)
+        i = orb->nVectors - 4;
 
+
+//////////////////////////////////////////////////////////////////////////////
 
     for(j=0; j<4; j++)
     {
@@ -209,9 +219,139 @@ void interpolateWGS84Orbit(cOrbit* orb, double tintp, double *opos, double *ovel
     }
 
     orbitHermite(pos, vel, t, tintp, opos, ovel);
+
+//////////////////////////////////////////////////////////////////////////////
+    if((tintp < orb->UTCtime[0]) || (tintp > orb->UTCtime[orb->nVectors - 1]))
+    {
+        //even if this si the case, do the interpolation anyway, return 1 as indication
+        //printf("Requested epoch outside the state vector span. \n");
+        return 1;
+    }
+    else{
+        return 0;
+    }
+//////////////////////////////////////////////////////////////////////////////
 }
 
+int interpolateLegendreOrbit(cOrbit* orb, double tintp, double *opos, double *ovel)
+{
 
+    int i,j;
+    double pos[9][3];
+    double vel[9][3];
+    double t[9];    
+    double trel, coeff;
+
+    double noemer[] = { 40320.0, -5040.0, 1440.0, -720.0, 576.0, -720.0, 1440.0, -5040.0, 40320.0};
+    double teller;
+
+    //Init to 0.0
+    opos[0] = 0.0; opos[1] = 0.0; opos[2] = 0.0;
+    ovel[0] = 0.0; ovel[1] = 0.0; ovel[2] = 0.0;
+
+    //Check for number of state vectors
+    if(orb->nVectors < 9)
+    {
+//        printf("Need atleast 9 state vectors for Hermite polynomial orbit interpolation. \n");
+        return 1;
+    }
+
+    //Search for appropriate interval
+    for(i = 0; i < orb->nVectors; i++){
+        if(orb->UTCtime[i] >= tintp)
+            break;
+    }
+    i -= 5;
+    if(i < 0)
+        i = 0;
+    if(i > orb->nVectors - 9)
+        i = orb->nVectors - 9;
+
+    for(j=0; j<9; j++)
+    {
+        getStateVector(orb,i+j,t+j,pos[j],vel[j]);
+    }
+
+    //Do the actual interpolation
+    trel = 8.0*(tintp - t[0])/(t[8]-t[0]);
+
+    //Checks if input time coincides with state vectors
+    teller = 1.0;
+    for(j=0;j<9;j++)
+        teller *= (trel - j);
+
+    if(teller == 0.0)
+    {
+        i = (int) trel;
+        for(j=0; j<3; j++)
+        {
+            opos[j] = pos[i][j];
+            ovel[j] = vel[i][j];
+        }
+    }
+    else
+    {
+        for(i=0;i<9;i++)
+        {
+            coeff = teller/noemer[i]/(trel-i);
+            for(j=0; j<3; j++)
+            {
+                opos[j] += coeff * pos[i][j];
+                ovel[j] += coeff * vel[i][j];
+            }
+        }
+    }
+
+    if((tintp < orb->UTCtime[0]) || (tintp > orb->UTCtime[orb->nVectors - 1]))
+    {
+        //even if this si the case, do the interpolation anyway, return 1 as indication
+        //printf("Requested epoch outside the state vector span. \n");
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
+int computeAcceleration(cOrbit* orb, double tintp, double *acc)
+{
+    int i,j;
+    int stat;
+
+    double xbef[3];
+    double vbef[3];
+    double xaft[3];
+    double vaft[3];
+    double temp;
+
+    for(i=0;i<3;i++)
+    {
+        acc[i] = 0.0;
+    }
+
+    temp = tintp - 0.01;
+    stat = interpolateWGS84Orbit(orb, temp, xbef, vbef);
+
+    if (stat != 0)
+    {
+        return 1;
+    }
+
+    temp = tintp + 0.01;
+    stat = interpolateWGS84Orbit(orb, temp, xaft, vaft);
+
+    if (stat != 0)
+    {
+        return 1;
+    }
+
+    for (i=0;i<3;i++)
+    {
+        acc[i] = (vaft[i] - vbef[i])/ 0.02;
+    }
+
+    return 0;
+}
 
 double quadInterpolate(double *x, double *y, double xintp)
 {

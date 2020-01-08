@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,7 +47,7 @@ SENSOR = Application.Facility('sensor',
                               public_name='sensor',
                               module='isceobj.Sensor',
                               factory='createSensor',
-                              args=('sensorName', ),
+                              args=(SENSOR_NAME, ),
                               mandatory=True,
                               doc="Master raw data component"
                               )
@@ -55,7 +55,7 @@ DOPPLER = Application.Facility('doppler',
                                public_name='doppler',
                                module='isceobj.Doppler',
                                factory='createDoppler',
-                               args=('dopplerMethod', ),
+                               args=(DOPPLER_METHOD, ),
                                mandatory=False,
                                doc="Master Doppler calculation method"
                                  )
@@ -64,30 +64,6 @@ class makeRawApp(Application):
 
     parameter_list = (SENSOR_NAME, DOPPLER_METHOD)
     facility_list = (SENSOR, DOPPLER)
-
-
-    def _facilities(self):
-        """
-        Define the user configurable facilities for this application.
-        """
-        self.sensor = self.facility(
-            'sensor',
-            public_name='sensor',
-            module='isceobj.Sensor',
-            factory='createSensor',
-            args=(self.sensorName, ),
-            mandatory=True,
-            doc="Sensor raw data component"
-        )
-        self.doppler = self.facility(
-            'doppler',
-            public_name='doppler',
-            module='isceobj.Doppler',
-            factory='createDoppler',
-            args=(self.dopplerMethod, ),
-            mandatory=False,
-            doc="Doppler calculation method"
-        )
 
     def main(self):
         self.make_raw.wireInputPort(name='doppler', object=self.doppler)
@@ -114,7 +90,6 @@ class makeRawApp(Application):
 class make_raw(Component, FrameMixin):
 
     def __init__(self):
-        Component.__init__(self)
         self.sensor = None
         self.doppler = None
         self.dopplerValues = None
@@ -124,6 +99,8 @@ class make_raw(Component, FrameMixin):
         self.heightDt = 0.0
         self.velocity = 0.0
         self.squint = 0.0
+        self.iqImage = None
+        Component.__init__(self)
 
         sensorPort = Port(name='sensor', method=self.addSensor)
         dopplerPort = Port(name='doppler', method=self.addDoppler)
@@ -154,6 +131,9 @@ class make_raw(Component, FrameMixin):
     def getFrame(self):
         return self.frame
 
+    def getIQImage(self):
+        return self.iqImage
+
     def getDopplerValues(self):
         return self.dopplerValues
 
@@ -179,7 +159,10 @@ class make_raw(Component, FrameMixin):
 
         startHeight = sv0.calculateHeight(ellipsoid)
         midHeight = sv1.calculateHeight(ellipsoid)
-        self.spacecraftHeight = startHeight
+        if 'uav' in self.sensor.family.lower():
+            self.spacecraftHeight = self.sensor.platformHeight
+        else:
+            self.spacecraftHeight = startHeight
         self.heightDt = (
             (midHeight - startHeight)/
             DTU.timeDeltaToSeconds(midTime - startTime)
@@ -205,14 +188,30 @@ class make_raw(Component, FrameMixin):
         prf = self.PRF
         wavelength = self.radarWavelength
         h = self.spacecraftHeight
+        try:
+            z = self.sensor.terrainHeight
+        except:
+            z = 0.0
         v = self.velocity
 
-        if h > startingRange:
-            raise ValueError("Spacecraft Height too large (%s>%s)" %
-                             (h, startingRange))
+        if h - z > startingRange:
+            raise ValueError(
+                ("Spacecraft Height - Terrain Height  (%s) " +
+                 "larger than starting Range (%s)") % (h-z, startingRange))
 
-        sinTheta = math.sqrt( 1 - (h/startingRange)**2 )
-        fd = self.doppler.quadratic['a']*prf
+        sinTheta = math.sqrt( 1 - ((h-z)/startingRange)**2 )
+
+        if 'a' in self.doppler.quadratic:
+            fd = self.doppler.quadratic['a']*prf
+        elif isinstance(self.doppler.quadratic, (list, tuple)):
+            ####For UAVSAR
+            fd = self.doppler.quadratic[0]
+        else:
+            self.logger.error(
+                "make_raw doesn't handle doppler coefficient object type, ",
+                type(self.doppler.quadratic)
+            )
+
         sinSquint = fd/(2.0*v*sinTheta)*wavelength
         if sinSquint**2 > 1:
             raise ValueError(
@@ -223,7 +222,7 @@ class make_raw(Component, FrameMixin):
         self.squint = math.degrees(
             math.atan2(sinSquint, math.sqrt(1-sinSquint**2))
             )
-        #jng squint is also used later on from the frame, just add it here
+        #squint is used later on from the frame; add it here
         self.frame.squintAngle = math.radians(self.squint)
 
     def make_raw(self):
@@ -233,15 +232,17 @@ class make_raw(Component, FrameMixin):
         # Parse the image metadata and extract the image
         self.logger.info('Extracting image')
         try:
-            self.sensor.extractImage()
+            self.sensor.extractImage()            
         except NotImplementedError as strerr:
             self.logger.error("%s" % (strerr))
             self.logger.error(
                 "make_raw not implemented for %s"  %  self.sensor.__class__
                 )
             raise NotImplementedError
+        #reset the global variable to empty so can go back to use default api
+        self.sensor.frame.image.renderVRT()
         self.frame = self.sensor.frame
-
+      
         #jng NOTE if we pass just the sensor also in the case of raw image we
         ## can avoid the if
         if isinstance(self.frame.image, createRawImage().__class__):
@@ -262,12 +263,10 @@ class make_raw(Component, FrameMixin):
                 self.doppler.wireInputPort(name='image',
                                        object=self.frame.image)
                 self.doppler.calculateDoppler()
-                inHz = False
 
             else:
                 self.doppler.wireInputPort(name='sensor', object=self.sensor)
                 self.doppler.calculateDoppler()
-                inHz = False
 
             #new jng compute slc image size here
             rangeSamplingRate = self.instrument.rangeSamplingRate
@@ -288,7 +287,6 @@ class make_raw(Component, FrameMixin):
             # jng changed in view of the new tsx preproc from Howard
             self.doppler.wireInputPort(name='sensor', object=self.sensor)
             self.doppler.calculateDoppler()
-            inHz = False
 
             #new jng compute slc image size here
             self.frame.numberRangeBins = self.frame.image.width
@@ -306,11 +304,26 @@ class make_raw(Component, FrameMixin):
 
         # Create a doppler object
         prf = self.frame.instrument.PRF
-        fit = self.doppler.quadratic
-        coef = [fit['a'], fit['b'], fit['c'], 0.0]
-        self.logger.debug("Doppler Coefficients %s" % (coef))
+        #coef = self.doppler.coeff_list
+        #for ii in range(len(coef), 4):
+        #    coef.append(0.0)
+
+        if 'a' in self.doppler.quadratic:
+            coef = [self.doppler.quadratic['a']*prf,0.0,0.0,0.0]
+        elif isinstance(self.doppler.quadratic, (list, tuple)):
+            ####For UAVSAR
+            coef = self.doppler.quadratic
+        else:
+            self.logger.error(
+                "make_raw doesn't handle doppler coefficient object type, ",
+                type(self.doppler.quadratic)
+            )
+
         self.dopplerValues = Doppler(prf=prf)
-        self.dopplerValues.setDopplerCoefficients(coef, inHz=inHz)
+        self.dopplerValues.setDopplerCoefficients(coef, inHz=True)
+
+        if self.frame._dopplerVsPixel is None:
+            self.frame._dopplerVsPixel = [x*prf for x in coef]
 
         # Calculate the height, height_dt, and velocity
         self.logger.info("Calculating Spacecraft Velocity")
@@ -320,7 +333,9 @@ class make_raw(Component, FrameMixin):
         # Calculate squint angle
         self.logger.info("Calculating Squint Angle")
         self.calculateSquint()
-        self.frame.image.coord1Start = self.frame.image.xmin
+        self.frame.image.numberGoodBytes = self.frame.image.xmax - self.frame.image.xmin
+        self.frame.image.coord1.coordStart = self.frame.image.xmin
+        self.createIQImage()
         self.frame.image.renderHdr()
         #just in case the Sensor does not compute the pulse timing
         try:
@@ -328,6 +343,30 @@ class make_raw(Component, FrameMixin):
         except:
             pass
         return None
+
+    def createIQImage(self):
+        from  isceobj.Image import createRawIQImage
+
+        #create an RawIQImage with appropriate values from the RawImage
+        self.iqImage = createRawIQImage()
+        self.iqImage.width = self.frame.image.width/2
+        self.iqImage.xmax = self.iqImage.width
+        self.iqImage.length = self.frame.image.length
+        self.iqImage.coord1.coordStart = int(self.frame.image.coord1.coordStart/2)
+        self.iqImage.numberGoodSamples = int(self.frame.image.numberGoodBytes/2)
+        self.iqImage.filename = self.frame.image.filename #the file is the same as for the raw
+        self.iqImage.inPhase = self.frame.instrument.getInPhaseValue()
+        self.iqImage.quadrature = self.frame.instrument.getQuadratureValue()
+        #change the name that will be used for the  xml file
+        filename = self.frame.image.filename.replace('.raw','.iq.xml')
+        #just in case the extension was not .raw
+        if not  filename.count('.iq'):
+            filename += '.iq.xml'
+        self.iqImage.renderHdr(filename)
+
+        #change the name that will be used for the  vrt file
+        filename = filename.replace('.xml','.vrt')
+        self.iqImage.renderVRT(filename)
 
     def adjustSensingStart(self, pulseTimingFilename=None, ext='.aux'):
         pulseTimingFilename  = (

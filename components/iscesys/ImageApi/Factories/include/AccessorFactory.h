@@ -16,13 +16,29 @@ using namespace std;
 
 class AccessorFactory
 {
-    public:
-        AccessorFactory(){}
-        ~AccessorFactory(){}
-        DataAccessor * createAccessor(string filename,string accessMode, int size, int bands,int width, string interleved);//used for no caster
-        DataAccessor * createAccessor(string filename,string accessMode, int size, int bands,int width, string interleved, string caster);//used for caster
-        void finalize(DataAccessor * accessor);
-    private:
+public:
+  AccessorFactory()
+  {
+  }
+  ~AccessorFactory()
+  {
+  }
+  DataAccessor *
+  createAccessor(string filename, string accessMode, int size, int bands,
+      int width, string interleved); //used for no caster
+  DataAccessor *
+  createAccessor(string filename, string accessMode, int size, int bands,
+      int width, string interleved, string caster); //used for caster
+  DataAccessor *
+  createAccessor(string filename, string accessMode, int size, int bands,
+      int width, string interleaved, string caster, float xmi, float xmq,
+      int iqflip);
+  DataAccessor *
+  createAccessor(void * poly, string interleaved, int width, int length,
+      int dataSize);
+  void
+  finalize(DataAccessor * accessor);
+private:
 };
 
 #endif //AccessorFactory_h

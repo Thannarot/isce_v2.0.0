@@ -1,26 +1,31 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
+# APR. 02, 2015    add the ability to extract Restituted Orbit
+#                  by Cunren Liang
+#
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from xml.etree.ElementTree import ElementTree
 import datetime
@@ -48,8 +53,8 @@ class Sentinel1A(Component):
         Component.__init__(self)        
         self.xml = None
         self.tiff = None
+        self.orbitfile = None
         self.output = None
-        self.gdal_translate = None
         self.frame = Frame()
         self.frame.configure()
     
@@ -57,8 +62,8 @@ class Sentinel1A(Component):
         self.descriptionOfVariables = {}
         self.dictionaryOfVariables = {'XML': ['self.xml','str','mandatory'],
                                       'TIFF': ['self.tiff','str','mandatory'],
-                                      'OUTPUT': ['self.output','str','optional'],
-                                      'GDAL_TRANSLATE': ['self.gdal_translate','str','optional']}                        
+                                      'ORBITFILE' : ['self.orbitfile', 'str', 'optional'],
+                                      'OUTPUT': ['self.output','str','optional']}
         
                                                
     def getFrame(self):
@@ -132,7 +137,7 @@ class Sentinel1A(Component):
 
         ####Populate platform
         platform = self.frame.getInstrument().getPlatform()
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
         platform.setMission(mission)
         platform.setPointingDirection(lookSide)
         platform.setAntennaLength(2*azimuthPixelSize)
@@ -168,15 +173,105 @@ class Sentinel1A(Component):
         self.frame.setProcessingSoftwareVersion(version)
         
         self.frame.setPassDirection(passDirection)
-        self.extractOrbit()
 
+        ResOrbFlag = self.extractResOrbit()
+        if ResOrbFlag == 0:
+            print("cannot find POD Restituted Orbit, using orbit coming along with SLC")
+            self.extractOrbit()
+
+######################################################################################
+    def extractResOrbit(self):
+        #read ESA's POD Restituted Orbit by Cunren Liang, APR. 2, 2015.
+        import pathlib
+
+        useResOrbFlag = 0
+
+        ResOrbDir = os.environ.get('RESORB')
+        if ResOrbDir !=  None:
+            print("Trying to find POD Restituted Orbit...")
+            #get start time and stop time of the SLC data from data xml file
+            dataStartTime = self.convertToDateTime(self.grab_from_xml('imageAnnotation/imageInformation/productFirstLineUtcTime'))
+            dataStopTime = self.convertToDateTime(self.grab_from_xml('imageAnnotation/imageInformation/productLastLineUtcTime'))
+
+            #RESORB has an orbit every 10 sec, extend the start and stop time by 50 sec.
+            dataStartTimeExt = dataStartTime - datetime.timedelta(0, 50)
+            dataStopTimeExt =  dataStopTime + datetime.timedelta(0, 50)
+
+            ###########################
+            #deal with orbit directory
+            ###########################
+
+            orbList = pathlib.Path(ResOrbDir).glob('**/*.EOF')
+            for orb in orbList:
+                #save full path
+                orb = str(orb)
+                orbx = orb
+                
+                #get orbit file name
+                orb = os.path.basename(os.path.normpath(orb))
+                #print("{0}".format(orb))
+                
+                #get start and stop time of the orbit file
+                orbStartTime = datetime.datetime.strptime(orb[42:57],"%Y%m%dT%H%M%S")
+                orbStopTime = datetime.datetime.strptime(orb[58:73],"%Y%m%dT%H%M%S")
+                #print("{0}, {1}".format(orbStartTime, orbStopTime))
+
+                if dataStartTimeExt >= orbStartTime and dataStopTimeExt <= orbStopTime:
+                    try:
+                        orbfp = open(orbx,'r')
+                    except IOError as strerr:
+                        print("IOError: %s" % strerr)
+                        return useResOrbFlag
+                    orbxml = ElementTree(file=orbfp).getroot()
+                    print('using orbit file: {0}'.format(orbx))
+
+                    frameOrbit = Orbit()
+                    frameOrbit.setOrbitSource('Restituted')
+
+                    #find the orbit data from the file, and use them
+                    node = orbxml.find('Data_Block/List_of_OSVs') #note upper case and lower case
+                    for child in node.getchildren():
+                        timestamp = self.convertToDateTime(child.find('UTC').text[4:])
+                        if timestamp < dataStartTimeExt:
+                            continue
+                        if timestamp > dataStopTimeExt:
+                            break
+
+                        pos = []
+                        vel = []
+                        for tag in ['X','Y','Z']:
+                            pos.append(float(child.find(tag).text))
+                            vel.append(float(child.find('V' + tag).text))
+
+                        vec = StateVector()
+                        vec.setTime(timestamp)
+                        vec.setPosition(pos)
+                        vec.setVelocity(vel)
+                        frameOrbit.addStateVector(vec)
+
+                    #there is no need to extend the orbit any longer
+                    #planet = self.frame.instrument.platform.planet
+                    #orbExt = OrbitExtender(planet=planet)
+                    #orbExt.configure()
+                    #newOrb = orbExt.extendOrbit(frameOrbit)
+
+                    self.frame.getOrbit().setOrbitSource('Restituted')
+                    for sv in frameOrbit:
+                        self.frame.getOrbit().addStateVector(sv)
+
+                    orbfp.close()
+                    useResOrbFlag = 1
+                    break
+        return useResOrbFlag
+######################################################################################
         
     def extractOrbit(self):
         '''
         Extract orbit information from xml node.
         '''
+
         node = self._xml_root.find('generalAnnotation/orbitList')
-        frameOrbit = self.frame.getOrbit()
+        frameOrbit = Orbit()
         frameOrbit.setOrbitSource('Header')
 
         for child in node.getchildren():
@@ -197,44 +292,89 @@ class Sentinel1A(Component):
             vec.setVelocity(vel)
             frameOrbit.addStateVector(vec)
 
+        planet = self.frame.instrument.platform.planet
+        orbExt = OrbitExtender(planet=planet)
+        orbExt.configure()
+        newOrb = orbExt.extendOrbit(frameOrbit)
+
+        self.frame.getOrbit().setOrbitSource('Header')
+        for sv in newOrb:
+            self.frame.getOrbit().addStateVector(sv)
+
+        return
+
+    def extractPreciseOrbit(self):
+        '''
+        Extract precise orbit from given Orbit file.
+        '''
+        try:
+            fp = open(self.orbitfile,'r')
+        except IOError as strerr:
+            print("IOError: %s" % strerr)
+            return
+
+        _xml_root = ElementTree(file=fp).getroot()
+       
+        node = _xml_root.find('Data_Block/List_of_OSVs')
+
+        orb = Orbit()
+        orb.configure()
+
+        margin = datetime.timedelta(seconds=40.0)
+        tstart = self.frame.getSensingStart() - margin
+        tend = self.frame.getSensingStop() + margin
+
+        for child in node.getchildren():
+            timestamp = self.convertToDateTime(child.find('UTC').text[4:])
+
+            if (timestamp >= tstart) and (timestamp < tend):
+
+                pos = [] 
+                vel = []
+
+                for tag in ['VX','VY','VZ']:
+                    vel.append(float(child.find(tag).text))
+
+                for tag in ['X','Y','Z']:
+                    pos.append(float(child.find(tag).text))
+
+                vec = StateVector()
+                vec.setTime(timestamp)
+                vec.setPosition(pos)
+                vec.setVelocity(vel)
+                orb.addStateVector(vec)
+
+        fp.close()
+
+        self.frame.getOrbit().setOrbitSource('Header')
+        for sv in orb:
+            self.frame.getOrbit().addStateVector(sv)
+
+        return
 
     def extractImage(self):
         """
-           Use gdal_translate to extract the slc
+           Use gdal python bindings to extract image
         """
-        import tempfile
-        import subprocess        
-
-        if (not self.gdal_translate):
-            raise TypeError("The path to executable gdal_translate was not specified")
-        if (not os.path.exists(self.gdal_translate)):
-            raise OSError("Could not find gdal_translate in directory %s" % os.path.dirname(self.gdal_translate))
+        try:
+            from osgeo import gdal
+        except ImportError:
+            raise Exception('GDAL python bindings not found. Need this for RSAT2/ TandemX / Sentinel1A.')
 
         self.parse()
-        # Use GDAL to convert the geoTIFF file to an raster image
-        # There should be a way to do this using the GDAL python api
-        curdir = os.getcwd()
-        tempdir = tempfile.mkdtemp(dir=curdir)
-#        os.rmdir(tempdir) # Wasteful, but if the directory exists, gdal_translate freaks out
-        #instring = 'RADARSAT_2_CALIB:UNCALIB:%s' % self.xml
-        #process = subprocess.Popen([self.gdal_translate,'-of','MFF2','-ot','CFloat32',instring,tempdir])
-        if (self.tiff is None) or (not os.path.exists(self.tiff)):
-            raise Exception('Path to input tiff file: %s is wrong or file doesnt exist.'%(self.tiff))
-
-        process = subprocess.Popen([self.gdal_translate, self.tiff.strip(), '-of', 'ENVI', '-ot', 'CFloat32', '-co', 'INTERLEAVE=BIP',os.path.join(tempdir, 'image_data')])
-        process.wait()
-   
-        # Move the output of the gdal_translate call to a reasonable file name
-
         width = self.frame.getNumberOfSamples()
         lgth = self.frame.getNumberOfLines()
 
-        os.rename(os.path.join(tempdir,'image_data'), self.output)
+        src = gdal.Open(self.tiff.strip(), gdal.GA_ReadOnly)
+        band = src.GetRasterBand(1)
+        fid = open(self.output, 'wb')
+        for ii in range(lgth):
+            data = band.ReadAsArray(0,ii,width,1)
+            data.tofile(fid)
 
-#       os.unlink(os.path.join(tempdir,'attrib'))
-        os.unlink(os.path.join(tempdir,'image_data.hdr'))
-        os.rmdir(tempdir)
-
+        fid.close()
+        src = None
+        band = None
 
         ####
         slcImage = isceobj.createSlcImage()

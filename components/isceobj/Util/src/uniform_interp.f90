@@ -340,8 +340,8 @@ contains
 !c     LOCAL VARIABLES:
 
       real*8 r_wgt,r_s,r_fct,r_wgthgt,r_soff,r_wa
-      integer i,j
-      real*8 pi 
+      integer i
+      real*8 pi,j 
 
 !c     COMMON BLOCKS:
 
@@ -360,23 +360,25 @@ contains
       i_intplength = nint(r_relfiltlen/r_beta)
       i_filtercoef = i_intplength*i_decfactor
       r_wgthgt = (1.d0 - r_pedestal)/2.d0
-      r_soff = (i_filtercoef - 1.d0)/2.d0
+      r_soff = ((i_filtercoef - 1.d0)/2.d0)
       
       do i=0,i_filtercoef-1
          r_wa = i - r_soff
          r_wgt = (1.d0 - r_wgthgt) + r_wgthgt*cos((pi*r_wa)/r_soff)
-         j = i - (i_filtercoef - 1.d0)/2.d0
-         r_s = dble(j)*r_beta/dble(i_decfactor)
+         j = floor(i - r_soff)
+         r_s = j*r_beta/(1.0d0 * i_decfactor)
          if(r_s .ne. 0.0)then
             r_fct = sin(pi*r_s)/(pi*r_s)
          else
-            r_fct = 1.0
+            r_fct = 1.0d0
          endif
          if(i_weight .eq. 1)then
             r_filter(i+1) = r_fct*r_wgt
          else
             r_filter(i+1) = r_fct
          endif
+
+!!         print *, i, r_wa, r_wgt,j,r_s,r_fct
       enddo
 
     end subroutine sinc_coef

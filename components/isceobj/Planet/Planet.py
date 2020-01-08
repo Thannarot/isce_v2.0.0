@@ -1,11 +1,31 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import math
+from iscesys.Component.Component import Component
 import isceobj.Planet.AstronomicalHandbook as AstronomicalHandbook
 from isceobj.Planet.Ellipsoid import Ellipsoid
+from iscesys.Component.Configurable import SELF
 
+PNAME = Component.Parameter(
+    'pname',
+    public_name='PNAME',
+    default='Earth',
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Planet name'
+)
+ELLIPSOID_MODEL = Component.Parameter(
+    'ellipsoidModel',
+    public_name='ELLIPSOID_MODEL',
+    default=None,
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Ellipsoid model'
+)
 
-class Planet(object):
+class Planet(Component):
     """
     A class to represent a planet.
     The parameters maintained internally are the following:
@@ -20,67 +40,83 @@ class Planet(object):
 
     spin = radian frequency of the planet's spin
     """
+    parameter_list = (
+                      PNAME,
+                      ELLIPSOID_MODEL
+                     )
+    
+    family = 'planet'
+
     #modified the constructor so it takes the ellipsoid model. this way it
     #does not to be hardcoded to WGS-84. 
     #also ellipsoid as been modified so it has the model attribute
-    def __init__(self, name, ellipsoidModel=None):
-        self._name = name
-        if ellipsoidModel is None:
-            if name == 'Earth':
-                ellipsoidModel = 'WGS-84'
+    def __init__(self,family='', name='',pname='', ellipsoidModel=None):
+        
+        super(Planet, self).__init__(family if family else  self.__class__.family, name=name)
+
+        self._pname = pname
+        self._ellipsoidModel = ellipsoidModel
+        #Before all the initialization done in _configure was done here but now we want that
+        #to be triggered also during the initialization of Configurable. By putting it into
+        # _configure() we reach the goal 
+        #Call configure() for backward compatibility. 
+        self._configure()
+        return None
+    
+    #put all the initialization
+    def _configure(self):
+        if self._ellipsoidModel is None:
+            if self._pname == 'Earth':
+                self._ellipsoidModel = 'WGS-84'
             else:
-                elliposoidModel = 'default'
+                self._ellipsoidModel = 'default'
                 ########## TO BE DONE in AstronomicalHandbook.py:
                 # define a generic model called
-                # default that just maps the name of the planet to the correspoding
+                # default that just maps the name of the planet to the corresponding
                 # axis and eccentricity 
                 #######################
                 print(
                     'At the moment  there is no default ellipsoid defined for the planet',
-                    name)
+                    self._pname)
                 raise NotImplementedError
             pass
-        if name in AstronomicalHandbook.PlanetsData.names:
+        if self._pname in AstronomicalHandbook.PlanetsData.names:
             self._ellipsoid = (
                 Ellipsoid(
-                    *AstronomicalHandbook.PlanetsData.ellipsoid[
-                        name
-                        ][ellipsoidModel],
-                     model=ellipsoidModel)
+                    a=AstronomicalHandbook.PlanetsData.ellipsoid[
+                        self._pname
+                        ][self._ellipsoidModel].a,e2=AstronomicalHandbook.PlanetsData.ellipsoid[
+                        self._pname
+                        ][self._ellipsoidModel].e2,
+                     model=self._ellipsoidModel)
                 )
-            self.GM = AstronomicalHandbook.PlanetsData.GM[name]
+            self.GM = AstronomicalHandbook.PlanetsData.GM[self._pname]
             self.spin = (
                 2.0*math.pi/
-                AstronomicalHandbook.PlanetsData.rotationPeriod[name]
+                AstronomicalHandbook.PlanetsData.rotationPeriod[self._pname]
                 )
         else:
             self._ellipsoid = Ellipsoid()
             self.GM = 1.0
             self.spin = 1.0
             pass
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'NAME': ['name', 'str', 'mandatory'],
-                                      'GM': ['GM','float','mandatory'],
-                                      'SPINRATE': ['spin','float','mandatory']}
-        return None
-    
     @property
-    def name(self):
+    def pname(self):
         """Name of the planet"""
-        return self._name
-    @name.setter
-    def name(self, name):
-        self._name = name
+        return self._pname
+    @pname.setter
+    def pname(self, pname):
+        self._pname = pname
         return None
 
-    def set_name(self,name):
-        if not isinstance(name,basestring):
-            raise ValueError("attempt to instantiate a planet with a name %s that is not a string" % name)
-        self.name = name
+    def set_name(self,pname):
+        if not isinstance(pname,basestring):
+            raise ValueError("attempt to instantiate a planet with a name %s that is not a string" % pname)
+        self.pname = pname
         return None
     
     def get_name(self):
-        return self.name
+        return self.pname
 
     @property
     def ellipsoid(self):

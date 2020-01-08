@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <stdlib.h>
-#include "InterleavedAccessor.h"
+#include "InterleavedBase.h"
 #include <string>
 using namespace std;
 
@@ -19,7 +19,7 @@ class InterleavedFactory
     public:
         InterleavedFactory(){}
         ~InterleavedFactory(){}
-        InterleavedAccessor * createInterleaved(string sel);
+        InterleavedBase * createInterleaved(string sel);
     private:
 };
 

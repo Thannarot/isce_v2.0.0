@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -66,7 +66,7 @@ NUMBER_OF_LINES = Component.Parameter('_numberOfLines',
 STARTING_RANGE = Component.Parameter('_startingRange',
         public_name = 'STARTING_RANGE',
         default=None,
-        type=int,
+        type=float,
         mandatory=False,
         doc = 'Range to the first valid sample in the image')
 
@@ -97,6 +97,13 @@ TRACK_NUMBER = Component.Parameter('_trackNumber',
         type = int,
         mandatory=False,
         doc = 'Track number for the acquisition')
+
+FRAME_NUMBER = Component.Parameter('_frameNumber',
+        public_name = 'FRAME_NUMBER',
+        default=None,
+        type = int,
+        mandatory=False,
+        doc = 'Frame number for the acquisition')
 
 ORBIT_NUMBER = Component.Parameter('orbitNumber',
         public_name='ORBIT_NUMBER',
@@ -147,6 +154,36 @@ AUX_FILE = Component.Parameter('_auxFile',
     mandatory = False,
     doc = 'Auxiliary file for the acquisition')
 
+NUMBER_RANGE_BINS = Component.Parameter('_numberRangeBins',
+    public_name = 'NUMBER_RANGE_BINS',
+    default = None,
+    type = int,
+    mandatory=False,
+    doc = 'Number of range bins')
+
+SQUINT_ANGLE = Component.Parameter('_squintAngle',
+    public_name = 'SQUINT_ANGLE',
+    default = None,
+    type = float,
+    mandatory=False,
+    doc = 'squint angle')
+
+FAR_RANGE = Component.Parameter('_farRange',
+    public_name = 'FAR_RANGE',
+    default = None,
+    type = float,
+    mandatory=False,
+    doc = 'Far range')
+
+DOPPLER_VS_PIXEL = Component.Parameter('_dopplerVsPixel',
+        public_name = 'DOPPLER_VS_PIXEL',
+        default = None,
+        type = float,
+        mandatory = True,
+        container = list,
+        doc = 'Doppler polynomial coefficients vs pixel number')
+
+
 class Frame(Component):
     """A class to represent a frame along a radar track"""
 
@@ -155,20 +192,26 @@ class Frame(Component):
 
     parameter_list = (SCHHEIGHT,
                       SCHVELOCITY,
+                      NUMBER_RANGE_BINS,
+                      SQUINT_ANGLE,
                       POLARIZATION,
                       NUMBER_OF_SAMPLES,
                       NUMBER_OF_LINES,
                       STARTING_RANGE,
+                      FAR_RANGE,
                       SENSING_START,
                       SENSING_MID,
                       SENSING_STOP,
                       TRACK_NUMBER,
+                      FRAME_NUMBER,
                       ORBIT_NUMBER,
                       PASS_DIRECTION,
+                      PROCESSING_FACILITY,
                       PROCESSING_SYSTEM,
                       PROCESSING_LEVEL,
                       PROCESSING_SYSTEM_VERSION,
-                      AUX_FILE)
+                      AUX_FILE,
+                      DOPPLER_VS_PIXEL)
 
 
     def _facilities(self):
@@ -203,13 +246,44 @@ class Frame(Component):
                 mandatory=True,
                 doc = "Attitude Information")
 
-       
+
     ## this init will be removed when super no longer overides the class's
     ## dictionaryOfVariables
     def __init__(self, name=''):
         super(Frame, self).__init__(family=self.__class__.family, name=name)
 #        self._instrument.configure()
+        self._ellipsoid = None
+        self._times = []
+        self._fmt = '%Y-%m-%dT%H:%M:%S.%f'
         return None
+
+    #until a more general solutionis implemented do the apporpriate conversion
+    #from datetime to str here
+    def adaptToRender(self):
+        import copy
+        # make a copy of the stateVectors to restore it after dumping
+        self._times = [copy.copy(self._sensingStart),copy.copy(self._sensingMid),copy.copy(self._sensingStop)]
+        self._sensingStart = self._sensingStart.strftime(self._fmt)
+        self._sensingMid = self._sensingMid.strftime(self._fmt)
+        self._sensingStop = self._sensingStop.strftime(self._fmt)
+
+    def restoreAfterRendering(self):
+        self._sensingStart = self._times[0]
+        self._sensingMid = self._times[1]
+        self._sensingStop = self._times[2]
+
+    def initProperties(self,catalog):
+        keys = ['SENSING_START','SENSING_MID','SENSING_STOP']
+
+        for k in keys:
+            kl = k.lower()
+            if kl in catalog:
+                v = catalog[kl]
+                attrname = getattr(globals()[k],'attrname')
+                val = datetime.datetime.strptime(v,self._fmt)
+                setattr(self,attrname,val)
+                catalog.pop(kl)
+        super().initProperties(catalog)
 
     @property
     def platform(self):
@@ -219,6 +293,8 @@ class Frame(Component):
         return self.platform.planet
     @property
     def ellipsoid(self):
+        if not self._ellipsoid:
+            self._ellipsoid = self.planet.ellipsoid
         return self.planet.ellipsoid
     @property
     def PRF(self):
@@ -232,23 +308,23 @@ class Frame(Component):
     @property
     def pulseLength(self):
         return self.instrument.pulseLength
-    
+
 
     def setSchHeight(self, h):
         self._schHeight = h
-        
+
     def getSchHeight(self):
         return self._schHeight
-    
+
     def setNumberRangeBins(self, nrb):
         self._numberRangeBins = nrb
 
     def getNumberRangeBins(self):
         return self._numberRangeBins
-    
+
     def setSchVelocity(self, v):
         self._schVelocity = v
-        
+
     def getSchVelocity(self):
         return self._schVelocity
 
@@ -257,33 +333,33 @@ class Frame(Component):
 
     def getSquintAngle(self):
         return self._squintAngle
-    
-    def setStartingRange(self, range):
-        self._startingRange = range
-        
+
+    def setStartingRange(self, rng):
+        self._startingRange = rng
+
     def getStartingRange(self):
         """The Starting Range, in km"""
         return self._startingRange
-    
-    def setFarRange(self, range):
-        self._farRange = range
-    
+
+    def setFarRange(self, rng):
+        self._farRange = rng
+
     def getFarRange(self):
         """The Far Range, in km"""
         return self._farRange
 
 
     @type_check(datetime.datetime)
-    def setSensingStart(self, time):        
+    def setSensingStart(self, time):
         self._sensingStart = time
         pass
-            
+
     def getSensingStart(self):
         """The UTC date and time of the first azimuth line"""
         return self._sensingStart
 
     @type_check(datetime.datetime)
-    def setSensingMid(self, time):        
+    def setSensingMid(self, time):
         self._sensingMid = time
         pass
 
@@ -291,47 +367,47 @@ class Frame(Component):
         """The UTC date and time of the azimuth line at the center of the
         scene"""
         return self._sensingMid
-        
+
     @type_check(datetime.datetime)
     def setSensingStop(self, time):
         self._sensingStop = time
         pass
-            
+
     def getSensingStop(self):
         """The UTC date and time of the last azimuth line"""
         return self._sensingStop
-        
+
     @type_check(Radar)
     def setInstrument(self, instrument):
         self._instrument = instrument
         pass
-            
+
     def getInstrument(self):
         return self._instrument
-        
+
     def setOrbit(self, orbit):
         self._orbit = orbit
-            
+
     def getOrbit(self):
         return self._orbit
-    
-    
+
+
     @type_check(Attitude)
     def setAttitude(self, attitude):
         self._attitude = attitude
         pass
-    
+
     def getAttitude(self):
         return self._attitude
-    
+
     @type_check(Image)
     def setImage(self, image):
         self._image = image
         pass
-        
+
     def getImage(self):
         return self._image
-     
+
     @property
     def image(self):
         return self._image
@@ -341,88 +417,88 @@ class Frame(Component):
 
     def getAuxFile(self):
         return self._auxFile
-    
+
     def setAuxFile(self,aux):
         self._auxFile = aux
-    
+
     def setPolarization(self, polarization):
         self._polarization = polarization
-            
+
     def getPolarization(self):
         """The polarization of the scene"""
         return self._polarization
-        
+
     def setNumberOfSamples(self, samples):
         self._numberOfSamples = samples
-            
+
     def getNumberOfSamples(self):
         """The number of samples in range"""
         return self._numberOfSamples
-        
+
     def setNumberOfLines(self, lines):
         self._numberOfLines = lines
-            
+
     def getNumberOfLines(self):
         """The number of azimuth lines"""
         return self._numberOfLines
-        
+
     def setTrackNumber(self, track):
         self._trackNumber = track
-            
+
     def getTrackNumber(self):
         """The Track number of the scene"""
         return self._trackNumber
-        
+
     def setOrbitNumber(self, orbit):
         self._orbitNumber = orbit
-            
+
     def getOrbitNumber(self):
         """The orbit number of the scene"""
         return self._orbitNumber
-        
+
     def setFrameNumber(self, frame):
         self._frameNumber = frame
-            
+
     def getFrameNumber(self):
         """The frame number of the scene"""
         return self._frameNumber
-    
+
     def setPassDirection(self, dir):
         self._passDirection = dir
-        
+
     def getPassDirection(self):
         """The pass direction of the satellite, either ascending or descending
         """
         return self._passDirection
-        
+
     def setProcessingFacility(self, facility):
         self._processingFacility = facility
-            
+
     def getProcessingFacility(self):
         """The facility that processed the raw data"""
         return self._processingFacility
-    
+
     def setProcessingSystem(self, system):
         self._processingSystem = system
-        
+
     def getProcessingSystem(self):
         """The software used to process the raw data"""
         return self._processingSystem
-        
+
     def setProcessingLevel(self, level):
         self._processingLevel = level
-            
+
     def getProcessingLevel(self):
         """The level to which the raw data was processed"""
         return self._processingLevel
-    
+
     def setProcessingSoftwareVersion(self, ver):
         self._processingSoftwareVersion = ver
-        
+
     def getProcessingSoftwareVersion(self):
         """The software version of the processing software"""
         return self._processingSoftwareVersion
-    
+
     def __str__(self):
         retstr = "Sensing Start Time: (%s)\n"
         retlst = (self._sensingStart, )
@@ -450,9 +526,9 @@ class Frame(Component):
         retlst += (self._processingSystem, )
         retstr += "Processing Software Version: (%s)\n"
         retlst += (self._processingSoftwareVersion, )
-                        
+
         return retstr % retlst
-    
+
 
     frameNumber = property(getFrameNumber, setFrameNumber)
     instrument = property(getInstrument, setInstrument)
@@ -467,7 +543,7 @@ class Frame(Component):
     processingFacility = property(getProcessingFacility, setProcessingFacility)
     processingLevel = property(getProcessingLevel, setProcessingLevel)
     processingSoftwareVersion = property(getProcessingSoftwareVersion, setProcessingSoftwareVersion)
-    processingSystem = property(getProcessingSystem, setProcessingSystem)    
+    processingSystem = property(getProcessingSystem, setProcessingSystem)
     sensingMid = property(getSensingMid, setSensingMid)
     sensingStart = property(getSensingStart, setSensingStart)
     sensingStop = property(getSensingStop, setSensingStop)
@@ -503,7 +579,7 @@ class FrameMixin(object):
     @property
     def ellipsoid(self):
         return self.frame.ellipsoid
-    
+
     @property
     def orbit(self):
         return self.frame.orbit
@@ -511,11 +587,11 @@ class FrameMixin(object):
     @property
     def sensingStart(self):
         return self.frame.sensingStart
-    
+
     @property
     def sensingMid(self):
         return self.frame.sensingMid
-    
+
     @property
     def startingRange(self):
         return self.frame.startingRange
@@ -542,7 +618,5 @@ class FrameMixin(object):
     @property
     def pulseLength(self):
         return self.frame.pulseLength
-    
-    pass
 
-        
+    pass

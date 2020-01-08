@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -100,7 +100,7 @@ class ROI_PAC(Sensor):
         platform = self.frame.getInstrument().getPlatform()
 
         platform.setMission(mdict['PLATFORM'])
-        platform.setPlanet(Planet("Earth"))
+        platform.setPlanet(Planet(pname="Earth"))
         platform.setPointingDirection(int(mdict['ANTENNA_SIDE']))
 
         platform.setAntennaLength(float(mdict['ANTENNA_LENGTH']))
@@ -233,9 +233,9 @@ class ROI_PAC(Sensor):
         mid = 0.5*(int(self.constants['WIDTH']) - int(self.constants['XMIN']))
         fd_mid = dopp[0] + (dopp[1] + (dopp[2] + dopp[3]*mid)*mid)*mid
 
-        quadratic['a'] = fd_mid
-        quadratic['b'] = 0.
-        quadratic['c'] = 0.
+        quadratic['a'] = dopp[0]
+        quadratic['b'] = dopp[1]
+        quadratic['c'] = dopp[2]
         return quadratic
 
     rawFile = property(getRawFile, setRawFile)

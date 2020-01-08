@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2014 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2014 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Eric Belz
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -45,26 +45,28 @@ class metagrammar(type):
     def __new__(mcs, *args, **kwargs):
         cls = type.__new__(mcs, *args, **kwargs)
         _prags = []
-        
+
         ## Instaniate Verbs for the Grammar's command interpretation
         for p_cls, w_const in zip(pragmatics.VERBS, words.KEYWORDS):
             _prags.append(p_cls(w_const))
             setattr(cls, w_const, _prags[-1])
-        # note: metaclasses can access protect members of their instances...    
+        # note: metaclasses can access protect members of their instances...
         cls._VERBS = tuple(_prags)
-        
         ## Set up Noun instances by instantiaing NOUNS's classes
-        cls._NOUNS = tuple(map(apply, semantics.NOUNS))
-        
+        cls._NOUNS = ()
+        for x in semantics.NOUNS:
+            cls._NOUNS += (x(),)
+#        cls._NOUNS = tuple(map(apply, semantics.NOUNS))
+
         return cls
 
 ## Grammar is the state of the grammar -it is simply the most important \n
 ## class there is-- though it does cooperate and leave details to its \n
 ## clients.
-class Grammar(object):
+class Grammar(object, metaclass=metagrammar):
     """Grammar() is the state of the grammar. See __init__ for why
     it supports only nullary instantiation.
-    
+
     ALL_CAP class attributes a Pragamatic (i.e. meta) words.
     _lower_case private instance attributes are punctuation Glyphs
     lower_case  mutator methods ensure glyphs setting is kosher.
@@ -76,7 +78,7 @@ class Grammar(object):
 
     line --> __call__(line)  ---> RDFRecord #That is, grammar is a (semipure)
                                              function that makes lines into
-                                             RDFRecords. 
+                                             RDFRecords.
 
     (meta)line-> __call__(line)---> None    # Pragamatic (KeyWord) lines
                                               return None (they aren't rdf
@@ -84,7 +86,7 @@ class Grammar(object):
                                               internal state of 'self'. Hence
                                               grammar is an impure function.
 
-                                             
+
     other -->   __call__(line)---> None    # Comments do nothing, Errors are
                                              identified, reported to stderr
                                              and forgotten.
@@ -98,15 +100,13 @@ class Grammar(object):
     grammar -= 1  down the IFT. The change int(grammar) and manage the
                   affixes.
     """
-    
-    __metaclass__ = metagrammar
 
-    
+
     ## wrap tell read how to unwrap lines-- it's just a str
-    wrap = glyphs.WRAP     
+    wrap = glyphs.WRAP
     ## sep is not used -yet, it would appear in RDF._eval at some point.
     sep = glyphs.SEPARATOR
-    
+
     ## The operator symbol (default) -capitalized to avoid class with property
     Operator = glyphs.OPERATOR
     ## The comment symbol (default) -capitalized to avoid class with property
@@ -115,7 +115,7 @@ class Grammar(object):
     Prefix = [""]
     ## Static default suffix
     Suffix = [""]
-    
+
 
     ## VERY IMPORTANT: Grammar() creates the DEFAULT RDF grammar \n
     ## Y'all can't change it, only RDF inputs can...
@@ -137,9 +137,9 @@ class Grammar(object):
         self.prefix = self.__class__.Prefix[:]
         ## Dynamic suffixx is a copy of a list -and depends on depth
         self.suffix = self.__class__.Suffix[:]
-        
 
-        
+
+
     ## Getter
     @property
     def operator(self):
@@ -152,7 +152,7 @@ class Grammar(object):
         if not value: raise errors.NullCommandError
         # symbol is converted to a glyph.
         self._operator = punctuation.Glyph(value)
-        
+
     ## Getter
     @property
     def comment(self):
@@ -169,22 +169,22 @@ class Grammar(object):
     @property
     def prefix(self):
         return self._prefix
-    
+
     ## Ensure Grammar._prefix is an rdf.language.morpheme.Prefix
     @prefix.setter
     def prefix(self, value):
         self._prefix = morpheme.Prefix(value)
-        
+
     ## Getter
     @property
     def suffix(self):
         return self._suffix
-    
+
     ## Ensure Grammar._suffix is an rdf.language.morpheme.Suffix
     @suffix.setter
     def suffix(self, value):
         self._suffix = morpheme.Suffix(value)
-        
+
     ##  str refects the current grammar state
     def __str__(self):
         return ( str(self.depth) + " " +
@@ -227,7 +227,7 @@ class Grammar(object):
     ## change the state of grammar.
     def __call__(self, line):
         """grammar(line) --> grammar.process(line) (with error catching)"""
-        if isinstance(line, basestring): # Guard (why?)
+        if isinstance(line, str): # Guard (why?)
             try:
                 result = self.process(line)
             except errors.RDFWarning as err:
@@ -255,7 +255,7 @@ class Grammar(object):
         for word in itertools.chain(self._VERBS, self._NOUNS):
             if word.line_is(line, self):
                 return word(line, self)
-            
+
     ## Get value of a line (any line really)
     def get_value(self, line):
         """get value of a Pragamtic"""
@@ -266,4 +266,3 @@ class Grammar(object):
     ## __radd__ invoke the affix protocol.
     def affix(self, key):
         return self.prefix + key + self.suffix
-

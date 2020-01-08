@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Walter Szeliga
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -25,40 +25,257 @@
 from iscesys.Component.Component import Component
 from . import snaphu
 
+ALTITUDE = Component.Parameter(
+    'altitude',
+    public_name='ALTITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Altitude'
+)
+
+
+AZIMUTH_LOOKS = Component.Parameter(
+    'azimuthLooks',
+    public_name='AZIMUTH_LOOKS',
+    default=1,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of looks in the azimuth direction'
+)
+
+
+CORR_FILE = Component.Parameter(
+    'corrfile',
+    public_name='CORR_FILE',
+    default=None,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Correlation file name'
+)
+
+
+CORR_LOOKS = Component.Parameter(
+    'corrLooks',
+    public_name='CORR_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Correlation looks'
+)
+
+
+COR_FILE_FORMAT = Component.Parameter(
+    'corFileFormat',
+    public_name='COR_FILE_FORMAT',
+    default='ALT_LINE_DATA',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Correlation file format'
+)
+
+
+COSTMODE = Component.Parameter(
+    'costMode',
+    public_name='COSTMODE',
+    default='DEFO',
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Cost function mode. Options are "TOPO","DEFO","SMOOTH".'
+)
+
+
+DEFORMATION_MAX_CYCLES = Component.Parameter(
+    'defoMaxCycles',
+    public_name='DEFORMATION_MAX_CYCLES',
+    default=1.2,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Deformation max cycles'
+)
+
+
+DUMP_CONNECTED_COMPONENTS = Component.Parameter(
+    'dumpConnectedComponents',
+    public_name='DUMP_CONNECTED_COMPONENTS',
+    default=True,
+    type=bool,
+    mandatory=False,
+    intent='input',
+    doc='Dump the connected component to a file with extension .conncomp'
+)
+
+
+EARTHRADIUS = Component.Parameter(
+    'earthRadius',
+    public_name='EARTHRADIUS',
+    default=0,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Earth radius'
+)
+
+
+INIT_METHOD = Component.Parameter(
+    'initMethod',
+    public_name='INIT_METHOD',
+    default='MST',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Init method. Options are "MST" or "MCF"'
+)
+
+
+INIT_ONLY = Component.Parameter(
+    'initOnly',
+    public_name='INIT_ONLY',
+    default=False,
+    type=bool,
+    mandatory=False,
+    intent='input',
+    doc='Is this is set along with the DUMP_CONNECTED_COMPONENTS flag, then only the' +\
+        'connected components are computed and dumped into a file with extension .conncomp'
+)
+
+
+INPUT = Component.Parameter(
+    'input',
+    public_name='INPUT',
+    default=None,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Input file name'
+)
+
+
+INT_FILE_FORMAT = Component.Parameter(
+    'intFileFormat',
+    public_name='INT_FILE_FORMAT',
+    default='COMPLEX_DATA',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Interferogram file format'
+)
+
+
+MAX_COMPONENTS = Component.Parameter(
+    'maxComponents',
+    public_name='MAX_COMPONENTS',
+    default=32,
+    type=int,
+    mandatory=False,
+    intent='input',
+    doc='Max number of components'
+)
+
+
+OUTPUT = Component.Parameter(
+    'output',
+    public_name='OUTPUT',
+    default=None,
+    type=str,
+    mandatory=True,
+    intent='input',
+    doc='Output file name'
+)
+
+
+RANGE_LOOKS = Component.Parameter(
+    'rangeLooks',
+    public_name='RANGE_LOOKS',
+    default=1,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Number of looks in the range direction'
+)
+
+
+UNW_FILE_FORMAT = Component.Parameter(
+    'unwFileFormat',
+    public_name='UNW_FILE_FORMAT',
+    default='ALT_LINE_DATA',
+    type=str,
+    mandatory=False,
+    intent='input',
+    doc='Unwrap file format'
+)
+
+
+WAVELENGTH = Component.Parameter(
+    'wavelength',
+    public_name='WAVELENGTH',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc='Wave length'
+)
+
+
+WIDTH = Component.Parameter(
+    'width',
+    public_name='WIDTH',
+    default=None,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc='Image width'
+)
+
 class Snaphu(Component):
+
+    parameter_list = (
+                      ALTITUDE,
+                      INPUT,
+                      DUMP_CONNECTED_COMPONENTS,
+                      WIDTH,
+                      EARTHRADIUS,
+                      INIT_ONLY,
+                      CORR_LOOKS,
+                      COR_FILE_FORMAT,
+                      CORR_FILE,
+                      WAVELENGTH,
+                      MAX_COMPONENTS,
+                      RANGE_LOOKS,
+                      DEFORMATION_MAX_CYCLES,
+                      UNW_FILE_FORMAT,
+                      OUTPUT,
+                      AZIMUTH_LOOKS,
+                      INIT_METHOD,
+                      COSTMODE,
+                      INT_FILE_FORMAT
+                     )
+
     """The Snaphu cost unwrapper"""
+
+    fileFormats = { 'COMPLEX_DATA'  : 1,
+                    'FLOAT_DATA'    : 2,
+                    'ALT_LINE_DATA' : 3,
+                    'ALT_SAMPLE_DATA' : 4}
     
-    def __init__(self):
-        Component.__init__(self)
-        self.width = None
-        self.wavelength = None
-        self.altitude = None
-        self.costMode = 0
-        self.earthRadius = 0
-        self.input = None
-        self.output = None
-        self.corrfile = None
-        self.corrLooks = None
-        self.defoMaxCycles = 1.2
-        self.initMethod = 1
-        self.initOnly = False
-        self.maxComponents = 32
-        self.rangeLooks = 1
-        self.azimuthLooks = 1
-        self.dumpConnectedComponents = True
+    logging_name = "contrib.Snaphu.Snaphu"
+
+
+    family = 'snaphu'
+
+    def __init__(self,family='',name=''):
+        super(Snaphu, self).__init__(family if family else  self.__class__.family, name=name)
         self.minConnectedComponentFrac = 0.01
         self.connectedComponentCostThreshold = 300
         self.magnitude = None 
         
-        self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = {'INPUT': ['self.input','str','mandatory'],
-                                      'OUTPUT': ['self.output','str','mandatory'],
-                                      'WAVELENGTH': ['self.wavelength','float','mandatory'],
-                                      'ALTITUDE': ['self.altitude','float','mandatory'],
-                                      'COSTMODE': ['self.costMode','str','mandatory'],
-                                      'EARTHRADIUS': ['self.earthRadius','float','mandatory'],
-                                      'WIDTH': ['self.width','float','mandatory'],
-                                      'CORRELATION': ['self.correlation','str', 'optional']}
 
     def setCorrfile(self, corrfile):
         """Set the correlation filename for unwrapping"""
@@ -93,17 +310,20 @@ class Snaphu(Component):
 
     def setAzimuthLooks(self, looks):
         self.azimuthLooks = looks
-        
+   
+    def setIntFileFormat(self, instr):
+        self.intFileFormat = str(instr)
+
+    def setCorFileFormat(self, instr):
+        self.corFileFormat = str(instr)
+
+    def setUnwFileFormat(self, instr):
+        self.unwFileFormat = str(instr)
+
     def setCostMode(self,costMode):
-        """Set the mode for cost calculation"""
-        if (costMode == 'TOPO'):
-            self.costMode = 1
-        elif (costMode == 'DEFO'):
-            self.costMode = 2
-        elif (costMode == 'SMOOTH'):
-            self.costMode = 3
-        else:
-            self.costMode = 0
+        #moved the selection into prepare otherwise using configurable to
+        #init  would not work
+        self.costMode = costMode    
 
     def setInitOnly(self, logic):
         self.initOnly = logic
@@ -121,12 +341,10 @@ class Snaphu(Component):
 
     def setInitMethod(self, method):
         """Set the initialization method."""
-        if (method == 'MST'):
-            self.initMethod = 1
-        elif (method == 'MCF'):
-            self.initMethod = 2
-        else:
-            self.initMethod = 0
+        #moved the selection into prepare otherwise using configurable to
+        #init  would not work
+        self.initMethod = method
+       
 
     def setMaxComponents(self, num):
         """Set the maximum number of connected components."""
@@ -134,6 +352,7 @@ class Snaphu(Component):
     
     def prepare(self):
         """Perform some initialization of defaults"""
+        
         snaphu.setDefaults_Py()
         snaphu.setInitOnly_Py(int(self.initOnly))
         snaphu.setInput_Py(self.input)
@@ -141,7 +360,12 @@ class Snaphu(Component):
         if self.magnitude is not None:
             snaphu.setMagnitude_Py(self.magnitude)
         snaphu.setWavelength_Py(self.wavelength)
-        snaphu.setCostMode_Py(self.costMode)
+        
+        if not self.costMode in ['TOPO','DEFO','SMOOTH']:
+            self.logger.error('Invalid cost mode %s' % (self.costMode))
+        #must be one of the 3 above
+        snaphu.setCostMode_Py(1 if self.costMode == 'TOPO' else
+                             (2 if self.costMode == 'DEFO' else 3))
         snaphu.setAltitude_Py(self.altitude)
         snaphu.setEarthRadius_Py(self.earthRadius)       
         if self.corrfile is not None:
@@ -153,13 +377,19 @@ class Snaphu(Component):
         if self.defoMaxCycles is not None:
             snaphu.setDefoMaxCycles_Py(self.defoMaxCycles)
 
-        snaphu.setInitMethod_Py(self.initMethod)
+        if not self.initMethod in ['MST','MCF']:
+            self.logger.error('Invalid init method %s' % (self.initMethod))
+        snaphu.setInitMethod_Py(1 if self.initMethod == 'MST' else 2)
+                               
         snaphu.setMaxComponents_Py(self.maxComponents)
         snaphu.setRangeLooks_Py(int(self.rangeLooks))
         snaphu.setAzimuthLooks_Py(int(self.azimuthLooks))
         snaphu.setMinConnectedComponentFraction_Py(int(self.minConnectedComponentFrac))
         snaphu.setConnectedComponentThreshold_Py(int(self.connectedComponentCostThreshold))
-
+        snaphu.setIntFileFormat_Py( int(self.fileFormats[self.intFileFormat]))
+        snaphu.setCorFileFormat_Py( int(self.fileFormats[self.corFileFormat]))
+        snaphu.setUnwFileFormat_Py( int(self.fileFormats[self.unwFileFormat]))
+    
 
     def unwrap(self):
         """Unwrap the interferogram"""       

@@ -1,18 +1,18 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Copyright: 2010 to the present, California Institute of Technology.
-// ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-// Any commercial use must be negotiated with the Office of Technology Transfer
-// at the California Institute of Technology.
+// copyright: 2010 to the present, california institute of technology.
+// all rights reserved. united states government sponsorship acknowledged.
+// any commercial use must be negotiated with the office of technology transfer
+// at the california institute of technology.
 // 
-// This software may be subject to U.S. export control laws. By accepting this
-// software, the user agrees to comply with all applicable U.S. export laws and
-// regulations. User has the responsibility to obtain export licenses,  or other
+// this software may be subject to u.s. export control laws. by accepting this
+// software, the user agrees to comply with all applicable u.s. export laws and
+// regulations. user has the responsibility to obtain export licenses,  or other
 // export authority as may be required before exporting such information to
 // foreign countries or providing access to foreign persons.
 // 
-// Installation and use of this software is restricted by a license agreement
-// between the licensee and the California Institute of Technology. It is the
-// User's responsibility to abide by the terms of the license agreement.
+// installation and use of this software is restricted by a license agreement
+// between the licensee and the california institute of technology. it is the
+// user's responsibility to abide by the terms of the license agreement.
 //
 // Author: Giangi Sacco
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -31,7 +31,7 @@
 #include <vector>
 using namespace std;
 
-static char * const __doc__ = "Python extension for simamplitude.F";
+static const char * const __doc__ = "Python extension for simamplitude.F";
 
 PyModuleDef moduledef = {
     // header
@@ -73,44 +73,44 @@ PyObject * setStdWriter_C(PyObject* self, PyObject* args)
     setStdWriter_f(&var);
     return Py_BuildValue("i", 0);
 }
-PyObject * simamplitude_C(PyObject* self, PyObject* args) 
+PyObject * simamplitude_C(PyObject* self, PyObject* args)
 {
-	uint64_t var0;
-	uint64_t var1;
-	if(!PyArg_ParseTuple(args, "KK",&var0,&var1)) 
-	{
-		return NULL;  
-	}  
-	simamplitude_f(&var0,&var1);
-	return Py_BuildValue("i", 0);
+        uint64_t var0;
+        uint64_t var1;
+        if(!PyArg_ParseTuple(args, "KK",&var0,&var1))
+        {
+                return NULL;
+        }
+        simamplitude_f(&var0,&var1);
+        return Py_BuildValue("i", 0);
 }
-PyObject * setImageWidth_C(PyObject* self, PyObject* args) 
+PyObject * setImageWidth_C(PyObject* self, PyObject* args)
 {
-	int var;
-	if(!PyArg_ParseTuple(args, "i", &var)) 
-	{
-		return NULL;  
-	}  
-	setImageWidth_f(&var);
-	return Py_BuildValue("i", 0);
+        int var;
+        if(!PyArg_ParseTuple(args, "i", &var))
+        {
+                return NULL;
+        }
+        setImageWidth_f(&var);
+        return Py_BuildValue("i", 0);
 }
-PyObject * setImageLength_C(PyObject* self, PyObject* args) 
+PyObject * setImageLength_C(PyObject* self, PyObject* args)
 {
-	int var;
-	if(!PyArg_ParseTuple(args, "i", &var)) 
-	{
-		return NULL;  
-	}  
-	setImageLength_f(&var);
-	return Py_BuildValue("i", 0);
+        int var;
+        if(!PyArg_ParseTuple(args, "i", &var))
+        {
+                return NULL;
+        }
+        setImageLength_f(&var);
+        return Py_BuildValue("i", 0);
 }
-PyObject * setShadeScale_C(PyObject* self, PyObject* args) 
+PyObject * setShadeScale_C(PyObject* self, PyObject* args)
 {
-	float var;
-	if(!PyArg_ParseTuple(args, "f", &var)) 
-	{
-		return NULL;  
-	}  
-	setShadeScale_f(&var);
-	return Py_BuildValue("i", 0);
+        float var;
+        if(!PyArg_ParseTuple(args, "f", &var))
+        {
+                return NULL;
+        }
+        setShadeScale_f(&var);
+        return Py_BuildValue("i", 0);
 }

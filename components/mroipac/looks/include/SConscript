@@ -16,6 +16,6 @@ package = envlooks['PACKAGE']
 project = envlooks['PROJECT']
 build = envlooks['PRJ_SCONS_BUILD'] + '/' + package + '/' + project + '/include'
 envlooks.AppendUnique(CPPPATH = [build])
-listFiles = ['powlooksmodule.h','cpxlooksmodule.h','nbymdemmodule.h','nbymhgtmodule.h','rilooksmodule.h']
+listFiles = ['powlooksmodule.h','cpxlooksmodule.h','nbymdemmodule.h','nbymhgtmodule.h','rilooksmodule.h','looksmodule.h']
 envlooks.Install(build,listFiles)
 envlooks.Alias('install',build)

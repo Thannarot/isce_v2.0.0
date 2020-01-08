@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,86 +28,312 @@ from stdproc.orbit import mocompbaseline
 
 DIM = 3
 
+ELLIPSOID_ECCENTRICITY_SQUARED = Component.Parameter(
+    'ellipsoidEccentricitySquared',
+    public_name='ELLIPSOID_ECCENTRICITY_SQUARED',
+    default=CN.EarthEccentricitySquared,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+ELLIPSOID_MAJOR_SEMIAXIS = Component.Parameter(
+    'ellipsoidMajorSemiAxis',
+    public_name='ELLIPSOID_MAJOR_SEMIAXIS',
+    default=CN.EarthMajorSemiAxis,
+    type=float,
+    mandatory=False,
+    intent='input',
+    doc=''
+)
+
+
+HEIGHT = Component.Parameter(
+    'height',
+    public_name='HEIGHT',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+POSITION1 = Component.Parameter(
+    'position1',
+    public_name='POSITION1',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+POSITION2 = Component.Parameter(
+    'position2',
+    public_name='POSITION2',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+MOCOMP_POSITION1 = Component.Parameter(
+    'mocompPosition1',
+    public_name='MOCOMP_POSITION1',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+MOCOMP_POSITION2 = Component.Parameter(
+    'mocompPosition2',
+    public_name='MOCOMP_POSITION2',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+MOCOMP_POSITION_INDEX1 = Component.Parameter(
+    'mocompPositionIndex1',
+    public_name='MOCOMP_POSITION_INDEX1',
+    default=[],
+    container=list,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+MOCOMP_POSITION_INDEX2 = Component.Parameter(
+    'mocompPositionIndex2',
+    public_name='MOCOMP_POSITION_INDEX2',
+    default=[],
+    container=list,
+    type=int,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PEG_HEADING = Component.Parameter(
+    'pegHeading',
+    public_name='PEG_HEADING',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PEG_LATITUDE = Component.Parameter(
+    'pegLatitude',
+    public_name='PEG_LATITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PEG_LONGITUDE = Component.Parameter(
+    'pegLongitude',
+    public_name='PEG_LONGITUDE',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+PLANET_LOCAL_RADIUS = Component.Parameter(
+    'planetLocalRadius',
+    public_name='PLANET_LOCAL_RADIUS',
+    default=None,
+    type=float,
+    mandatory=True,
+    intent='input',
+    doc=''
+)
+
+
+BASE1 = Component.Parameter(
+    'base1',
+    public_name='BASE1',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+BASE2 = Component.Parameter(
+    'base2',
+    public_name='BASE2',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+MIDPOINT = Component.Parameter(
+    'midpoint',
+    public_name='MIDPOINT',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+MIDPOINT1 = Component.Parameter(
+    'midpoint1',
+    public_name='MIDPOINT1',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+MIDPOINT2 = Component.Parameter(
+    'midpoint2',
+    public_name='MIDPOINT2',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+MOCOMP_BASELINE = Component.Parameter(
+    'baselineArray',
+    public_name='MOCOMP_BASELINE',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+SC = Component.Parameter(
+    'sc',
+    public_name='SC',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
+SCH = Component.Parameter(
+    'sch',
+    public_name='SCH',
+    default=[],
+    container=list,
+    type=float,
+    mandatory=False,
+    intent='output',
+    doc=''
+)
+
+
 class Mocompbaseline(Component):
 
+
+    parameter_list = (
+                      HEIGHT,
+                      ELLIPSOID_ECCENTRICITY_SQUARED,
+                      PEG_LATITUDE,
+                      PEG_LONGITUDE,
+                      PLANET_LOCAL_RADIUS,
+                      MOCOMP_POSITION_INDEX1,
+                      ELLIPSOID_MAJOR_SEMIAXIS,
+                      MOCOMP_POSITION_INDEX2,
+                      POSITION1,
+                      POSITION2,
+                      MOCOMP_POSITION1,
+                      MOCOMP_POSITION2,
+                      PEG_HEADING,
+                      SCH,
+                      SC,
+                      BASE2,
+                      MIDPOINT1,
+                      MIDPOINT2,
+                      MIDPOINT,
+                      BASE1,
+                      MOCOMP_BASELINE
+                     )
+
+
     logging_name = 'isce.stdproc.orbit.mocompbaseline'
-    def __init__(self):
-        super(Mocompbaseline, self).__init__()
-        self.midpoint = []
+    family = 'mocompbaseline'
+
+    def __init__(self,family='',name=''):
+        super(Mocompbaseline, self).__init__(family if family else  self.__class__.family, name=name)
         self.dim1_midpoint = None
         self.dim2_midpoint = None
-        self.midpoint1 = []
         self.dim1_midpoint1 = None
         self.dim2_midpoint1 = None
-        self.midpoint2 = []
         self.dim1_midpoint2 = None
         self.dim2_midpoint2 = None
-        self.base1 = []
         self.dim1_base1 = None
         self.dim2_base1 = None
-        self.base2 = []
         self.dim1_base2 = None
         self.dim2_base2 = None
-        self.sch = []
         self.dim1_sch = None
         self.dim2_sch = None
-        self.sc = []
         self.dim1_sc = None
         self.dim2_sc = None
-        self.height = None
         # Planet information
-        self.ellipsoidMajorSemiAxis = CN.EarthMajorSemiAxis
-        self.ellipsoidEccentricitySquared = CN.EarthEccentricitySquared
         # Peg information
-        self.pegLatitude = None
-        self.pegLongitude = None
-        self.pegHeading = None
         # Orbit2SCH information
-        self.position1 = []
         self.dim1_position1 = None
         self.dim2_position1 = None
-        self.position2 = []
         self.dim1_position2 = None
         self.dim2_position2 = None
         # FormSLC information
-        self.mocompPosition1 = []
         self.dim1_mocompPosition1 = None
-        self.mocompPositionIndex1 = []
         self.dim1_mocompPositionIndex1 = None
-        self.mocompPosition2 = []
         self.dim1_mocompPosition2 = None
-        self.mocompPositionIndex2 = []
         self.dim1_mocompPositionIndex2 = None
         # Output
-        self.baselineArray = []
         self.dim1_baselineArray = None
         self.dim2_baselineArray = None
 #        self.createPorts()
 
-        self.dictionaryOfVariables = {
-            'HEIGHT' : ['self.height', 'float','mandatory'],
-            'MOCOMP_POSITION1' : ['self.mocompPosition1', 'float','mandatory'],
-            'MOCOMP_POSITION_INDEX1' : ['self.mocompPositionIndex1', 'int','mandatory'],
-            'MOCOMP_POSITION2' : ['self.mocompPosition2', 'float','mandatory'],
-            'MOCOMP_POSITION_INDEX2' : ['self.mocompPositionIndex2', 'int','mandatory'],
-            'ELLIPSOID_MAJOR_SEMIAXIS' : ['self.ellipsoidMajorSemiAxis', 'float','optional'],
-            'ELLIPSOID_ECCENTRICITY_SQUARED' : ['self.ellipsoidEccentricitySquared', 'float','optional'],
-            'PEG_LATITUDE' : ['self.pegLatitude', 'float','mandatory'],
-            'PEG_LONGITUDE' : ['self.pegLongitude', 'float','mandatory'],
-            'PEG_HEADING' : ['self.pegHeading', 'float','mandatory']
-            }
-        self.dictionaryOfOutputVariables = {'MOCOMP_BASELINE': 'self.baselineArray',
-                                            'MIDPOINT' : 'self.midpoint',
-                                            'MIDPOINT1' : 'self.midpoint1',
-                                            'MIDPOINT2' : 'self.midpoint2',
-                                            'BASE1' : 'self.base1',
-                                            'BASE2' : 'self.base2',
-                                            'SCH' : 'self.sch',
-                                            'SC' : 'self.sc'
-                                            }
-        self.descriptionOfVariables = {}
-        self.mandatoryVariables = []
-        self.optionalVariables = []
         self.initOptionalAndMandatoryLists()
         return None
 
@@ -178,6 +404,7 @@ class Mocompbaseline(Component):
         mocompbaseline.setEllipsoidEccentricitySquared_Py(
             float(self.ellipsoidEccentricitySquared)
             )
+        mocompbaseline.setPlanetLocalRadius_Py(float(self.planetLocalRadius))
         mocompbaseline.setPegLatitude_Py(float(self.pegLatitude))
         mocompbaseline.setPegLongitude_Py(float(self.pegLongitude))
         mocompbaseline.setPegHeading_Py(float(self.pegHeading))
@@ -456,6 +683,7 @@ class Mocompbaseline(Component):
         peg = self._inputPorts.getPort(name='peg').getObject()
         if peg:
             try:
+                self.planetLocalRadius = peg.getRadiusOfCurvature()
                 self.pegLatitude = math.radians(peg.getLatitude())
                 self.pegLongitude = math.radians(peg.getLongitude())
                 self.pegHeading = math.radians(peg.getHeading())

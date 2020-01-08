@@ -1,6 +1,6 @@
 !c****************************************************************
 
-        subroutine radar_to_xyz(elp,peg,ptm)BIND(C,NAME='radar_to_xyz_C')
+        subroutine radar_to_xyz(elp,peg,ptm,height)
 
 !c****************************************************************
 !c**
@@ -29,6 +29,8 @@
         type (ellipsoidType) elp
         type (pegType) peg
    
+        real*8, intent(in), optional :: height
+
 !c      OUTPUT VARIABLES:
 
         type (pegtransType) ptm

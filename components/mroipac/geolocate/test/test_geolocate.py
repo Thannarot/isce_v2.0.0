@@ -11,7 +11,7 @@ class test_geolocate(unittest.TestCase):
         self.vel = [-4002.34200000018,-3450.91900000069,-5392.36600000039]
         self.range = 831929.866545593
         self.squint = 0.298143953340833
-        planet = Planet('Earth')
+        planet = Planet(pname='Earth')
 
         self.geolocate = Geolocate()
         self.geolocate.wireInputPort(name='planet',object=planet)

@@ -1,29 +1,98 @@
 #!/usr/bin/env python
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2013 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2013 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Piyush Agram
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-import numpy as np
 
-class Polynomial(object):
+from iscesys.ImageApi import DataAccessor as DA
+from isceobj.Util.Polynomial import Polynomial
+from iscesys.Component.Component import Component
+
+ERROR_CHECK_FINALIZE = False
+
+WIDTH = Component.Parameter('_width',
+    public_name='width',
+    default = 0,
+    type=float,
+    mandatory=False,
+    doc="Width of the image associated with the polynomial"
+)
+LENGTH = Component.Parameter('_length',
+    public_name='length',
+    default = 0,
+    type=float,
+    mandatory=False,
+    doc="Length of the image associated with the polynomial"
+)
+RANGE_ORDER = Component.Parameter('_rangeOrder',
+    public_name='rangeOrder',
+    default = None,
+    type=int,
+    mandatory=False,
+    doc="Polynomial order in the range direction"
+)
+AZIMUTH_ORDER = Component.Parameter('_azimuthOrder',
+    public_name='azimuthOrder',
+    default = None,
+    type=int,
+    mandatory=False,
+    doc="Polynomial order in the azimuth direction"
+)
+NORM_RANGE = Component.Parameter('_normRange',
+    public_name='normRange',
+    default = 1.,
+    type=float,
+    mandatory=False,
+    doc=""
+)
+MEAN_RANGE = Component.Parameter('_meanRange',
+    public_name='meanRange',
+    default = 0.,
+    type=float,
+    mandatory=False,
+    doc=""
+)
+NORM_AZIMUTH = Component.Parameter('_normAzimuth',
+    public_name='normAzimuth',
+    default = 1.,
+    type=float,
+    mandatory=False,
+    doc=""
+)
+MEAN_AZIMUTH = Component.Parameter('_meanAzimuth',
+    public_name='meanAzimuth',
+    default = 0.,
+    type=float,
+    mandatory=False,
+    doc=""
+)
+COEFFS = Component.Parameter('_coeffs',
+    public_name='coeffs',
+    default = [],
+    container=list,
+    type=float,
+    mandatory=False,
+    doc=""
+)
+class Poly2D(Polynomial):
     '''
     Class to store 2D polynomials in ISCE.
     Implented as a list of lists, the coefficients
@@ -40,50 +109,78 @@ class Polynomial(object):
     The size of the 2D matrix will correspond to
     [rangeOrder+1, azimuthOrder+1].
     '''
+    family = 'poly2d'
+    parameter_list = (WIDTH,
+                      LENGTH,
+                      RANGE_ORDER,
+                      AZIMUTH_ORDER,
+                      NORM_RANGE,
+                      MEAN_RANGE,
+                      NORM_AZIMUTH,
+                      MEAN_AZIMUTH,
+                      COEFFS)
 
-    def __init__(self, rangeOrder=None, azimuthOrder=None):
+    def __init__(self,  family='', name=''):
         '''
-        Constructor for the polynomial object.
+        Constructor for the polynomial object. . The base class Polynomial set width and length
+        if image not None
         '''
-        self._coeffs = []
+        #at the moment all poly work with doubles
+        self._dataSize = 8
+        super(Poly2D,self).__init__(family if family else  self.__class__.family, name)
+        self._instanceInit()
 
-        if (azimuthOrder is not None) and (rangeOrder is not None):
-            for k in range(azimuthOrder+1):
-                rng =[]
-                for kk in range(rangeOrder+1):
-                    rng.append(0.)
-                self._coeffs.append(rng)
+        return
 
-            self._rangeOrder = int(rangeOrder)
-            self._azimuthOrder = int(azimuthOrder)
-        else:
-            self._rangeOrder = None
-            self._azimuthOrder = None
-        self._normRange = 1.0
-        self._normAzimuth = 1.0
-        self._meanRange = 0.0
-        self._meanAzimuth = 0.0
+    def initPoly(self,rangeOrder=None, azimuthOrder=None,coeffs=None, image=None):
+        super(Poly2D,self).initPoly(image)
 
+        if coeffs:
+            import copy
+            self._coeffs  = copy.deepcopy(coeffs)
+
+        self._rangeOrder = int(rangeOrder) if rangeOrder else rangeOrder
+        self._azimuthOrder = int(azimuthOrder) if azimuthOrder else azimuthOrder
+        if (self._coeffs is not None) and  (len(self._coeffs) > 0):
+            self.createPoly2D()
+
+    def dump(self,filename):
+        from copy import deepcopy
+        toDump = deepcopy(self)
+        self._poly = None
+        self._accessor= None
+        self._factory = None
+        super(Poly2D,self).dump(filename)
+        #tried to do self = deepcopy(toDump) but did not work
+        self._poly = toDump._poly
+        self._accessor = toDump._accessor
+        self._factory = toDump._factory
+
+    def load(self,filename):
+        super(Poly2D,self).load(filename)
+        #recreate the pointer objcts _poly, _accessor, _factory
+        self.createPoly2D()
+
+    def setCoeff(self, row, col, val):
+        """
+        Set the coefficient at specified row, column.
+        """
+        self._coeffs[row][col] = val
         return
 
     def setCoeffs(self, parms):
         '''
         Set the coefficients using another nested list.
         '''
+        self._coeffs = [[0. for i in j] for j in parms]
         for ii,row in enumerate(parms):
             for jj,col in enumerate(row):
                 self._coeffs[ii][jj] = float(col)
 
         return
 
-    def setCoeff(self, ii, jj, val):
-        self._coeffs[ii][jj] = float(val)
-
     def getCoeffs(self):
         return self._coeffs
-
-    def getCoeff(self, ii, jj):
-        return self._coeffs[ii][jj]
 
     def setNormRange(self, parm):
         self._normRange = float(parm)
@@ -109,6 +206,18 @@ class Polynomial(object):
     def getMeanAzimuth(self):
         return self._meanAzimuth
 
+    def getRangeOrder(self):
+        return self._rangeOrder
+
+    def getAzimuthOrder(self):
+        return self._azimuthOrder
+
+    def getWidth(self):
+        return self._width
+
+    def getLength(self):
+        return self._length
+
     def __call__(self, azi,rng):
         '''
         Evaluate the polynomial.
@@ -120,9 +229,21 @@ class Polynomial(object):
         for ii,row in enumerate(self._coeffs):
             yfact = y**ii
             for jj,col in enumerate(row):
-                res += col*yfact * (x**jj)
+                res += self._coeffs[ii][jj] * yfact * (x**jj)
 
         return res
+
+    def copy(self):
+        '''
+        Create a copy of the given polynomial instance.
+        Do not carry any associated image information.
+        Just the coefficients etc for scaling and manipulation.
+        '''
+
+        newObj = Poly2D()
+        g = self.exportToC()
+        newObj.importFromC(g)
+        return newObj
 
     def exportToC(self):
         '''
@@ -155,24 +276,59 @@ class Polynomial(object):
 
         return
 
-    def polyfit_numpy(self, x, y, z, w=None,maxOrder=True):
-        '''
-        Fit polynomials using numpy.
-        '''
 
-        if (len(x) != len(y)) or (len(x) != len(z)):
-            raise ValueError('x, y and z should be of same length')
-
-        if w:
-            if len(z) != len(w):
-                raise ValueError('w should be of same length as z')
-            snr = w
+    def createPoly2D(self):
+        if self._accessor is None:
+            self._poly = self.exportToC()
+            self._accessor, self._factory = DA.createPolyAccessor(self._poly,"poly2d",
+                                                              self._width,self._length,self._dataSize)
         else:
-            snr = np.ones(len(x))
+            print('C pointer already created. Finalize and recreate if image dimensions changed.')
 
-        if (self._rangeOrder is None) or (self._azimuthOrder is None):
-            raise ValueError('Order of 2D polynomial is undefined.')
+    def finalize(self):
+        from isceobj.Util import combinedlibmodule as CL
+        CL.freeCPoly2D(self._poly)
+        try:
+            DA.finalizeAccessor(self._accessor, self._factory)
+        except TypeError:
+            message = "Poly2D %s is already finalized" % str(self)
+            if ERROR_CHECK_FINALIZE:
+                raise RuntimeError(message)
+            else:
+                print(message)
 
+        self._accessor = None
+        self._factory = None
+        return None
+
+    def polyfit(self,xin,yin,zin,
+            sig=None,snr=None,cond=1.0e-12,
+            maxOrder=True):
+        '''
+        2D polynomial fitting.
+
+xx = np.random.random(75)*100
+yy = np.random.random(75)*200
+
+z = 3000 + 1.0*xx + 0.2*xx*xx + 0.459*yy + 0.13 * xx* yy + 0.6*yy*yy
+
+gg = Poly2D(rangeOrder=2, azimuthOrder=2)
+gg.polyfit(xx,yy,z,maxOrder=True)
+
+print(xx[5], yy[5], z[5], gg(yy[5], xx[5]))
+print(xx[23], yy[23], z[23], gg(yy[23], xx[23]))
+        '''
+        import numpy as np
+
+        x = np.array(xin)
+        xmin = np.min(x)
+        xnorm = np.max(x) - xmin
+        if xnorm == 0:
+            xnorm = 1.0
+
+        x = (x - xmin)/ xnorm
+
+        y=np.array(yin)
         ymin = np.min(y)
         ynorm = np.max(y) - ymin
         if ynorm == 0:
@@ -180,76 +336,70 @@ class Polynomial(object):
 
         y = (y-ymin)/ynorm
 
-        xmin = np.min(x)
-        xnorm = np.max(x) - xmin
-        if xnorm == 0:
-            xnorm = 1.0
-
-        x = (x-xmin)/xnorm
-
-        yOrder = self._azimuthOrder
-        xOrder = self._rangeOrder
-
-        if maxOrder: 
-            bigOrder = max(yOrder, xOrder)
+        z = np.array(zin)
+        bigOrder = max(self._azimuthOrder, self._rangeOrder)
 
         arrList = []
+        for ii in range(self._azimuthOrder + 1):
+            yfact = np.power(y, ii)
+            for jj in range(self._rangeOrder+1):
+                xfact = np.power(x,jj) * yfact
 
-
-        if maxOrder:
-            for ii in range(min(yOrder,bigOrder)+1):
-                yfact = np.power(y,ii)
-                for kk in range(min(bigOrder-ii,xOrder)+1):
-                    temp = np.power(x,kk)*yfact
-                    arrList.append(temp.reshape((temp.size,1)))
-
-        else:
-            for ii in range(yOrder+1):
-                yfact = np.power(y,ii)
-                for kk in range(xOrder+1):
-                    temp = np.power(x,kk)*yfact
-                    arrList.append(temp.reshape((temp.size,1)))
+                if maxOrder:
+                    if ((ii+jj) <= bigOrder):
+                        arrList.append(xfact.reshape((x.size,1)))
+                else:
+                    arrList.append(xfact.reshape((x.size,1)))
 
         A = np.hstack(arrList)
-        A = A / snr[:,None]
-        b = z / snr
 
-        val,res,rank,eigs = np.linalg.lstsq(A,b, rcond=1.0e-12)
-#        print(res)
-#        print('Chi: ', np.sqrt(res/(1.0*len(b))))
+        if sig is not None and snr is not None:
+            raise Exception('Only one of sig / snr can be provided')
 
-        self._meanRange = xmin
-        self._meanAzimuth = ymin
-        self._normRange = xnorm
-        self._normAzimuth = ynorm
+        if sig is not None:
+            snr = 1.0 + 1.0/sig
+
+        if snr is not None:
+            A = A / snr[:,None]
+            z = z / snr
 
 
-        for ii in range(yOrder+1):
-            row = self._coeffs[ii]
-            for jj in range(xOrder+1):
-                row[jj] = 0.0
 
-        if maxOrder:
-            count = 0
-            ii = 0
+        returnVal = True
 
-            for ii in range(min(yOrder,bigOrder)+1):
-                row = self._coeffs[ii]
-                for jj in range(min(bigOrder-ii,xOrder)+1):
-                    row[jj] = val[count]
-                    count += 1
-
+        val, res, rank, eigs = np.linalg.lstsq(A,z, rcond=cond)
+        if len(res)> 0:
+            print('Chi squared: %f'%(np.sqrt(res/(1.0*len(z)))))
         else:
-            count = 0
-            for ii in range(yOrder+1):
-                row = self._coeffs[ii]
-                for jj in range(xOrder+1):
-                    row[jj] = val[count]
-                    count += 1
+            print('No chi squared value....')
+            print('Try reducing rank of polynomial.')
+            returnVal = False
 
-        pass
+        self.setMeanRange(xmin)
+        self.setMeanAzimuth(ymin)
+        self.setNormRange(xnorm)
+        self.setNormAzimuth(ynorm)
 
+        coeffs = []
+        count = 0
+        for ii in range(self._azimuthOrder+1):
+            row = []
+            for jj in range(self._rangeOrder+1):
+                if maxOrder:
+                    if (ii+jj) <= bigOrder:
+                        row.append(val[count])
+                        count = count+1
+                    else:
+                        row.append(0.0)
+                else:
+                    row.append(val[count])
+                    count = count+1
+            coeffs.append(row)
 
+        self.setCoeffs(coeffs)
+        
+        return returnVal
+    
 def createPolynomial(order=None,
         norm=None, offset=None):
     '''
@@ -257,7 +407,7 @@ def createPolynomial(order=None,
     Order, Norm and Offset are iterables.
     '''
 
-    poly = Polynomial(rangeOrder=order[0], azimuthOrder=order[1])
+    poly = Poly2D(rangeOrder=order[0], azimuthOrder=order[1])
 
     if norm:
         poly.setNormRange(norm[0])
@@ -273,7 +423,7 @@ def createRangePolynomial(order=None, offset=None, norm=None):
     '''
     Create a polynomial in range.
     '''
-    poly = Polynomial(rangeOrder=order, azimuthOrder=0)
+    poly = Poly2D(rangeOrder=order, azimuthOrder=0)
 
     if offset:
         poly.setMeanRange(offset)
@@ -287,7 +437,7 @@ def createAzimuthPolynomial(order=None, offset=None, norm=None):
     '''
     Create a polynomial in azimuth.
     '''
-    poly = Polynomial(rangeOrder=0, azimuthOrder=order)
+    poly = Poly2D(rangeOrder=0, azimuthOrder=order)
 
     if offset:
         poly.setMeanAzimuth(offset)

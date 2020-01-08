@@ -1,20 +1,20 @@
 #!/usr/bin/env python3 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -23,113 +23,496 @@
 
 
 
-from __future__ import print_function
 import sys
 import os
 import math
 from iscesys.Compatibility import Compatibility
 Compatibility.checkPythonVersion()
 from mroipac.formimage import formslc
-from iscesys.Component.Component import Component
+from iscesys.Component.Component import Component, Port
+from isceobj.Constants import SPEED_OF_LIGHT
+import datetime
 
-##
-# This class allows the creation of a SLC (Single Look Complex) image from a Raw image. The parameters that need to be set are
-#\verbatim
-#PLANET_RADIUS: radius of curvarture of the planet. Mandatory.
-#LINEAR_RESAMPLING_COEFFICIENTS: Optional. Default [0,0,0,0].
-#LINEAR_RESAMPLING_DELTAS: Optional. Default [0,0,0,0].
-#DOPPLER_CENTROID_COEFFICIENTS: Mandatory.
-#PLANET_GM: Planet gravitational constant times mass. Optional. Default 398600448073000x10^6 m^3/s^2, i.e Earth value.
-#BODY_FIXED_VELOCITY: Mandatory.
-#SPACECRAFT_HEIGHT: Spacecraft height. Mandatory.
-#POINTING_DIRECTION: Mandatory. (check this one. I think is not used)
-#ANTENNA_SCH_VELOCITY: Mandatory.
-#ANTENNA_SCH_ACCELERATION: Mandatory.
-#PRF: pulse repetition frequency. Mandatory.
-#RANGE_SAMPLING_RATE: range sampling rate. Mandatory.
-#CHIRP_SLOPE: chirp slope .Mandatory.
-#RANGE_PULSE_DURATION: range pulse duration. Mandatory.
-#RANGE_CHIRP_EXTENSION_POINTS: Mandatory
-#RADAR_WAVELENGTH: radar wavelength. Mandatory.
-#RANGE_SPECTRAL_WEIGHTING: Optional. Default 1.
-#SPECTRAL_SHIFT_FRACTIONS: Optional. Default [1,1]
-#NUMBER_GOOD_BYTES:  number of bytes in the raw image considered good for the computation. Must be less or equal to the width of the raw image. Optional. Default raw iamge width.
-#NUMBER_BYTES_PER_LINE: number of bytes per line in the raw image. Optional. Default raw image width.
-#DEBUG_FLAG: debug flag. Optional. Default 'n'.
-#DESKEW_FLAG: deskew flag. Optional. Default 'n'.
-#SECONDARY_RANGE_MIGRATION_FLAG: secondary range migration flag. Optional. Default 'n'.
-#FIRST_LINE: first line in the raw image to be read. Mandatory.
-#NUMBER_PATCHES: number of patches in which the image is divided in order to reduce memory usage. Mandatory.
-#FIRST_SAMPLE: first sample to be used in the raw image. Mandatory.
-#AZIMUTH_PATCH_SIZE: azimuth patch size. Mandatory.
-#NUMBER_VALID_PULSES: number of valid pulses. Mandatory.
-#CALTONE_LOCATION: caltone location. Optional. Default 0.
-#START_RANGE_BIN: start range bin. Optional. Default 1.
-#NUMBER_RANGE_BIN: number of range bin. Optional. Default SLC image width.
-#RANGE_FIRST_SAMPLE': range first sample. Mandatory.
-#INPHASE_VALUE: in phase value. Mandatory.
-#QUADRATURE_VALUE: quadrature value. Mandatory.
-#IQ_FLIP: IQ flip flag. Optional. Default 'n'.
-#AZIMUTH_RESOLUTION: azimuth resolution. Mandatory.
-#NUMBER_AZIMUTH_LOOKS: number of azimuth looks. Mandatory.
-#\endverbatim
-#In addition isceobj.RawImage and isceobj.SlcImage objects need to be created and the pointers to the underlying  LineAccessor.LineAccessor objects need to be passed (see isceobj.RawImage.getImagePointer() and isceobj.SlcImage.getImagePointer()) to the formSLCImage() method.
-#Since the FormSLC class inherits the iscesys.Component.Component, the methods of initialization described in the Component package can be used.
-#Moreover each parameter can be set with the corresponding accessor method setParameter() (see the class member methods).
-#@see LineAccessor.LineAccessor.
-#@see iscesys.Component.Component.
-#@see isceobj.RawImage
-#@see isceobj.SlcImage
-#@see isceobj.RawImage.getImagePointer()
-#@see isceobj.SlcImage.getImagePointer()
+NUMBER_GOOD_BYTES = Component.Parameter(
+    'numberGoodBytes',
+    public_name='NUMBER_GOOD_BYTES',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of bytes used in a range line in the raw image'
+)
+NUMBER_BYTES_PER_LINE = Component.Parameter(
+    'numberBytesPerLine',
+    public_name='NUMBER_BYTES_PER_LINE',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of bytes per line in the raw image'
+)
+FIRST_LINE = Component.Parameter(
+    'firstLine',
+    public_name='FIRST_LINE',
+    default=0,
+    type=int,
+    mandatory=False,
+    doc='First line processed in the raw image'
+)
+NUMBER_VALID_PULSES = Component.Parameter(
+    'numberValidPulses',
+    public_name='NUMBER_VALID_PULSES',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of lines to be stored from each azimuth patch'
+)
+FIRST_SAMPLE = Component.Parameter(
+    'firstSample',
+    public_name='FIRST_SAMPLE',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='First valid sample in the raw image range line.'
+)
+NUMBER_PATCHES = Component.Parameter(
+    'numberPatches',
+    public_name='NUMBER_PATCHES',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of patches used.'
+)
+START_RANGE_BIN = Component.Parameter(
+    'startRangeBin',
+    public_name='START_RANGE_BIN',
+    default=1,
+    type=int,
+    mandatory=False,
+    doc=('Starting range bin to read from the raw data. '+
+         'Must have positive value.'
+    )
+)
+NUMBER_RANGE_BIN = Component.Parameter(
+    'numberRangeBin',
+    public_name='NUMBER_RANGE_BIN',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc=('Number of range bins in the input raw image. '+
+         'Used in the computation of the slcWidth. '
+    )
+)
+NUMBER_AZIMUTH_LOOKS = Component.Parameter(
+    'numberAzimuthLooks',
+    public_name='NUMBER_AZIMUTH_LOOKS',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of looks in the azimuth direction'
+)
+NEAR_RANGE_CHIRP_EXTENSION_FRAC = Component.Parameter(
+        'nearRangeChirpExtFrac',
+        default = 0.0,
+        type=float,
+        mandatory=False,
+        doc='Chirp extension at near range')
+FAR_RANGE_CHIRP_EXTENSION_FRAC = Component.Parameter(
+        'farRangeChirpExtFrac',
+        default = 0.0,
+        type = float,
+        mandatory = False,
+        doc = 'Chirp extension at far range')
+EARLY_AZIMUTH_CHIRP_EXTENSION_FRAC = Component.Parameter(
+        'earlyAzimuthChirpExtFrac',
+        default = 0.0,
+        type = float,
+        mandatory = False,
+        doc = 'Azimuth chirp extension at the start of image')
+LATE_AZIMUTH_CHIRP_EXTENSION_FRAC = Component.Parameter(
+        'lateAzimuthChirpExtFrac',
+        default = 0.0,
+        type = float,
+        mandatory = False,
+        doc = 'Azimuth chirp extension at the end of image')
+AZIMUTH_PATCH_SIZE = Component.Parameter(
+    'azimuthPatchSize',
+    public_name='AZIMUTH_PATCH_SIZE',
+    default=None,
+    type=int,
+    mandatory=True,
+    doc='Number of lines in an azimuth patch'
+)
+OVERLAP = Component.Parameter(
+    'overlap',
+    public_name='OVERLAP',
+    default=0,
+    type=int,
+    mandatory=False,
+    doc='Overlap between consecutive azimuth patches'
+)
+RAN_FFTOV = Component.Parameter(
+    'ranfftov',
+    public_name='RAN_FFTOV',
+    default=65536,
+    type=int,
+    mandatory=False,
+    doc='FFT size for offset video'
+)
+RAN_FFTIQ = Component.Parameter(
+    'ranfftiq',
+    public_name='RAN_FFTIQ',
+    default=32768,
+    type=int,
+    mandatory=False,
+    doc='FFT size for I/Q processing'
+)
+DEBUG_FLAG = Component.Parameter(
+    'debugFlag',
+    public_name='DEBUG_FLAG',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc='Debug output flag'
+)
+CALTONE_LOCATION = Component.Parameter(
+    'caltoneLocation',
+    public_name='CALTONE_LOCATION',
+    default=0,
+    type=int,
+    mandatory=False,
+    doc='Location of the calibration tone'
+)
+PLANET_LOCAL_RADIUS = Component.Parameter('planetLocalRadius',
+        public_name = 'PLANET_LOCAL_RADIUS',
+        default = None,
+        type = float,
+        mandatory = True,
+        doc = 'Local radius of the planet')
+PLANET_GM = Component.Parameter('planetGM',
+        public_name = 'PLANET_GM',
+        default = 398600448073000.,
+        type=float,
+        mandatory=True,
+        doc = 'Planet gravitational constant')
+BODY_FIXED_VELOCITY = Component.Parameter(
+    'bodyFixedVelocity',
+    public_name='BODY_FIXED_VELOCITY',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Platform velocity'
+)
+SPACECRAFT_HEIGHT = Component.Parameter(
+    'spacecraftHeight',
+    public_name='SPACECRAFT_HEIGHT',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Spacecraft height'
+)
+PRF = Component.Parameter(
+    'prf',
+    public_name='PRF',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Pulse repetition frequency'
+)
+INPHASE_VALUE = Component.Parameter(
+    'inPhaseValue',
+    public_name='INPHASE_VALUE',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc=''
+)
+QUADRATURE_VALUE = Component.Parameter(
+    'quadratureValue',
+    public_name='QUADRATURE_VALUE',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc=''
+)
+AZIMUTH_RESOLUTION = Component.Parameter(
+    'azimuthResolution',
+    public_name='AZIMUTH_RESOLUTION',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Desired azimuth resolution for determining azimuth B/W'
+)
+RANGE_SAMPLING_RATE = Component.Parameter(
+    'rangeSamplingRate',
+    public_name='RANGE_SAMPLING_RATE',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Sampling frequency of the range pixels'
+)
+CHIRP_SLOPE = Component.Parameter(
+    'chirpSlope',
+    public_name='CHIRP_SLOPE',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Frequency slope of the transmitted chirp'
+)
+RANGE_PULSE_DURATION = Component.Parameter(
+    'rangePulseDuration',
+    public_name='RANGE_PULSE_DURATION',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Range pulse duration'
+)
+RADAR_WAVELENGTH = Component.Parameter(
+    'radarWavelength',
+    public_name='RADAR_WAVELENGTH',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Radar wavelength'
+)
+RANGE_FIRST_SAMPLE = Component.Parameter(
+    'rangeFirstSample',
+    public_name='RANGE_FIRST_SAMPLE',
+    default=None,
+    type=float,
+    mandatory=True,
+    doc='Range of the first sample in meters'
+)
+RANGE_SPECTRAL_WEIGHTING = Component.Parameter(
+    'rangeSpectralWeighting',
+    public_name='RANGE_SPECTRAL_WEIGHTING',
+    default=1.0,
+    type=float,
+    mandatory=False,
+    doc='Spectral weights for range spectrum.'
+)
+SPECTRAL_SHIFT_FRACTIONS = Component.Parameter(
+    'spectralShiftFractions',
+    public_name='SPECTRAL_SHIFT_FRACTION',
+    default=[0., 0.],
+    type=list,
+    mandatory=False,
+    doc='Spectral shift for range spectrum.'
+)
+IQ_FLIP = Component.Parameter(
+    'IQFlip',
+    public_name='IQ_FLIP',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc='If I/Q channels are flipped in the raw data file'
+)
+DESKEW_FLAG = Component.Parameter(
+    'deskewFlag',
+    public_name='DESKEW_FLAG',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc='If deskewing is desired'
+)
+SECONDARY_RANGE_MIGRATION_FLAG = Component.Parameter(
+    'secondaryRangeMigrationFlag',
+    public_name='SECONDARY_RANGE_MIGRATION_FLAG',
+    default=False,
+    type=bool,
+    mandatory=False,
+    doc='If secondary range migration is desired'
+)
+DOPPLER_CENTROID_COEFFICIENTS = Component.Parameter(
+    'dopplerCentroidCoefficients',
+    public_name='DOPPLER_CENTROID_COEFFICIENTS',
+    default=[],
+    type=list,
+    mandatory=True,
+    doc='Doppler centroid coefficients'
+)
+STARTING_RANGE = Component.Parameter(
+    'startingRange',
+    public_name='STARTING_RANGE',
+    default=None,
+    type=float,
+    mandatory=False,
+    private=True,
+    intent='output',
+    doc='Modified starting range for the SLC'
+)
+SLC_SENSING_START = Component.Parameter(
+        'slcSensingStart',
+        public_name='SLC_SENSING_START',
+        default=None,
+        mandatory=False,
+        type=datetime.datetime,
+        private=True,
+        intent='output',
+        doc='Modified sensing Start for the SLC'
+)
+SENSING_START = Component.Parameter(
+        'sensingStart',
+        public_name='SENSING_START',
+        default=None,
+        mandatory=True,
+        type=datetime.datetime,
+        doc='Sensing time of the first line of the RAW data')
+ANTENNA_SCH_VELOCITY = Component.Parameter(
+        'antennaSCHVelocity',
+        public_name='ANTENNA_SCH_VELOCITY',
+        default=[],
+        type=list,
+        mandatory=False,
+        doc='Antenna SCH Velocity')
+
+ANTENNA_SCH_ACCELERATION = Component.Parameter(
+        'anntenaSCHAcceleration',
+        public_name='ANTENNA_SCH_ACCELERATION',
+        default = [],
+        type = list,
+        mandatory=False,
+        doc='Antenna SCH Acceleration')
+ANTENNA_LENGTH = Component.Parameter(
+        'antennaLength',
+        public_name= 'ANTENNA_LENGTH',
+        default=None,
+        type=float,
+        mandatory=True,
+        doc='Antenna length')
+POINTING_DIRECTION = Component.Parameter(
+        'pointingDirection',
+        public_name='POINTING_DIRECTION',
+        default=-1,
+        type=int,
+        mandatory=False,
+        doc='Right: -1, Left: 1')
+
+LINEAR_RESAMPLING_COEFFS = Component.Parameter(
+        'linearResamplingCoefficients',
+        public_name='LINEAR_RESAMPLING_COEFFS',
+        default=[0.,0.,0.,0.],
+        type=list,
+        mandatory=False,
+        doc='Linear resampling coefficients')
+LINEAR_RESAMPLING_DELTAS = Component.Parameter(
+        'linearResamplingDeltas',
+        public_name='LINEAR_RESAMPLING_DELTAS',
+        default = [0.,0.,0.,0.],
+        type=list,
+        mandatory=False,
+        doc = 'Linear resampling spacings')
+
+####Facilities
+SLC_IMAGE = Component.Facility(
+    'slcImage',
+    public_name='slcImage',
+    module='isceobj.Image',
+    args=(),
+    factory='createSlcImage',
+    mandatory=True,
+    doc='Single Look Complex Image object'  
+)
+RAW_IMAGE = Component.Facility(
+    'rawImage',
+    public_name='rawImage',
+    module='isceobj.Image',
+    args=(),
+    factory='createRawIQImage',
+    mandatory=True,
+    doc='Raw Image object'  
+)
+
 
 class FormSLC(Component):
 
-##
-#This method invokes the actual fortran compute engine in formslc.F that creates the SLC image from the Raw image. 
-#@param rawImage pointer to a  LineAccessor.LineAccessor object (see isceobj.RawImage.getImagePointer()).
-#@param SlcImage pointer to a  LineAccessor.LineAccessor object (see isceobj.SlcImage.getImagePointer()).
-#@see isceobj.RawImage.
-#@see isceobj.SlcImage.
-#@see isceobj.RawImage.getImagePointer()
-#@see isceobj.SlcImage.getImagePointer()
-    def formSLCImage(self,rawImage,slcImage):
-        
-        self.setOptionalVariables(rawImage,slcImage)
+    family = 'formslc'
+    logging_name = 'mroipac.formslc'
+
+    parameter_list = (NUMBER_GOOD_BYTES,
+                      NUMBER_BYTES_PER_LINE,
+                      FIRST_LINE,
+                      NUMBER_VALID_PULSES,
+                      FIRST_SAMPLE,
+                      NUMBER_PATCHES,
+                      START_RANGE_BIN,
+                      NUMBER_RANGE_BIN,
+                      NUMBER_AZIMUTH_LOOKS,
+                      NEAR_RANGE_CHIRP_EXTENSION_FRAC,
+                      FAR_RANGE_CHIRP_EXTENSION_FRAC,
+                      EARLY_AZIMUTH_CHIRP_EXTENSION_FRAC,
+                      LATE_AZIMUTH_CHIRP_EXTENSION_FRAC,
+                      AZIMUTH_PATCH_SIZE,
+                      OVERLAP,
+                      RAN_FFTOV,
+                      RAN_FFTIQ,
+                      DEBUG_FLAG,
+                      CALTONE_LOCATION,
+                      PLANET_LOCAL_RADIUS,
+                      PLANET_GM,
+                      BODY_FIXED_VELOCITY,
+                      SPACECRAFT_HEIGHT,
+                      PRF,
+                      INPHASE_VALUE,
+                      QUADRATURE_VALUE,
+                      AZIMUTH_RESOLUTION,
+                      RANGE_SAMPLING_RATE,
+                      CHIRP_SLOPE,
+                      RANGE_PULSE_DURATION,
+                      RADAR_WAVELENGTH,
+                      RANGE_FIRST_SAMPLE,
+                      RANGE_SPECTRAL_WEIGHTING,
+                      SPECTRAL_SHIFT_FRACTIONS,
+                      IQ_FLIP,
+                      DESKEW_FLAG,
+                      SECONDARY_RANGE_MIGRATION_FLAG,
+                      DOPPLER_CENTROID_COEFFICIENTS,
+                      STARTING_RANGE,
+                      ANTENNA_SCH_VELOCITY,
+                      ANTENNA_SCH_ACCELERATION,
+                      ANTENNA_LENGTH,
+                      POINTING_DIRECTION,
+                      LINEAR_RESAMPLING_COEFFS,
+                      LINEAR_RESAMPLING_DELTAS,
+                      SLC_SENSING_START,
+                      SENSING_START,
+                    )
+
+    facility_list = (
+                     SLC_IMAGE,
+                     RAW_IMAGE,
+                     )
+
+
+    def formslc(self, rawImage=None):
+        if rawImage is not None:
+            self.rawImage = rawImage
+
         self.checkInitialization()
-        self.allocateArrays()
-        if(self.debugFlag == 'n'): #some flags where defined 'y' or 'n' but this one 0 or 1. make the interface equal for all flags
-            self.debugFlag = 0
-        else:
-            self.debugFlag = 1
+        self.createOutputImage()
         self.setState()
-        slcImagePt = slcImage.getImagePointer()
-        rawImagePt = rawImage.getImagePointer()
+        slcImagePt = self.slcImage.getImagePointer()
+        rawImagePt = self.rawImage.getImagePointer()
         formslc.formslc_Py(rawImagePt,slcImagePt)
-        self.deallocateArrays()
+        self.getState()
+        self.rawImage.finalizeImage()
+        self.slcImage.finalizeImage()
+        self.slcImage.renderHdr()
 
-    def setOptionalVariables(self,rawImage,slcImage):
+    def getState(self):
+        outStart = formslc.getSLCStartingRange_Py()
 
-        if self.numberGoodBytes == None:
-            self.numberGoodBytes = rawImage.getWidth()
-            print('Variable NUMBER_GOOD_BYTES set equal to the raw image width %i in FormSLC.py'%self.numberGoodBytes)
+        if outStart != self.startingRange:
+            raise Exception('Starting Range mismatch: {0} {1}'.format(outStart, self.startingRange))
 
-        if self.numberBytesPerLine == None:
-            self.numberBytesPerLine = rawImage.getWidth()
-            print('Variable NUMBER_BYTES_PER_LINE set equal to the raw image width %i in FormSLC.py'%self.numberBytesPerLine)
-
-        if self.numberRangeBin == None:
-            self.numberRangeBin = slcImage.getWidth()
-            print('Variable NUMBER_RANGE_BIN set equal to the slc image width %i in FormSLC.py'%self.numberRangeBin)
-##
-# Set the data in the fortran data module.
+        deltat = formslc.getSLCStartingLine_Py()
+        self.slcSensingStart = self.sensingStart + datetime.timedelta(seconds = deltat / self.prf)
+        return
 
     def setState(self):
         formslc.setNumberGoodBytes_Py(int(self.numberGoodBytes))
         formslc.setNumberBytesPerLine_Py(int(self.numberBytesPerLine))
         formslc.setDebugFlag_Py(int(self.debugFlag))
-        formslc.setDeskewFlag_Py(self.deskewFlag)
-        formslc.setSecondaryRangeMigrationFlag_Py(self.secondaryRangeMigrationFlag)
+        formslc.setDeskewFlag_Py(int(self.deskewFlag))
+        formslc.setSecondaryRangeMigrationFlag_Py(int(self.secondaryRangeMigrationFlag))
         formslc.setFirstLine_Py(int(self.firstLine))
         formslc.setNumberPatches_Py(int(self.numberPatches))
         formslc.setFirstSample_Py(int(self.firstSample))
@@ -138,19 +521,19 @@ class FormSLC(Component):
         formslc.setCaltoneLocation_Py(float(self.caltoneLocation))
         formslc.setStartRangeBin_Py(int(self.startRangeBin))
         formslc.setNumberRangeBin_Py(int(self.numberRangeBin))
-        formslc.setDopplerCentroidCoefficients_Py(self.dopplerCentroidCoefficients, self.dim1_dopplerCentroidCoefficients)
-        formslc.setPlanetRadiusOfCurvature_Py(float(self.planetRadiusOfCurvature))
+        formslc.setDopplerCentroidCoefficients_Py(self.dopplerCentroidCoefficients)
+        formslc.setPlanetRadiusOfCurvature_Py(float(self.planetLocalRadius))
         formslc.setBodyFixedVelocity_Py(float(self.bodyFixedVelocity))
         formslc.setSpacecraftHeight_Py(float(self.spacecraftHeight))
-        formslc.setPlanetGravitationalConstant_Py(float(self.planetGravitationalConstant))
+        formslc.setPlanetGravitationalConstant_Py(float(self.planetGM))
         formslc.setPointingDirection_Py(int(self.pointingDirection))
-        formslc.setAntennaSCHVelocity_Py(self.antennaSCHVelocity, self.dim1_antennaSCHVelocity)
-        formslc.setAntennaSCHAcceleration_Py(self.antennaSCHAcceleration, self.dim1_antennaSCHAcceleration)
+        formslc.setAntennaSCHVelocity_Py(self.antennaSCHVelocity)
+        formslc.setAntennaSCHAcceleration_Py(self.antennaSCHAcceleration)
         formslc.setRangeFirstSample_Py(float(self.rangeFirstSample))
-        formslc.setPRF_Py(float(self.PRF))
+        formslc.setPRF_Py(float(self.prf))
         formslc.setInPhaseValue_Py(float(self.inPhaseValue))
         formslc.setQuadratureValue_Py(float(self.quadratureValue))
-        formslc.setIQFlip_Py(self.IQFlip)
+        formslc.setIQFlip_Py(int(self.IQFlip))
         formslc.setAzimuthResolution_Py(float(self.azimuthResolution))
         formslc.setNumberAzimuthLooks_Py(int(self.numberAzimuthLooks))
         formslc.setRangeSamplingRate_Py(float(self.rangeSamplingRate))
@@ -159,15 +542,140 @@ class FormSLC(Component):
         formslc.setRangeChirpExtensionPoints_Py(int(self.rangeChirpExtensionPoints))
         formslc.setRadarWavelength_Py(float(self.radarWavelength))
         formslc.setRangeSpectralWeighting_Py(float(self.rangeSpectralWeighting))
-        formslc.setSpectralShiftFractions_Py(self.spectralShiftFractions, self.dim1_spectralShiftFractions)
-        formslc.setLinearResamplingCoefficiets_Py(self.linearResamplingCoefficients, self.dim1_linearResamplingCoefficients)
-        formslc.setLinearResamplingDeltas_Py(self.linearResamplingDeltas, self.dim1_linearResamplingDeltas)
+        formslc.setSpectralShiftFractions_Py(self.spectralShiftFractions)
+        formslc.setLinearResamplingCoefficiets_Py(self.linearResamplingCoefficients)
+        formslc.setLinearResamplingDeltas_Py(self.linearResamplingDeltas)
 
         return
 
+    def createOutputImage(self):
+        '''
+        Compute SLC output width here.
+        '''
+        self.slcImage.setWidth(self.numberRangeBin)
+        self.slcImage.setAccessMode('WRITE')
+        self.slcImage.createImage()
+
+        return
+
+    def checkInitialization(self):
+        '''
+        Check that inputs are set correctly.
+        '''
+        pulseSamples = int( self.rangeSamplingRate * self.rangePulseDuration)
+
+        nearRangeExt = int(pulseSamples * self.nearRangeChirpExtFrac)
+        farRangeExt = int(pulseSamples * self.farRangeChirpExtFrac)
 
 
+        spacing = SPEED_OF_LIGHT * 0.5 / self.rangeSamplingRate 
+        slcWidth = int((self.numberGoodBytes - self.firstSample)/2) + nearRangeExt - farRangeExt- pulseSamples
 
+        if (slcWidth <= 0):
+            raise Exception('Range chirp extensions Error. Eventual SLC width is zero.')
+
+        self.numberRangeBin = slcWidth
+
+
+        slcStartingRange = self.rangeFirstSample - spacing * nearRangeExt 
+        print('Estimated SLC Starting Range: ', slcStartingRange)
+
+
+        ####Compute azimuth patch parameters
+        chunksize=1024
+        rawFileSize = self.rawImage.getLength() * self.rawImage.getWidth()
+        linelength = int(self.rawImage.getXmax())
+        width = self.rawImage.getWidth()
+
+        synthApertureSamps = (
+            self.radarWavelength* (slcStartingRange +
+                slcWidth*SPEED_OF_LIGHT*0.5/self.rangeSamplingRate)*
+                self.prf/(self.antennaLength*self.bodyFixedVelocity))
+        nSAS = int((synthApertureSamps-1)/chunksize)+1
+        chunkedSAS = chunksize*nSAS
+        nxP = self.nxPower(nSAS)
+        azP = chunksize*2*(2**nxP)      #Patchsize
+        nV = azP-chunkedSAS             #Numbervalid
+        if self.azimuthPatchSize:
+            if self.azimuthPatchSize != 2**self.nxPower(self.azimuthPatchSize):
+                self.azimuthPatchSize = 2**self.nxPower(self.azimuthPatchSize)
+                self.logger.info(
+                    "Patch size must equal power of 2. Resetting to %d" %
+                    self.azimuthPatchSize
+                    )
+
+        if self.azimuthPatchSize and self.numberValidPulses:
+            if (self.azimuthPatchSize < self.numberValidPulses or
+                self.azimuthPatchSize < chunkedSAS+chunksize):
+                self.azimuthPatchSize = azP
+                self.numberValidPulses = nV
+            elif self.numberValidPulses > self.azimuthPatchSize-chunkedSAS:
+                msg = ("Number of valid pulses specified is too large "+
+                       "for full linear convolution. ")
+                msg += ("Should be less than %d" %
+                        (self.azimuthPatchSize-chunkedSAS))
+                self.logger.info(msg)
+                self.logger.info(
+                    "Continuing with specified value of %d" %
+                    self.numberValidPulses
+                    )
+
+        elif self.azimuthPatchSize and not self.numberValidPulses:
+            if self.azimuthPatchSize < chunkedSAS+chunksize:
+                self.azimuthPatchSize = azP
+                self.numberValidPulses = nV
+            else:
+                self.numberValidPulses = self.azimuthPatchSize-chunkedSAS
+                if self.numberValidPulses > self.azimuthPatchSize-chunkedSAS:
+                    msg = ("Number of valid pulses specified is too large "+
+                           "for full linear convolution. ")
+                    msg += ("Should be less than %d" %
+                            (self.azimuthPatchSize-chunkedSAS))
+                    self.logger.info(msg)
+                    self.logger.info(
+                        "Continuing with specified value of %d" %
+                        self.numberValidPulses
+                        )
+
+        elif not self.azimuthPatchSize and self.numberValidPulses:
+            self.azimuthPatchSize=2**self.nxPower(self.numberValidPulses+
+                                                  synthApertureSamps)
+            if self.azimuthPatchSize > self.maxAzPatchSize:
+                msg = ("%d is a rather large patch size. " %
+                         self.azimuthPatchSize)
+                msg += ("Check that the number of valid pulses is in a "+
+                        "reasonable range. Proceeding anyway...")
+                self.logger.info(msg)
+
+        elif not self.azimuthPatchSize and not self.numberValidPulses:
+            self.azimuthPatchSize=azP
+            self.numberValidPulses=nV
+
+
+        ####Set azimuth extensions
+        earlyExt = int(self.earlyAzimuthChirpExtFrac * synthApertureSamps)
+        lateExt = int(self.lateAzimuthChirpExtFrac * synthApertureSamps)
+
+        procStart = -earlyExt
+        procEnd = self.rawImage.getLength() + lateExt
+
+        overhead = self.azimuthPatchSize - self.numberValidPulses
+        if not self.numberPatches:
+            self.numberPatches = (1 + int(
+                                    (procEnd - procStart - overhead)/self.numberValidPulses))
+
+        self.firstLine = procStart
+
+        if nearRangeExt < 0:
+            self.startRangeBin = 1-nearRangeExt
+            self.rangeChirpExtensionPoints = 0
+        else:
+            self.startRangeBin = 1
+            self.rangeChirpExtensionPoints = nearRangeExt
+
+        self.startingRange = slcStartingRange
+
+        pass
 
     def setNumberGoodBytes(self,var):
         self.numberGoodBytes = int(var)
@@ -293,10 +801,6 @@ class FormSLC(Component):
         self.rangePulseDuration = float(var)
         return
 
-    def setRangeChirpExtensionPoints(self,var):
-        self.rangeChirpExtensionPoints = int(var)
-        return
-
     def setRadarWavelength(self,var):
         self.radarWavelength = float(var)
         return
@@ -317,192 +821,26 @@ class FormSLC(Component):
         self.linearResamplingDeltas = var
         return
 
+    @staticmethod
+    def nxPower(num):
+        power=0
+        k=0
+        while power < num:
+            k+=1
+            power=2**k
+        return k
 
 
 
-
-
-    def allocateArrays(self):
-        if (self.dim1_dopplerCentroidCoefficients == None):
-            self.dim1_dopplerCentroidCoefficients = len(self.dopplerCentroidCoefficients)
-
-        if (not self.dim1_dopplerCentroidCoefficients):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-        formslc.allocate_dopplerCoefficients_Py(self.dim1_dopplerCentroidCoefficients)
-
-        if (self.dim1_antennaSCHVelocity == None):
-            self.dim1_antennaSCHVelocity = len(self.antennaSCHVelocity)
-
-        if (not self.dim1_antennaSCHVelocity):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-
-        formslc.allocate_r_platvel1_Py(self.dim1_antennaSCHVelocity)
-
-        if (self.dim1_antennaSCHAcceleration == None):
-            self.dim1_antennaSCHAcceleration = len(self.antennaSCHAcceleration)
-
-        if (not self.dim1_antennaSCHAcceleration):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-
-        formslc.allocate_r_platacc1_Py(self.dim1_antennaSCHAcceleration)
-
-        if (self.dim1_spectralShiftFractions == None):
-            self.dim1_spectralShiftFractions = len(self.spectralShiftFractions)
-
-        if (not self.dim1_spectralShiftFractions):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-
-        formslc.allocate_spectralShiftFrac_Py(self.dim1_spectralShiftFractions)
-
-        if (self.dim1_linearResamplingCoefficients == None):
-            self.dim1_linearResamplingCoefficients = len(self.linearResamplingCoefficients)
-
-        if (not self.dim1_linearResamplingCoefficients):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-
-        formslc.allocate_linearResampCoeff_Py(self.dim1_linearResamplingCoefficients)
-
-        if (self.dim1_linearResamplingDeltas == None):
-            self.dim1_linearResamplingDeltas = len(self.linearResamplingDeltas)
-
-        if (not self.dim1_linearResamplingDeltas):
-            print("Error. Trying to allocate zero size array")
-            raise Exception
-
-        formslc.allocate_linearResampDeltas_Py(self.dim1_linearResamplingDeltas)
-
-
-        return
-
-
-
-
-
-    def deallocateArrays(self):
-        formslc.deallocate_dopplerCoefficients_Py()
-        formslc.deallocate_r_platvel1_Py()
-        formslc.deallocate_r_platacc1_Py()
-        formslc.deallocate_spectralShiftFrac_Py()
-        formslc.deallocate_linearResampCoeff_Py()
-        formslc.deallocate_linearResampDeltas_Py()
-
-        return
-
-    
-
-
-
-    def __init__(self):
+    def __init__(self,name=''):
         
-        Component.__init__(self)
-        
-        #optional variables
-        self.debugFlag = 'n' 
-        self.deskewFlag = 'n'
-        self.secondaryRangeMigrationFlag = 'n'
-        self.planetGravitationalConstant =  398600448073000
-        self.numberGoodBytes = None
-        self.numberBytesPerLine = None
-        self.numberRangeBin = None
-        self.caltoneLocation = 0
-        self.startRangeBin = 1
-        self.IQFlip = 'n'
-        self.rangeSpectralWeighting = 1
-        self.spectralShiftFractions = [0 , 0]
-        self.linearResamplingCoefficients = [0,0,0,0]
-        self.linearResamplingDeltas = [0,0,0,0]
-        
-        #mandatory variables
-        self.firstLine = None
-        self.numberPatches = None
-        self.firstSample = None
-        self.azimuthPatchSize = None
-        self.numberValidPulses = None
-        self.dopplerCentroidCoefficients = []
-        self.planetRadiusOfCurvature = None
-        self.bodyFixedVelocity = None
-        self.spacecraftHeight = None
-        self.pointingDirection = None
-        self.antennaSCHVelocity = []
-        self.antennaSCHAcceleration = []
-        self.rangeFirstSample = None
-        self.PRF = None
-        self.inPhaseValue = None
-        self.quadratureValue = None
-        self.azimuthResolution = None
-        self.numberAzimuthLooks = None
-        self.rangeSamplingRate = None
-        self.chirpSlope = None
-        self.rangePulseDuration = None
+        super(FormSLC, self).__init__(family=self.__class__.family, name=name) 
+       
         self.rangeChirpExtensionPoints = None
-        self.radarWavelength = None
-        self.dim1_spectralShiftFractions = None
-        self.dopplerCentroidCoefficients = []
-        
-        
-        self.dim1_dopplerCentroidCoefficients = None
-        self.dim1_linearResamplingCoefficients = None
-        self.dim1_linearResamplingDeltas = None
-        self.dim1_antennaSCHVelocity = None
-        self.dim1_antennaSCHAcceleration = None
-        
-        
         self.descriptionOfVariables = {}
-        self.dictionaryOfVariables = { \
-         'ANTENNA_SCH_ACCELERATION':['self.antennaSCHAcceleration','float','mandatory'],\
-         'ANTENNA_SCH_VELOCITY':['self.antennaSCHVelocity','float','mandatory'],\
-         'AZIMUTH_PATCH_SIZE' : ['self.azimuthPatchSize', 'int','mandatory'], \
-         'AZIMUTH_RESOLUTION' : ['self.azimuthResolution', 'float','mandatory'], \
-         'BODY_FIXED_VELOCITY':['self.bodyFixedVelocity', 'float','mandatory'], \
-         'CALTONE_LOCATION': ['self.caltoneLocation', 'float','optional'], \
-         'CHIRP_SLOPE':['self.chirpSlope', 'float','mandatory'], \
-         'DEBUG_FLAG': ['self.debugFlag', 'str','optional'], \
-         'DESKEW_FLAG': ['self.deskewFlag', 'str','optional'], \
-         'DOPPLER_CENTROID_COEFFICIENTS':['self.dopplerCentroidCoefficients', 'float','mandatory'], \
-         'FIRST_LINE': ['self.firstLine', 'int','mandatory'], \
-         'FIRST_SAMPLE' : ['self.firstSample', 'int','mandatory'], \
-         'INPHASE_VALUE': ['self.inPhaseValue', 'float','mandatory'], \
-         'IQ_FLIP': ['self.IQFlip', 'str','optional'], \
-         'LINEAR_RESAMPLING_COEFFICIENTS':['self.linearResamplingCoefficients', 'float','optional'], \
-         'LINEAR_RESAMPLING_DELTAS':['self.linearResamplingDeltas', 'float','optional'], \
-         'NUMBER_AZIMUTH_LOOKS' : ['self.numberAzimuthLooks', 'int','mandatory'],\
-         'NUMBER_BYTES_PER_LINE': ['self.numberBytesPerLine', 'int','optional'], \
-         'NUMBER_GOOD_BYTES': ['self.numberGoodBytes', 'int','optional'], \
-         'NUMBER_PATCHES': ['self.numberPatches', 'int','mandatory'], \
-         'NUMBER_RANGE_BIN': ['self.numberRangeBin', 'int','optional'], \
-         'NUMBER_VALID_PULSES': ['self.numberValidPulses', 'int','mandatory'], \
-         'PLANET_GM':['self.planetGravitationalConstant', 'float','optional'], \
-         'PLANET_RADIUS':['self.planetRadiusOfCurvature', 'float','mandatory'], \
-         'POINTING_DIRECTION':['self.pointingDirection', 'int','mandatory'], \
-         'PRF':['self.PRF', 'float','mandatory'], \
-         'QUADRATURE_VALUE': ['self.quadratureValue', 'float','mandatory'], \
-         'RADAR_WAVELENGTH':['self.radarWavelength', 'float','mandatory'], \
-         'RANGE_CHIRP_EXTENSION_POINTS':['self.rangeChirpExtensionPoints', 'int','mandatory'], \
-         'RANGE_FIRST_SAMPLE': ['self.rangeFirstSample', 'float','mandatory'], \
-         'RANGE_PULSE_DURATION':['self.rangePulseDuration', 'float','mandatory'], \
-         'RANGE_SAMPLING_RATE':['self.rangeSamplingRate', 'float','mandatory'], \
-         'RANGE_SPECTRAL_WEIGHTING':['self.rangeSpectralWeighting', 'float','optional'],\
-         'SECONDARY_RANGE_MIGRATION_FLAG': ['self.secondaryRangeMigrationFlag', 'str','optional'], \
-         'SPACECRAFT_HEIGHT':['self.spacecraftHeight', 'float','mandatory'], \
-         'SPECTRAL_SHIFT_FRACTIONS':['self.spectralShiftFractions','float','optional'] ,\
-         'START_RANGE_BIN': ['self.startRangeBin', 'int','optional'], \
-         }
+        self.dictionaryOfVariables = {}
         self.mandatoryVariables = []
         self.optionalVariables = []
-        typePos = 2
-        for key , val in self.dictionaryOfVariables.items():
-            if val[typePos] == 'mandatory':
-                self.mandatoryVariables.append(key)
-            elif val[typePos] == 'optional':
-                self.optionalVariables.append(key)
-            else:
-                print('Error. Variable can only be optional or mandatory')
-                raise Exception
 
         return
 

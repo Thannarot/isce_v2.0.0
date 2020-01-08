@@ -1,18 +1,18 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Copyright: 2010 to the present, California Institute of Technology.
-# ALL RIGHTS RESERVED. United States Government Sponsorship acknowledged.
-# Any commercial use must be negotiated with the Office of Technology Transfer
-# at the California Institute of Technology.
+# copyright: 2010 to the present, california institute of technology.
+# all rights reserved. united states government sponsorship acknowledged.
+# any commercial use must be negotiated with the office of technology transfer
+# at the california institute of technology.
 # 
-# This software may be subject to U.S. export control laws. By accepting this
-# software, the user agrees to comply with all applicable U.S. export laws and
-# regulations. User has the responsibility to obtain export licenses,  or other
+# this software may be subject to u.s. export control laws. by accepting this
+# software, the user agrees to comply with all applicable u.s. export laws and
+# regulations. user has the responsibility to obtain export licenses,  or other
 # export authority as may be required before exporting such information to
 # foreign countries or providing access to foreign persons.
 # 
-# Installation and use of this software is restricted by a license agreement
-# between the licensee and the California Institute of Technology. It is the
-# User's responsibility to abide by the terms of the license agreement.
+# installation and use of this software is restricted by a license agreement
+# between the licensee and the california institute of technology. it is the
+# user's responsibility to abide by the terms of the license agreement.
 #
 # Author: Giangi Sacco
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,34 +32,227 @@ from iscesys.ImageApi import CasterFactory as CF
 from iscesys.DictUtils.DictUtils import DictUtils as DU
 from isceobj.Util import key_of_same_content
 from isceobj.Util.decorators import pickled, logged
+from iscesys.Component.Component import Component
+import numpy as np
+from isceobj.Util.decorators import use_api
 
-## \namespace ::isce.components.isceobj.Image Base class for Image API
+# # \namespace ::isce.components.isceobj.Image Base class for Image API
 
 
-## This is the default copy list-- it is not a class attribute because the
-## I decided the class wwas too big-- but that's strictly subjective.
+# # This is the default copy list-- it is not a class attribute because the
+# # I decided the class wwas too big-- but that's strictly subjective.
 ATTRIBUTES = ('bands', 'scheme', 'caster', 'width', 'filename', 'byteOrder',
               'dataType', 'xmin', 'xmax', 'numberGoodBytes', 'firstLatitude',
               'firstLongitude', 'deltaLatitude', 'deltaLongitude')
 
-## Map various byte order codes to Image's.
+# # Map various byte order codes to Image's.
 ENDIAN = {'l':'l', 'L':'l', '<':'l', 'little':'l', 'Little':'l',
-          'b':'b', 'B':'b', '>':'b',    'big':'b', 'Big':'b'}
-               
+          'b':'b', 'B':'b', '>':'b', 'big':'b', 'Big':'b'}
+
+# long could be machine dependent
+sizeLong = DataAccessor.getTypeSizeS('LONG')
+TO_NUMPY = {'BYTE':'i1', 'SHORT':'i2', 'INT':'i4', 'LONG':'i' + str(sizeLong), 'FLOAT':'f4', 'DOUBLE':'f8',
+            'CFLOAT':'c8', 'CDOUBLE':'c16'}
+
+
+BYTE_ORDER = Component.Parameter('byteOrder',
+                           public_name='BYTE_ORDER',
+                           default=sys.byteorder[0].lower(),
+                           type=str,
+                           mandatory=False,
+                           doc='Endianness of the image.')
+WIDTH = Component.Parameter('width',
+                           public_name='WIDTH',
+                           default=None,
+                           type=int,
+                           mandatory=False,
+                           private=True,
+                           doc='Image width')
+LENGTH = Component.Parameter('length',
+                           public_name='LENGTH',
+                           default=None,
+                           type=int,
+                           mandatory=False,
+                           private=True,
+                           doc='Image length')
+SCHEME = Component.Parameter('scheme',
+                        public_name='SCHEME',
+                        default='BIP',
+                        type=str,
+                        mandatory=False,
+                        doc='Interleaving scheme of the image.')
+CASTER = Component.Parameter('caster',
+                        public_name='CASTER',
+                        default='',
+                        type=str,
+                        mandatory=False,
+                        private=True,
+                        doc='Type of conversion to be performed from input '
+                        + 'source to output source. Being input or output source will depend on the type of operations performed (read or write)')
+NUMBER_BANDS = Component.Parameter('bands',
+                       public_name='NUMBER_BANDS',
+                       default=1,
+                       type=int,
+                       mandatory=False,
+                       doc='Number of image bands.')
+
+'''
+COORD1 = Component.Parameter('coord1',
+                       public_name='COORD1',
+                       default=None,
+                       type=int,
+                       mandatory=True,
+                       doc='Horizontal coordinate.')
+
+COORD2 = Component.Parameter('coord2',
+                        public_name='COORD2',
+                        default=None,
+                        type=int,
+                        mandatory=True,
+                        doc='Vertical coordinate.')
+'''
+DATA_TYPE = Component.Parameter('dataType',
+                          public_name='DATA_TYPE',
+                          default='',
+                          type=str,
+                          mandatory=True,
+                          doc='Image data type.')
+IMAGE_TYPE = Component.Parameter('imageType',
+                           public_name='IMAGE_TYPE',
+                           default='',
+                           type=str,
+                           mandatory=False,
+                           private=True,
+                           doc='Image type used for displaying.')
+FILE_NAME = Component.Parameter('filename',
+                          public_name='FILE_NAME',
+                          default='',
+                          type=str,
+                          mandatory=True,
+                          doc='Name of the image file.')
+EXTRA_FILE_NAME = Component.Parameter('_extraFilename',
+                          public_name='EXTRA_FILE_NAME',
+                          default='',
+                          type=str,
+                          private=True,
+                          mandatory=False,
+                          doc='For example name of vrt metadata.')
+ACCESS_MODE = Component.Parameter('accessMode',
+                            public_name='ACCESS_MODE',
+                            default='',
+                            type=str,
+                            mandatory=True,
+                            doc='Image access mode.')
+DESCRIPTION = Component.Parameter('description',
+                              public_name='DESCRIPTION',
+                              default='',
+                              type=str,
+                              mandatory=False,
+                              private=True,
+                              doc='Image description')
+XMIN = Component.Parameter('xmin',
+                       public_name='XMIN',
+                       default=None,
+                       type=float,
+                       mandatory=False,
+                       private=True,
+                       doc='Minimum range value')
+XMAX = Component.Parameter('xmax',
+                       public_name='XMAX',
+                       default=None,
+                       type=float,
+                       mandatory=False,
+                       private=True,
+                       doc='Maximum range value')
+ISCE_VERSION = Component.Parameter('isce_version',
+                               public_name='ISCE_VERSION',
+                               default=None,
+                               type=str,
+                               mandatory=False,
+                               private=True,
+                               doc='Information about the isce release version.')
+
+
+COORD1 = Component.Facility(
+    'coord1',
+    public_name='Coordinate1',
+    module='isceobj.Image',
+    factory='createCoordinate',
+    args=(),
+    mandatory=True,
+    doc='First coordinate of a 2D image (width).'
+)
+COORD2 = Component.Facility(
+    'coord2',
+    public_name='Coordinate2',
+    module='isceobj.Image',
+    factory='createCoordinate',
+    args=(),
+    mandatory=True,
+    doc='Second coordinate of a 2D image (length).'
+)
 
 @pickled
-class Image(DataAccessor,Configurable):
-    
+class Image(DataAccessor, Configurable):
+
     logging_name = 'isce.isceobj.Image.Image'
+    parameter_list = (
+                      BYTE_ORDER,
+                      SCHEME,
+                      CASTER,
+                      NUMBER_BANDS,
+                      WIDTH,
+                      LENGTH,
+                      DATA_TYPE,
+                      IMAGE_TYPE,
+                      FILE_NAME,
+                      EXTRA_FILE_NAME,
+                      ACCESS_MODE,
+                      DESCRIPTION,
+                      XMIN,
+                      XMAX,
+                      ISCE_VERSION
+                      )
+    facility_list = (
+                     COORD1,
+                     COORD2
+                     )
+    family = 'image'
+    def __init__(self, family='', name=''):
+        # There is an hack to set the first latitude and longitude (see setters) so coord1 and 2
+        # need to be defined when calling Configurable.__init__ which will try to call the setters
+        self.catalog = {}
+        self.descriptionOfVariables = {}
+        self.descriptionOfFacilities = {}
+        self._dictionaryOfFacilities = {}
 
-    def __init__(self, name=None):
+        self.typeOfVariables = {}
+        self.unitsOfVariables = {}
+        self.dictionaryOfOutputVariables = {}
+        self.dictionaryOfVariables = {}
+        self.mandatoryVariables = []
+        self.optionalVariables = []
+
+        # since we hacked the with to call coord1 the facilities need to be defined when calling
+        # Configurable.__init__
+        self._facilities()
+
+        self.updateParameters()
         DataAccessor.__init__(self)
-        Configurable.__init__(self, 'image', name)
+        Configurable.__init__(self, family if family else  self.__class__.family, name=name)
         self._instanceInit()
+        self._isFinalized = False
         return None
+    # To facilitate the use of numpy to manipulate isce images
+    def toNumpyDataType(self):
+        return TO_NUMPY[self.dataType.upper()]
 
-    ## New usage is: image.copy_attribute(image', *args), replacing:
-    ## ImageUtil.ImageUtil.ImageUtil.copyAttributes(image, image', *args)
+    def updateParameters(self):
+        self.extendParameterList(Configurable, Image)
+        super(Image, self).updateParameters()
+
+    # # New usage is: image.copy_attribute(image', *args), replacing:
+    # # ImageUtil.ImageUtil.ImageUtil.copyAttributes(image, image', *args)
     def copy_attributes(self, other, *args):
         for item in args or ATTRIBUTES:
             try:
@@ -68,8 +261,9 @@ class Image(DataAccessor,Configurable):
                 pass
         return other
 
-    ## This method makes a new image sub-class object that are copies of
-    ## existing ones.
+    # Why reinventing the wheel when there is deepcopy
+    # # This method makes a new image sub-class object that are copies of
+    # # existing ones.
     def copy(self, access_mode=None):
         obj_new = self.copy_attributes(self.__class__())
         if access_mode:
@@ -77,7 +271,13 @@ class Image(DataAccessor,Configurable):
         obj_new.createImage()
         return obj_new
 
-    ## Call the copy method, as a context manager
+    def clone(self, access_mode=None):
+        import copy
+        obj_new = copy.deepcopy(self)
+        if access_mode:
+            obj_new.setAccessMode(access_mode)
+        return obj_new
+    # # Call the copy method, as a context manager
     @contextlib.contextmanager
     def ccopy(self, access_mode=None):
         result = self.copy(access_mode=access_mode)
@@ -85,24 +285,74 @@ class Image(DataAccessor,Configurable):
         result.finalizeImage()
         pass
 
-    ## creates a DataAccessor.DataAccessor instance. If the parameters tagged
-    ## as mandatory are not set, an exception is thrown.
-    def createImage(self):       
+    # # creates a DataAccessor.DataAccessor instance. If the parameters tagged
+    # # as mandatory are not set, an exception is thrown.
+    def createImage(self):
         self.createAccessor()
         da = self.getAccessor()
+
+        ###Intercept for GDAL
+        if self.methodSelector() != 'api':
+            return None
+
         try:
             fsize = os.path.getsize(self.filename)
         except OSError:
-            print("File",self.filename,"not found")
+            print("File", self.filename, "not found")
             raise OSError
         size = self.getTypeSize()
-        if(fsize != self.width*self.length*size*self.bands):
-            print("Image.py::createImage():Size on disk and  size computed from metadata for file",\
-                  self.filename,"do not match")
+        if(fsize != self.width * self.length * size * self.bands):
+            print("Image.py::createImage():Size on disk and  size computed from metadata for file", \
+                  self.filename, "do not match")
             sys.exit(1)
+        self._isFinalized = False
         return None
+
+    def memMap(self, mode='r', band=None):
+        if self.scheme.lower() == 'bil':
+            immap = np.memmap(self.filename, self.toNumpyDataType(), mode,
+                            shape=(self.coord2.coordSize , self.bands, self.coord1.coordSize))
+            if band is not None:
+                immap = immap[:, band, :]
+        elif self.scheme.lower() == 'bip':
+            immap = np.memmap(self.filename, self.toNumpyDataType(), mode,
+                              shape=(self.coord2.coordSize, self.coord1.coordSize, self.bands))
+            if band is not None:
+                immap = immap[:, :, band]
+        elif self.scheme.lower() == 'bsq':
+            immap = np.memmap(self.filename, self.toNumpyDataType(), mode,
+                        shape=(self.bands, self.coord2.coordSize, self.coord1.coordSize))
+            if band is not None:
+                immap = immap[band, :, :]
+        return immap
+
+    def asMemMap(self, filename):
+        if self.scheme.lower() == 'bil':
+            immap = np.memmap(filename, self.toNumpyDataType(), 'w+',
+                        shape=(self.coord2.coordSize , self.bands, self.coord1.coordSize))
+        elif self.scheme.lower() == 'bip':
+            immap = np.memmap(filename, self.toNumpyDataType(), 'w+',
+                        shape=(self.coord2.coordSize, self.coord1.coordSize, self.bands))
+        elif self.scheme.lower() == 'bsq':
+            immap = np.memmap(filename, self.toNumpyDataType(), 'w+',
+                        shape=(self.bands, self.coord2.coordSize, self.coord1.coordSize))
+        return immap
+
+
+    # intercept the dump method and the adaptToRender to make sure the the coor2.coordSize is set.
+    # the assignment does the trick
+
+    @use_api
+    def dump(self, filename):
+        self.length = self.length
+        super(Image, self).dump(filename)
+        self.renderVRT()
     
-    
+    @use_api
+    def adaptToRender(self):
+        self.length = self.length
+
+    '''
     ##
     # Initialize the image instance from an xml file
     def load(self,filename):
@@ -111,8 +361,9 @@ class Image(DataAccessor,Configurable):
         #get the properties from the file
         prop, fac, misc = parser.parse(filename)
         self.init(prop,fac,misc)
-
-    def renderHdr(self):
+    '''
+    @use_api
+    def renderHdr(self, outfile=None):
         from datetime import datetime
         from isceobj.XmlUtil import xmlUtils as xml
         from isce import release_version, release_svn_revision, release_date, svn_revision
@@ -125,20 +376,21 @@ class Image(DataAccessor,Configurable):
         # hack since the length is normally not set but obtained from the file
         # size, before rendering  make sure that coord1.size is set to length
         self.coord2.coordSize = self.length
-        self.renderToDictionary(self, odProp,odFact,odMisc)
+        self.renderToDictionary(self, odProp, odFact, odMisc)
         # remove key,value parir with empty value (except if value is zero)
         DU.cleanDictionary(odProp)
         DU.cleanDictionary(odFact)
         DU.cleanDictionary(odMisc)
-        odProp['ISCE_VERSION']  = "Release: %s, svn-%s, %s. Current: svn-%s." %  \
+        odProp['ISCE_VERSION'] = "Release: %s, svn-%s, %s. Current: svn-%s." % \
                              (release_version, release_svn_revision, release_date, svn_revision)
-        outfile = self.getFilename() + '.xml'
+        outfile = outfile if outfile else self.getFilename() + '.xml'
         firstTag = 'imageFile'
         XD = XmlDumper()
         XD.dump(outfile, odProp, odFact, odMisc, firstTag)
+        self.renderVRT()
         return None
 
-    ##
+    # #
     # This method renders and ENVI HDR file similar to the XML file.
 
     def renderEnviHDR(self):
@@ -171,14 +423,17 @@ byte order = {5}
 """
         map_infostr = """coordinate system string = {{GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137, 298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]]}}
 map_info = {{Geographic Lat/Lon, 1.0, 1.0, {0}, {1}, {2}, {3}, WGS-84, units=Degrees}}"""
-        
-        parList = list(range(4))
-        parList[0] = self.coord1.coordStart
-        parList[1] = self.coord2.coordStart
-        parList[2] = self.coord1.coordDelta
-        parList[3] = -self.coord2.coordDelta
-    
-        flag = any(v is None for v in parList)
+
+        try:
+            parList = list(range(4))
+            parList[0] = self.coord1.coordStart
+            parList[1] = self.coord2.coordStart
+            parList[2] = self.coord1.coordDelta
+            parList[3] = self.coord2.coordDelta
+
+            flag = any(v is None for v in parList)
+        except:
+            flag = False
 
 
 
@@ -188,8 +443,9 @@ map_info = {{Geographic Lat/Lon, 1.0, 1.0, {0}, {1}, {2}, {3}, WGS-84, units=Deg
                 self.bands, typeMap[self.dataType.upper()],
                 self.scheme.lower(),
                 orderMap[ENDIAN[self.byteOrder].upper()])
+
         if not flag:
-            outstr += map_infostr.format(parList[0], parList[1], parList[2], parList[3])
+            outstr += map_infostr.format(parList[0], parList[1], parList[2], -parList[3])
 
         with open(outfile, 'w') as f:
             f.write(outstr)
@@ -197,87 +453,218 @@ map_info = {{Geographic Lat/Lon, 1.0, 1.0, {0}, {1}, {2}, {3}, WGS-84, units=Deg
         return
 
 
+    # This method renders and ENVI HDR file similar to the XML file.
+    def renderVRT(self, outfile=None):
+        '''
+        Renders a bare minimum ENVI HDR file, that can be used to directly ingest the outputs into a GIS package.
+        '''
+        import xml.etree.ElementTree as ET
 
-    ##
+        typeMap = { 'BYTE'   : 'Byte',
+                    'SHORT'  : 'Int16',
+                    'CIQBYTE': 'Int16',
+                    'INT'    : 'Int32',
+                    'FLOAT'  : 'Float32',
+                    'DOUBLE' : 'Float64',
+                    'CFLOAT' : 'CFloat32',
+                    'CDOUBLE': 'CFloat64'}
+
+        sizeMap = {'BYTE' : 1,
+                   'SHORT' : 2,
+                   'CIQBYTE': 2,
+                   'INT'   : 4,
+                   'FLOAT' : 4,
+                   'DOUBLE': 8,
+                   'CFLOAT' : 8,
+                   'CDOUBLE' : 16}
+
+        orderMap = {'L' : 'LSB',
+                    'B' : 'MSB'}
+
+
+        def indentXML(elem, depth=None, last=None):
+            if depth == None:
+                depth = [0]
+            if last == None:
+                last = False
+            tab = ' ' * 4
+            if(len(elem)):
+                depth[0] += 1
+                elem.text = '\n' + (depth[0]) * tab
+                lenEl = len(elem)
+                lastCp = False
+                for i in range(lenEl):
+                    if(i == lenEl - 1):
+                        lastCp = True
+                    indentXML(elem[i], depth, lastCp)
+                if(not last):
+                    elem.tail = '\n' + (depth[0]) * tab
+                else:
+                    depth[0] -= 1
+                    elem.tail = '\n' + (depth[0]) * tab
+            else:
+                if(not last):
+                    elem.tail = '\n' + (depth[0]) * tab
+                else:
+                    depth[0] -= 1
+                    elem.tail = '\n' + (depth[0]) * tab
+
+            return
+
+
+        srs = "EPSG:4326"
+        try:
+            parList = list(range(4))
+            parList[0] = self.coord1.coordStart
+            parList[1] = self.coord2.coordStart
+            parList[2] = self.coord1.coordDelta
+            parList[3] = self.coord2.coordDelta
+
+            flag = any(v is None for v in parList)
+        except:
+            flag = False
+
+
+
+        if not outfile:
+            outfile = self.getFilename() + '.vrt'
+
+        root = ET.Element('VRTDataset')
+        root.attrib['rasterXSize'] = str(self.width)
+        root.attrib['rasterYSize'] = str(self.length)
+
+        if not flag:
+            ET.SubElement(root, 'SRS').text = "EPSG:4326"
+            gtstr = "{0}, {1}, 0.0, {2}, 0.0, {3}".format(parList[0], parList[2], parList[1], parList[3])
+            ET.SubElement(root, 'GeoTransform').text = gtstr
+
+        nbytes = sizeMap[self.dataType.upper()]
+
+        for band in range(self.bands):
+            broot = ET.Element('VRTRasterBand')
+            broot.attrib['dataType'] = typeMap[self.dataType.upper()]
+            broot.attrib['band'] = str(band + 1)
+            broot.attrib['subClass'] = "VRTRawRasterBand"
+
+            elem = ET.SubElement(broot, 'SourceFilename')
+            elem.attrib['relativeToVRT'] = "1"
+            elem.text = os.path.basename(self.getFilename())
+
+            ET.SubElement(broot, 'ByteOrder').text = orderMap[ENDIAN[self.byteOrder].upper()]
+            if self.scheme.upper() == 'BIL':
+                ET.SubElement(broot, 'ImageOffset').text = str(band * self.width * nbytes)
+                ET.SubElement(broot, 'PixelOffset').text = str(nbytes)
+                ET.SubElement(broot, 'LineOffset').text = str(self.bands * self.width * nbytes)
+            elif self.scheme.upper() == 'BIP':
+                ET.SubElement(broot, 'ImageOffset').text = str(band * nbytes)
+                ET.SubElement(broot, 'PixelOffset').text = str(self.bands * nbytes)
+                ET.SubElement(broot, 'LineOffset').text = str(self.bands * self.width * nbytes)
+            elif self.scheme.upper() == 'BSQ':
+                ET.SubElement(broot, 'ImageOffset').text = str(band * self.width * self.length)
+                ET.SubElement(broot, 'PixelOffset').text = str(nbytes)
+                ET.SubElement(broot, 'LineOffset').text = str(self.width * nbytes)
+
+            root.append(broot)
+
+        indentXML(root)
+        tree = ET.ElementTree(root)
+        tree.write(outfile, encoding='unicode')
+
+
+        return
+
+
+
+    # #
     # This method initialize the Image.
-    #@param filename \c string the file name associated with the image.
-    #@param accessmode \c string access mode of the  file.
-    #@param bands \c int number of bands of the interleaving scheme.
-    #@param type \c string data type used to store the data.
-    #@param width \c int width of the image.
-    #@param scheme \c string interleaving scheme.
-    #@param caster \c string type of caster (ex. 'DoubleToFloat').
+    # @param filename \c string the file name associated with the image.
+    # @param accessmode \c string access mode of the  file.
+    # @param bands \c int number of bands of the interleaving scheme.
+    # @param type \c string data type used to store the data.
+    # @param width \c int width of the image.
+    # @param scheme \c string interleaving scheme.
+    # @param caster \c string type of caster (ex. 'DoubleToFloat').
     def initImage(self, filename, accessmode, width,
-                  type=None, bands=None, scheme = None,caster = None):
-    
-        self.initAccessor(filename,accessmode,width,type,bands,scheme,caster)
-    ## This method gets the pointer associated to the DataAccessor.DataAccessor
-    ## object created.
-    #@return \c pointer pointer to the underlying DataAccessor.DataAccessor 
-    ## object.
+                  type=None, bands=None, scheme=None, caster=None):
+
+        self.initAccessor(filename, accessmode, width, type, bands, scheme, caster)
+    # # This method gets the pointer associated to the DataAccessor.DataAccessor
+    # # object created.
+    # @return \c pointer pointer to the underlying DataAccessor.DataAccessor
+    # # object.
     def getImagePointer(self):
         return self.getAccessor()
-    
-    ## gets the string describing the image for the user
-    ##@return \c text description string describing the image in English for 
-    ## the user
+
+    # # gets the string describing the image for the user
+    # #@return \c text description string describing the image in English for
+    # # the user
     def getDescription(self):
         return self.description
-    
-    ## This method appends the string describing the image for the user create
-    ## a list.
-    ##@param doc \c text description string describing the image in English for
-    ##  the user
+
+    # # This method appends the string describing the image for the user create
+    # # a list.
+    # #@param doc \c text description string describing the image in English for
+    # #  the user
     def addDescription(self, doc):
         if self.description == '':
             self.description = [doc]
-        elif isinstance(self.description,list):
+        elif isinstance(self.description, list):
             self.description.append(doc)
 
-    ## This method gets the length associated to the DataAccessor.DataAccessor 
-    ## object created.
-    ## @return \c int length of the underlying DataAccessor.DataAccessor object.
+    # # This method gets the length associated to the DataAccessor.DataAccessor
+    # # object created.
+    # # @return \c int length of the underlying DataAccessor.DataAccessor object.
+    @use_api
     def getLength(self):
-        return self.coord2.coordSize or self.getFileLength()
+        if not self.coord2.coordSize:
+            self.coord2.coordSize = self.getFileLength()
+        return self.coord2.coordSize
 
-    # Always call this function if  createImage() was previously invoked. 
-    # It deletes the pointer to the object, closes the file associated with 
-    # the object, frees memory. 
+    # Always call this function if  createImage() was previously invoked.
+    # It deletes the pointer to the object, closes the file associated with
+    # the object, frees memory.
     def finalizeImage(self):
-        self.finalizeAccessor()
-    
+        if not self._isFinalized:
+            self.finalizeAccessor()
+            self._isFinalized = True
+
     def setImageType(self, val):
         self.imageType = str(val)
 
     def setLength(self, val):
-        #needed because the __init__ calls self.lenth = None which calls this 
-        # function and the casting would fail with time possibly need to
+        # needed because the __init__ calls self.lenth = None which calls this
+        # function and the casting would fail. with time possibly need to
         # refactor all the image API with better inheritance
-        if not val is None:
+        if val is not None:
             self.coord2.coordSize = int(val)
-    
+
     def getWidth(self):
         return self.coord1.coordSize
-    
+
     def setWidth(self, val):
-        #see getLength
-        if not val is None:
+        # see getLength
+        if val is not None:
             width = int(val)
             self.coord1.coordSize = width
 #            self.width = width
 #            DataAccessor.setWidth(self, width)
-    
-    def setXmin(self, xmin):
-        self.xmin = int(xmin)
-        
+
+    def setXmin(self, val):
+        # see getLength
+        if not val is None:
+            xmin = val
+            self.coord1.coordStart = xmin
     def getXmin(self):
-        return self.xmin
-    
-    def setXmax(self, xmax):
-        self.xmax = int(xmax)
-        
+        return  self.coord1.coordStart
+
+    def setXmax(self, val):
+        # see getLength
+        if not val is None:
+            xmax = val
+            self.coord1.coordEnd = xmax
+
     def getXmax(self):
-        return self.xmax
+        return self.coord1.coordEnd
 
     def setByteOrder(self, byteOrder):
         try:
@@ -289,46 +676,52 @@ map_info = {{Geographic Lat/Lon, 1.0, 1.0, {0}, {1}, {2}, {3}, WGS-84, units=Deg
                 str(byteOrder)
                 )
             raise ValueError(str(byteOrder) +
-                             " is not a valid byte ordering, e.g.\n"+
+                             " is not a valid byte ordering, e.g.\n" +
                              str(ENDIAN.keys()))
         self.byteOrder = b0
         return None
-       
-    ## Set the caster type if needed
-    #@param accessMode \c string access mode of the file. Can be 'read' or 'write'
-    #@param dataType \c string is the dataType from or to the caster writes or reads.
-    def setCaster(self,accessMode,dataType):
+
+    # # Set the caster type if needed
+    # @param accessMode \c string access mode of the file. Can be 'read' or 'write'
+    # @param dataType \c string is the dataType from or to the caster writes or reads.
+    def setCaster(self, accessMode, dataType):
         self.accessMode = accessMode
         if(accessMode == 'read'):
-            self.caster = CF.getCaster(self.dataType,dataType)
+            self.caster = CF.getCaster(self.dataType, dataType)
         elif(accessMode == 'write'):
-            self.caster = CF.getCaster(dataType,self.dataType)
+            self.caster = CF.getCaster(dataType, self.dataType)
         else:
-            print('Unrecorgnized access mode',accessMode)
+            print('Unrecorgnized access mode', accessMode)
             raise ValueError
-
+    @property
+    def extraFilename(self):
+        return self._extraFilename
     
+    @extraFilename.setter
+    def extraFilename(self,val):
+        self._extraFilename = val
+
     def setFirstLatitude(self, val):
         self.coord2.coordStart = val
-    
+
     def setFirstLongitude(self, val):
         self.coord1.coordStart = val
 
     def setDeltaLatitude(self, val):
         self.coord2.coordDelta = val
-    
+
     def setDeltaLongitude(self, val):
         self.coord1.coordDelta = val
-    
+
     def getFirstLatitude(self):
         return self.coord2.coordStart
-    
+
     def getFirstLongitude(self):
         return self.coord1.coordStart
 
     def getDeltaLatitude(self):
         return self.coord2.coordDelta
-    
+
     def getDeltaLongitude(self):
         return self.coord1.coordDelta
     def getImageType(self):
@@ -339,85 +732,81 @@ map_info = {{Geographic Lat/Lon, 1.0, 1.0, {0}, {1}, {2}, {3}, WGS-84, units=Deg
 
     def getProduct(self):
         return self.product
-    
+
     def setProduct(self, val):
         self.product = val
-
+    '''
     def _facilities(self):
-        self.coord1 = self.facility('coord1',public_name='Coordinate1',module='isceobj.Image',factory='createCoordinate',mandatory='True',doc='First coordinate of a 2D image (witdh).')
-        self.coord2 = self.facility('coord2',public_name='Coordinate2',module='isceobj.Image',factory='createCoordinate',mandatory='True',doc='Second coordinate of a 2D image (length).')
-    
-    def _parameters(self):
-        self.byteOrder = self.parameter('byteOrder',public_name='BYTE_ORDER',default=sys.byteorder[0].lower(),
-                                       type=str,mandatory=False,doc='Endianness of the image.')
-        self.scheme = self.parameter('scheme',public_name='SCHEME',default='BIP',
-                                       type=str,mandatory=False,doc='Interleaving scheme of the image.')
-        self.caster = self.parameter('caster',public_name='CASTER',default='',
-                                       type=str,mandatory=None,doc='Type of conversion to be performed from input '
-                                     + 'source to output source. Being input or output source will depend on the type of operations performed (read or write)')
-        self.bands = self.parameter('bands',public_name='NUMBER_BANDS',default=1,
-                                       type=int,mandatory=False,doc='Number of image bands.')
-        self.width = self.parameter('width',public_name='WIDTH',default=None,
-                                       type=int,mandatory=True,doc='Image width.')
+        self.coord1 = self.facility('coord1',public_name='Coordinate1',module='isceobj.Image',factory='createCoordinate',mandatory=True,doc='First coordinate of a 2D image (witdh).')
+        self.coord2 = self.facility('coord2',public_name='Coordinate2',module='isceobj.Image',factory='createCoordinate',mandatory=True,doc='Second coordinate of a 2D image (length).')
+    '''
 
-        self.length = self.parameter('length',public_name='LENGTH',default=None,
-                                       type=int,mandatory=None,doc='Image length.')
-        self.dataType = self.parameter('dataType',public_name='DATA_TYPE',default='',
-                                       type=str,mandatory=True,doc='Image data type.')
-        self.imageType = self.parameter('imageType',public_name='IMAGE_TYPE',default='',
-                                       type=str,mandatory=None,doc='Image type used for displaying.')
-        self.filename = self.parameter('filename',public_name='FILE_NAME',default='',
-                                       type=str,mandatory=True,doc='Name of the image file.')
-        self.accessMode = self.parameter('accessMode',public_name='ACCESS_MODE',default='',
-                                       type=str,mandatory=True,doc='Image access mode.')
-        self.description  = self.parameter('description',public_name='DESCRIPTION',default='',
-                                       type=str,mandatory=None,doc='Image description')
-        self.xmin  = self.parameter('xmin',public_name='XMIN',default=None,
-                                       type=float,mandatory=None,doc='Minimum range value')
-        self.xmax  = self.parameter('xmax',public_name='XMAX',default=None,
-                                       type=float,mandatory=None,doc='Maximum range value')
-        self.isce_version  = self.parameter('isce_version',public_name='ISCE_VERSION',default=None,
-                                       type=float,mandatory=None,doc='Information about the isce release version.')
 
-    firstLatitude = property(getFirstLatitude,setFirstLatitude)
-    firstLongitude = property(getFirstLongitude,setFirstLongitude)
-    deltaLatitude = property(getDeltaLatitude,setDeltaLatitude)
-    deltaLongitude = property(getDeltaLongitude,setDeltaLongitude)
-    width = property(getWidth,setWidth)
-    length = property(getLength,setLength)
-
+    firstLatitude = property(getFirstLatitude, setFirstLatitude)
+    firstLongitude = property(getFirstLongitude, setFirstLongitude)
+    deltaLatitude = property(getDeltaLatitude, setDeltaLatitude)
+    deltaLongitude = property(getDeltaLongitude, setDeltaLongitude)
+    width = property(getWidth, setWidth)
+    length = property(getLength, setLength)
+    xmin = property(getXmin, setXmin)
+    xmax = property(getXmax, setXmax)
     pass
 
-## because of backward compatibility where the size of the corrdinate had two 
-## different names  (i.e. width and lenth), let's distinguish between to two 
-## coordinate. Can subclass but it seems an overkill
-class ImageCoordinate(Configurable):
 
-    def __init__(self):
-        ## Call super with class name
-        super(ImageCoordinate, self).__init__(self.__class__.__name__)
+class ImageCoordinate(Configurable):
+    family = 'imagecoordinate'
+
+    def __init__(self, family='', name=''):
+        # # Call super with class name
+        Configurable.__init__(self, family if family else  self.__class__.family, name=name)
         self.coordDescription = ''
-        self.coordStart = None
-        self.coordDelta = None
-        self.coordSize = None
-        self.mandatoryVariables = []
-        self.optionalVariables = []
         self._parameters()
-        self.initOptionalAndMandatoryLists()
 
         return None
 
+    @property
+    def coordStart(self):
+        return self._coordStart
+    @coordStart.setter
+    def coordStart(self, val):
+        self._coordStart = val
+    @property
+    def coordEnd(self):
+        if self._coordEnd is None and self._coordSize is not None:
+            self._coordEnd = self._coordStart + self._coordSize * self._coordDelta
+        return self._coordEnd
+    @coordEnd.setter
+    def coordEnd(self, val):
+        self._coordEnd = val
+    @property
+    def coordSize(self):
+        return self._coordSize
+    @coordSize.setter
+    def coordSize(self, val):
+        self._coordSize = val
+    @property
+    def coordDelta(self):
+        return self._coordDelta
+    @coordDelta.setter
+    def coordDelta(self, val):
+        self._coordDelta = val
+
     def _parameters(self):
-        self.coordStart = self.parameter('coordStart', public_name='startingValue', default=None,units='degree',
+        self._coordStart = self.parameter('coordStart', public_name='startingValue', default=0, units='',
                                          type=float, mandatory=False,
                                          doc="Starting value of the coordinate.")
-        self.coordDelta = self.parameter('coordDelta', public_name='delta', default=None,units='',
+        self._coordEnd = self.parameter('coordEnd', public_name='endingValue', default=None, units='',
+                                         type=float, mandatory=False,
+                                         doc="Starting value of the coordinate.")
+        self._coordDelta = self.parameter('coordDelta', public_name='delta', default=1, units='',
                                          type=float, mandatory=False,
                                          doc="Coordinate quantization.")
-        
-        self.coordSize = self.parameter('coordSize', public_name='size', default=None,
-                                         type=float, mandatory=None,
+
+        self._coordSize = self.parameter('coordSize', public_name='size', default=None,
+                                         type=int,
+                                         mandatory=False,
+                                         private=True,
                                          doc="Coordinate size.")
- 
+
+
     pass
-    

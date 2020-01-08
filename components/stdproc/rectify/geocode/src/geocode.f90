@@ -5,6 +5,7 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   use geocodeReadWrite
   use geocodeMethods
   use fortranUtils
+  use poly1dModule
 
   implicit none
   include 'omp_lib.h'
@@ -25,6 +26,7 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   real*8,allocatable,dimension(:) :: gnd_sq_ang,cos_ang,sin_ang,rho,squintshift
   complex,allocatable,dimension(:,:) :: geo
   real*4, allocatable, dimension(:,:) :: losang
+  real*8 rootpoly, derivpoly
 
   !!!Debugging - PSA
   !real*4, allocatable, dimension(:,:) :: distance
@@ -39,22 +41,27 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   real*8 :: fr_rdx,fr_rdy
   integer,parameter :: plen = 128 !patch size
   integer :: npatch,patch,pline,cnt !number of patches
-  integer :: i,j,lineNum
-  real*8 :: ds
+  integer :: i, lineNum
+  real*8 :: ds, temp
   real*8 :: max_rho,ds_coeff,hpra,rapz
 
   real*8 :: min_latr,min_lonr,max_latr,max_lonr
   real*8 :: lat_firstr,lon_firstr,dlonr,dlatr
-  real*8 :: alpha,beta,rnggeom
+  real*8 :: alpha,beta
   
-  real*4 :: fd,t0,t1
+  real*8 :: fd,fddot,c1,c2,c3
+  real*8 :: cosgamma, cosalpha, sinbeta
+  real*4 :: t0,t1
   type(ellipsoid) :: elp
   type(pegpoint) :: peg
   type(pegtrans) :: ptm
+  type(poly1dType) :: fdvsrng, fddotvsrng
 
   character*20000 MESSAGE
+
   
   real*8 :: rhomin,rhomax,f,df,rhok,T, cosphi,dssum
+  real*8 terheight, radius0
 
   ! declare constants
   real*8 pi,rad2deg,deg2rad 
@@ -110,11 +117,10 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   peg%r_lon = peglon
   peg%r_hdg = peghdg
 
-  fd=fdprfs * prf
-
+  print *, 'Number looks range, azimuth = ', nrnglooks, nazlooks
   print *, 'Scaling : ', ipts
-  print *,'start sample, length : ',is_mocomp,length
-  length=min(length,(dim1_s_mocomp+Nazlooks/2-is_mocomp)/Nazlooks)
+  print *,'start sample, length : ',is_mocomp, length
+  length=min(length,(dim1_s_mocomp+Nazlooks/2-is_mocomp)/nazlooks)
   print *, 'reset length: ',length
 
   print *, 'Length comparison: ', length*nazlooks+is_mocomp, dim1_s_mocomp 
@@ -132,7 +138,7 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   !jng no idea why they get them from database and then don't use them
   daz = dssum/((length-2)*nazlooks-nazlooks)
   s0 = s_mocomp(is_mocomp+1*nazlooks-nazlooks/2)
-  print *,daz,s0,length,nazlooks,is_mocomp,dssum,s_mocomp(is_mocomp+length*nazlooks)-s_mocomp(is_mocomp+nazlooks/2)
+  print *, "Starting S position and recomputed deltaS = ", s0, daz
 
   ! for now output lat/lon is the same as DEM
   dlonr = dlon*deg2rad
@@ -169,7 +175,6 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   enddo
   !deallocate(demi2)
 
-
   write(MESSAGE, *) "reading interferogram ..."
   call write_out(ptStdWriter,MESSAGE)
 
@@ -195,11 +200,10 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
 
   call init_RW(max(width,geo_wid),iscomplex)
 
-   ! Read in the data
-    do i=1,length
-      call readBand(topophaseAccessor,ifg(:,i),inband,lineNum,width)
-    enddo
-
+  ! Read in the data
+  do i=1,length
+    call readBand(topophaseAccessor,ifg(:,i),inband,lineNum,width)
+  enddo
 
   ! allocate a patch of the output geocoded image
   allocate(geo(geo_wid,plen),dem_crop(geo_wid,plen))
@@ -212,8 +216,10 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   dem_crop = 0
 
   ! initialize sch transformation matrices
-  call radar_to_xyz(elp,peg,ptm)
-
+  radius0 =  rdir(elp%r_a, elp%r_e2, peg%r_hdg, peg%r_lat)
+  terheight = ra - radius0
+  print*,"terheight = ", terheight
+  call radar_to_xyz(elp, peg, ptm, terheight)
 
   write(MESSAGE,'(4x,a)') 'computing sinc coefficients...'
   call write_out(ptStdWriter,MESSAGE)
@@ -221,9 +227,39 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   !!!!Allocate arrays if needed 
   call prepareMethods(method)
 
+
+  !!!!!Setup doppler polynomials
+  call initPoly1D_f(fdvsrng, dopAcc%order)
+  fdvsrng%mean = rho0 + dopAcc%mean * drho
+  fdvsrng%norm = drho    !drho is the original (full) resolution, so that rho/drho is
+                         !the proper original index for the Doppler polynomial
+
+  !!!!Coeff indexing is zero-based
+  do k=1,dopAcc%order+1
+      temp = getCoeff1d_f(dopAcc,k-1)
+      temp = temp*prf
+      call setCoeff1d_f(fdvsrng, k-1, temp)
+  end do
+
+
+  !!!!Set up derivative polynomial
+  if (fdvsrng%order .eq. 0) then
+      call initPoly1D_f(fddotvsrng, 0)
+      call setCoeff1D_f(fddotvsrng, 0, 0.0d0)
+  else
+      call initPoly1D_f(fddotvsrng, fdvsrng%order-1)
+      fddotvsrng%mean = fdvsrng%mean
+      fddotvsrng%norm = fdvsrng%norm
+
+      do k=1, dopAcc%order
+          temp = getCoeff1d_f(fdvsrng, k)
+          temp = k*temp/fdvsrng%norm
+          call setCoeff1d_f(fddotvsrng, k-1, temp)
+     enddo
+  endif
+
+
   ! precompute some constants
-  ds_coeff = 1.0
-  if(abs(fd).gt.0.1)ds_coeff = 2.d0*vel/fd/wvl
   max_rho = rho0 + (width-1)*drho*nrnglooks
   lat0 = lat_firstr + dlatr*(max_lat_idx-1)
   lon0 = lon_firstr + dlonr*(min_lon_idx-1)
@@ -241,14 +277,17 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
 
      !!!!Add distance to shared for debugging - PSA
      !$OMP PARALLEL DO private(line,pixel,llh,i_type)&
-     !$OMP private(sch,xyz,s,rng,sch_p,xyz_p,s_idx,rng_idx,z,idxlat,idxlon,rapz)&
-     !$OMP private(int_rdx,int_rdy,fr_rdx,fr_rdy,pline)&
+     !$OMP private(sch,xyz,s,rng,sch_p,xyz_p,s_idx)&
+     !$OMP private(rng_idx,z,idxlat,idxlon,rapz)&
+     !$OMP private(int_rdx,int_rdy,fr_rdx,fr_rdy,pline,fd,fddot)&
      !$OMP private(rhomin,rhomax,f,df,rhok,T,k,cosphi,ds) &
+     !$OMP private(cosgamma,cosalpha,c1,c2,c3) &
      !$OMP shared(patch,geo_len,lat0,dlat_out,lon0,dlon_out,dlat,dlon,f_delay) &
      !$OMP shared(dem,fintp,demwidth,demlength,ra,ds_coeff,rho0,max_rho,hpra) &
-     !$OMP shared(lat_first,lon_first,ptm,fd,elp,ilrl,losang) &
+     !$OMP shared(lat_first,lon_first,ptm,elp,ilrl,losang) &
      !$OMP shared(max_lat_idx,min_lon_idx,s0,daz,nazlooks) &
-     !$OMP shared(lat_firstr,lon_firstr,dlatr,dlonr,nrnglooks)
+     !$OMP shared(lat_firstr,lon_firstr,dlatr,dlonr,nrnglooks)&
+     !$OMP shared(dopAcc,vel,wvl,fdvsrng,fddotvsrng)
 
      do line= 1+(patch-1)*plen,min(plen+(patch-1)*plen,geo_len)
         pline = line - (patch-1)*plen !the line of this patch
@@ -314,69 +353,49 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
            call convert_sch_to_xyz(ptm,sch,xyz,i_type)
            cnt = cnt + 1
 
-           !if (sch(2).gt.0.d0) goto 100 !uncomment for right-looking
-           !if (sch(2).lt.0.d0) goto 100 !uncomment for left-looking
            if ((ilrl*sch(2)).lt.0.d0) goto 100
 
            ! zero doppler values of s and slant range
-
            s_idx = (sch(1)-s0)/(daz*nazlooks) + 1
-
-           !if(s_idx.lt.f_delay) goto 100
-           !if(s_idx.gt.length-f_delay) goto 100
 
            sch_p = (/sch(1),0.d0,dble(h)/)
            i_type = 0
            call convert_sch_to_xyz(ptm,sch_p,xyz_p,i_type)
            rng = norm(xyz_p-xyz) !no-squint slant range
 
+           rapz = ra + sch(3)
+
+           !!!!!!Setup the newton raphson constants
+           cosgamma = 0.5d0 * ((hpra/rapz) + (rapz/hpra) - (rng/hpra)*(rng/rapz))
+           !!!!Problem is set up in terms of rng/ra
+           c1 = -wvl / (vel*2.0d0*cosgamma)
+           c2 = ((hpra/rapz) + (rapz/hpra))/(2.0d0*cosgamma)
+           c3 = (ra/hpra) * (ra/rapz) / (2.0d0*cosgamma)
 
            ! skip if outside image
            if(rng.lt.rho0) goto 100
            if(rng.gt.max_rho) goto 100
 
+           ! use Newton method to solve for ds...
+           do k = 1,10
+                 fd = evalPoly1d_f(fdvsrng, rng)
+                 fddot = evalPoly1d_f(fddotvsrng, rng)
 
-!!$ ! solve for along-track shift due to squint.
-!!$ ! numerically solve for ds:
-!!$ ! ((h+re)**2+(h+z)**2-rho**2)/(2*(h+re)*(z+re)) =
-!!$ ! cos(c/re)*cos(ds/re)
-!!$ !
-!!$ ! where:
-!!$ ! ds = 2*vel*rho/fd/wvl
+                 f = rootpoly(c1,c2,c3,fd,ra,rng) 
+                 df= derivpoly(c1,c2,c3,fd,fddot,ra,rng)                 
+                 rng = rng - ra*(f/df)
 
-
-           cosphi = cos(sch(2)/ra)
-           rapz = ra + sch(3)
-
-           ds=0.
-           if(abs(fd).gt.0.1)then
-              ds = ra*asin(rng/ra/cosphi/ds_coeff)
-
-              ! use Newton method to solve for ds...
-              do k = 1,10
                  
-!!$ f = ((hpre)**2+(repz)**2-(ds*ds_coeff)**2)/2.d0/(hpre)/(repz) - &
-!!$ cosphi*cos(ds/re)
-!!$ df= cosphi*sin(ds/re)/re - ds_coeff**2*ds/hpre/repz
+            enddo
 
-                 f = ((hpra)**2+(rapz)**2-(ra*cosphi*sin(ds/ra)*ds_coeff)**2)/2.d0/(hpra)/(rapz) - &
-                      cosphi*cos(ds/ra)
-                 df= cosphi*sin(ds/ra)/ra - (ds_coeff*ra*cosphi)**2/hpra/rapz*&
-                      sin(ds/ra)*cos(ds/ra)/ra
-                 
-                 ds = ds - f/df
-                 
-              enddo
-              continue
-
-              ! correct platform location for squint
-              sch_p(1) = sch_p(1) - ds
-              rng = ds_coeff*ra*cosphi*sin(ds/ra)
+            fd = evalPoly1d_f(fdvsrng, rng)
+            ! correct platform location for squint
+            sinbeta =  c1 * fd * (rng/ra)
+            ds = asin(sinbeta) * ra
+            sch_p(1) = sch_p(1) + ds
               
-           end if
 
            ! compute decimal indices into complex image
-!           rng_idx = (rng - rho0)/drho/nrnglooks + 1
            rng_idx = (rng - rho0)/(drho*nrnglooks) ! note interpolation routine assumes array is zero-based
 
            ! correct s image coordinate, s0 relative to platform
@@ -449,6 +468,10 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   !!!!Close the debug output file - PSA
 !  close(31)
 
+  !!!!Clean polynomials
+  call cleanpoly1d_f(fdvsrng)
+  call cleanpoly1d_f(fddotvsrng)
+
   call finalize_RW(iscomplex)
   call unprepareMethods(method)
   ! write params to database
@@ -480,3 +503,35 @@ subroutine geocode(demAccessor,topophaseAccessor,demCropAccessor,losAccessor,geo
   write(MESSAGE,*) 'elapsed time = ',t1,' seconds'
   call write_out(ptStdWriter,MESSAGE)
 end 
+        
+
+        function rootpoly(c1, c2, c3, fd, ra, rng)
+
+            real*8  c1, c2, c3
+            real*8  rng,r,fd,ra
+            real*8 rootpoly
+
+            real*8 temp1, temp2
+
+            r = rng/ra
+
+            temp1 = c1 * fd * r
+            temp2 = c2 - c3*r*r
+
+            rootpoly = temp1*temp1 + temp2*temp2 - 1
+
+        end function rootpoly
+
+        function derivpoly(c1,c2,c3,fd,fddot,ra,rng)
+            real*8 c1,c2,c3
+            real*8 fd,fddot,r,rng,ra
+            real*8 derivpoly
+
+            real*8 temp1, temp2
+
+            r = rng/ra
+
+            temp1 = c1*c1*fd*r*c1*(r*fddot/ra+fd)
+            temp2 = (c2 - c3*r*r)*c3*r
+            derivpoly = 2.0d0*(temp1 - 2.0d0*temp2)
+        end function derivpoly
